@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Quake2</Name>
+  <Repository>ghcr.io/krippler/quake-2</Repository>
+  <Registry>https://ghcr.io/krippler/quake-2</Registry>
+  <Branch>
+    <Tag>latest</Tag>
+    <TagDescription>The newest release</TagDescription>
+  </Branch>
+  <Branch>
+    <Tag>edge</Tag>
+    <TagDescription>Tracks master; may break</TagDescription>
+  </Branch>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Krippler/Quake-2/issues</Support>
+  <Project>https://github.com/Krippler/Quake-2</Project>
+  <Overview>
+    id Software's 2001 Quake II source release, repaired to build and run on a
+    current 64-bit Linux and packaged so you play it in a browser. Picture and
+    sound both arrive over one port; the mouse is captured, and a game
+    controller works on a phone as well as a desktop.
+
+    You supply the game data. Quake II's is id Software's and not free to
+    redistribute, so point the Game data path below at your own Quake II
+    install, the directory holding baseq2/pak0.pak (id's free demo works too).
+    Without it the container stops and says so.
+
+    Music is optional and separate: Quake II's soundtrack was audio tracks on
+    the CD, so put a rip in baseq2/music as track02.ogg and friends. The GOG
+    release's music folder is found by itself.
+  </Overview>
+  <Category>Game:</Category>
+  <WebUI>http://[IP]:[PORT:6080]/play.html</WebUI>
+  <Icon>https://raw.githubusercontent.com/Krippler/Quake-2/master/desktop/quake2.png</Icon>
+  <ExtraParams></ExtraParams>
+  <PostArgs></PostArgs>
+  <DonateText></DonateText>
+  <DonateLink></DonateLink>
+
+  <Config Name="WebUI" Target="6080" Default="6080" Mode="tcp"
+          Description="noVNC and the sound, on one port. Open http://[IP]:[PORT]/play.html"
+          Type="Port" Display="always" Required="true" Mask="false">6080</Config>
+
+  <Config Name="Game data" Target="/quake2data" Default="/mnt/user/games/quake2"
+          Mode="ro"
+          Description="Your Quake II install: the directory holding baseq2/pak0.pak. CTF, mods and a music/ folder go beside baseq2. Mounted read-only; nothing is ever written here."
+          Type="Path" Display="always" Required="true" Mask="false">/mnt/user/games/quake2</Config>
+
+  <Config Name="State" Target="/quake2/state" Default="/mnt/user/appdata/quake2"
+          Mode="rw"
+          Description="config.cfg, savegames, screenshots and logs."
+          Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/quake2</Config>
+
+  <Config Name="Width" Target="QUAKE2_WIDTH" Default="640"
+          Description="Starting render width, 320 to 1920. The renderer is in software, so every pixel costs; the browser scales whatever it is given to fit the window. Options - Video in the game changes the resolution while it runs and remembers the choice, so after the first run this is only the starting point."
+          Type="Variable" Display="always" Required="false" Mask="false">640</Config>
+
+  <Config Name="Height" Target="QUAKE2_HEIGHT" Default="480"
+          Description="Starting render height, 240 to 1200."
+          Type="Variable" Display="always" Required="false" Mask="false">480</Config>
+
+  <Config Name="Game" Target="QUAKE2_GAME" Default=""
+          Description="Which game to start on. Leave empty for the base game; ctf for Threewave CTF, or a mod directory name. The directory has to be in the game data mount."
+          Type="Variable" Display="always" Required="false" Mask="false"></Config>
+
+  <Config Name="VNC password" Target="QUAKE2_VNC_PASSWORD" Default=""
+          Description="Optional. There is no authentication without it, and the transport is plain HTTP either way -- do not expose this to the internet."
+          Type="Variable" Display="always" Required="false" Mask="true"></Config>
+
+  <Config Name="PUID" Target="PUID" Default="99"
+          Description="User the container runs as. 99 is nobody on Unraid."
+          Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+
+  <Config Name="PGID" Target="PGID" Default="100"
+          Description="Group the container runs as. 100 is users on Unraid."
+          Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+
+  <Config Name="Sound" Target="QUAKE2_SOUND" Default="1"
+          Description="0 turns the sound off entirely."
+          Type="Variable" Display="advanced" Required="false" Mask="false">1</Config>
+
+  <Config Name="Restart on exit" Target="QUAKE2_RESTART" Default="1"
+          Description="1 brings the title screen back when the game exits or crashes; 0 stops the container instead."
+          Type="Variable" Display="advanced" Required="false" Mask="false">1</Config>
+
+  <Config Name="VNC port" Target="5900" Default="" Mode="tcp"
+          Description="Optional. Raw VNC for a native client: picture only, no sound, and the pointer is not captured."
+          Type="Port" Display="advanced" Required="false" Mask="false"></Config>
+</Container>

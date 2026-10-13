@@ -12,5 +12,8 @@ typedef struct in_state {
 	Key_Event_fp_t Key_Event_fp;
 	vec_t *viewangles;
 	int *in_strafe_state;
+	// cls.key_dest: whether the game, a menu or the console has the keys.
+	// The renderer holds the pointer only while it is the game.
+	int *key_dest;
 } in_state_t;
 

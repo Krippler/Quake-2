@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/time.h>
+#include <time.h>
+#include <ctype.h>
 
 #include "../linux/glob.h"
 
@@ -17,19 +19,26 @@ byte *membase;
 int maxhunksize;
 int curhunksize;
 
+// The size of the block sits in front of what Hunk_Begin hands out, so that
+// Hunk_Free can munmap it. It was sizeof(int), which left everything in the
+// hunk 4-byte aligned: harmless on a 486, but the hunk holds pointers and
+// floats that x86-64 code is entitled to load with aligned SSE instructions.
+// A cache line keeps the alignment Hunk_Alloc's rounding was meant to give.
+#define HUNK_HEADER 32
+
 void *Hunk_Begin (int maxsize)
 {
 	// reserve a huge chunk of memory, but don't commit any yet
-	maxhunksize = maxsize + sizeof(int);
+	maxhunksize = maxsize + HUNK_HEADER;
 	curhunksize = 0;
 	membase = mmap(0, maxhunksize, PROT_READ|PROT_WRITE, 
 		MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
 	if (membase == NULL || membase == (byte *)-1)
 		Sys_Error("unable to virtual allocate %d bytes", maxsize);
 
-	*((int *)membase) = curhunksize;
+	*((int *)membase) = maxhunksize;
 
-	return membase + sizeof(int);
+	return membase + HUNK_HEADER;
 }
 
 void *Hunk_Alloc (int size)
@@ -38,9 +47,9 @@ void *Hunk_Alloc (int size)
 
 	// round to cacheline
 	size = (size+31)&~31;
-	if (curhunksize + size > maxhunksize)
+	if (curhunksize + size > maxhunksize - HUNK_HEADER)
 		Sys_Error("Hunk_Alloc overflow");
-	buf = membase + sizeof(int) + curhunksize;
+	buf = membase + HUNK_HEADER + curhunksize;
 	curhunksize += size;
 	return buf;
 }
@@ -49,10 +58,10 @@ int Hunk_End (void)
 {
 	byte *n;
 
-	n = mremap(membase, maxhunksize, curhunksize + sizeof(int), 0);
+	n = mremap(membase, maxhunksize, curhunksize + HUNK_HEADER, 0);
 	if (n != membase)
 		Sys_Error("Hunk_End:  Could not remap virtual block (%d)", errno);
-	*((int *)membase) = curhunksize + sizeof(int);
+	*((int *)membase) = curhunksize + HUNK_HEADER;
 	
 	return curhunksize;
 }
@@ -62,7 +71,7 @@ void Hunk_Free (void *base)
 	byte *m;
 
 	if (base) {
-		m = ((byte *)base) - sizeof(int);
+		m = ((byte *)base) - HUNK_HEADER;
 		if (munmap(m, *((int *)m)))
 			Sys_Error("Hunk_Free: munmap failed (%d)", errno);
 	}
@@ -74,24 +83,26 @@ void Hunk_Free (void *base)
 /*
 ================
 Sys_Milliseconds
+
+CLOCK_MONOTONIC, not gettimeofday: the wall clock steps when NTP corrects it,
+and a step backwards gave the frame loop a negative frame time.
 ================
 */
 int curtime;
 int Sys_Milliseconds (void)
 {
-	struct timeval tp;
-	struct timezone tzp;
-	static int		secbase;
+	struct timespec tp;
+	static time_t	secbase;
 
-	gettimeofday(&tp, &tzp);
+	clock_gettime(CLOCK_MONOTONIC, &tp);
 	
 	if (!secbase)
 	{
 		secbase = tp.tv_sec;
-		return tp.tv_usec/1000;
+		return tp.tv_nsec/1000000;
 	}
 
-	curtime = (tp.tv_sec - secbase)*1000 + tp.tv_usec/1000;
+	curtime = (tp.tv_sec - secbase)*1000 + tp.tv_nsec/1000000;
 	
 	return curtime;
 }
@@ -103,10 +114,13 @@ void Sys_Mkdir (char *path)
 
 char *strlwr (char *s)
 {
+	char *start = s;
+
 	while (*s) {
 		*s = tolower(*s);
 		s++;
 	}
+	return start;
 }
 
 //============================================

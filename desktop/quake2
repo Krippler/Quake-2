@@ -1,0 +1,166 @@
+#!/bin/sh
+#
+# quake2 -- starts the engine on a Linux desktop.
+#
+#   quake2                     play; finds the game files by itself
+#   quake2 --data DIR          play the game files in DIR, and remember it
+#   quake2 [engine options]    anything else goes to the engine: +map base1,
+#                              +set game ctf, +set vid_fullscreen 1, ...
+#
+# What this does is what the container's entrypoint does, for one person on
+# one machine. Quake II writes its settings, saves and screenshots into the
+# same directory as the pak files, and a Steam or GOG install is not somewhere
+# to write them. So the engine runs in a directory of its own
+# (~/.local/share/quake2), with the game files linked into it, and what it
+# writes lands beside the links.
+#
+# The game files are looked for, in order: --data, $QUAKE2_DATA, the
+# directory used last time, and the usual Steam and GOG places. The engine
+# reads the original game's baseq2, which a Steam install of the 2023
+# re-release still has beside its own rerelease directory.
+#
+
+set -u
+
+here=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
+engine="${QUAKE2_ENGINE:-$here/../lib/quake2/quake2}"
+base="${XDG_DATA_HOME:-$HOME/.local/share}/quake2"
+remembered="$base/.data-dir"
+
+say() { printf 'quake2: %s\n' "$*" >&2; }
+
+# Said in a window as well when there is no terminal to say it in -- started
+# from the desktop's menu, a message on stderr goes nowhere.
+complain() {
+    say "$*"
+    [ -t 2 ] && return 0
+    if command -v zenity >/dev/null 2>&1; then
+        zenity --error --title="Quake II" --text="$*" 2>/dev/null
+    elif command -v kdialog >/dev/null 2>&1; then
+        kdialog --title "Quake II" --error "$*" 2>/dev/null
+    elif command -v xmessage >/dev/null 2>&1; then
+        xmessage -center "$*" 2>/dev/null
+    fi
+}
+
+data=""
+case "${1:-}" in
+    --data)
+        [ $# -ge 2 ] || { say "--data needs a directory"; exit 2; }
+        data="$2"
+        shift 2
+        ;;
+    --data=*)
+        data="${1#--data=}"
+        shift
+        ;;
+    -h|--help)
+        sed -n '3,8p' "$0" | sed 's/^# \{0,1\}//'
+        exit 0
+        ;;
+esac
+
+if [ ! -x "$engine" ]; then
+    complain "The engine is not at $engine. Reinstall, or set QUAKE2_ENGINE."
+    exit 1
+fi
+
+mkdir -p "$base" || { complain "Cannot create $base"; exit 1; }
+
+# A directory holding game files: baseq2/pak0.pak, in any case.
+is_game_data() {
+    [ -f "$1/baseq2/pak0.pak" ] || [ -f "$1/baseq2/PAK0.PAK" ] \
+        || [ -f "$1/BASEQ2/PAK0.PAK" ]
+}
+
+find_data() {
+    [ -z "$data" ] && [ -n "${QUAKE2_DATA:-}" ] && data="$QUAKE2_DATA"
+    [ -z "$data" ] && [ -f "$remembered" ] && data=$(cat "$remembered")
+
+    if [ -z "$data" ]; then
+        for d in \
+            "$HOME/.local/share/Steam/steamapps/common/Quake 2" \
+            "$HOME/.steam/steam/steamapps/common/Quake 2" \
+            "$HOME/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Quake 2" \
+            "$HOME/GOG Games/Quake II" \
+            "$HOME/GOG Games/Quake 2" \
+            "$HOME/Games/quake-ii/drive_c/GOG Games/Quake II"
+        do
+            if is_game_data "$d"; then
+                data="$d"
+                break
+            fi
+        done
+    fi
+}
+
+# The files of one game directory, linked into the engine's own. A copy of
+# link_game_dir in docker/entrypoint.sh, which explains each step.
+link_game_dir() {
+    src="$1"
+    dest="$base/$2"
+    n=0
+
+    mkdir -p "$dest"
+    for f in "$src"/*; do
+        [ -e "$f" ] || continue
+        name=$(basename "$f" | tr 'A-Z' 'a-z')
+        case "$name" in
+            config.cfg|save|scrnshot) continue ;;	# the engine writes these here
+            pak[0-9].pak|gamex86_64.so|maps) n=$((n + 1)) ;;
+        esac
+        ln -sfn "$f" "$dest/$name"
+    done
+
+    [ "$n" -gt 0 ]
+}
+
+link_data() {
+    for d in "$data"/*; do
+        [ -d "$d" ] || continue
+        name=$(basename "$d" | tr 'A-Z' 'a-z')
+        case "$name" in
+            music|rerelease|docs) continue ;;
+        esac
+        link_game_dir "$d" "$name" || rmdir "$base/$name" 2>/dev/null
+    done
+    return 0
+}
+
+# Game files copied straight into the engine's directory need nothing linked.
+if ! [ -f "$base/baseq2/pak0.pak" ] || [ -L "$base/baseq2/pak0.pak" ] || [ -n "$data" ]; then
+    find_data
+    if [ -z "$data" ] || ! is_game_data "$data"; then
+        complain "No Quake II game files found.
+
+Quake II needs the game files from a copy you own: the directory with
+baseq2/pak0.pak in it. Start it once with
+
+    quake2 --data /path/to/Quake2
+
+(for Steam, that is .../steamapps/common/Quake 2)
+and it will remember. Or copy the baseq2 directory into $base."
+        exit 1
+    fi
+    data=$(cd "$data" && pwd)
+    printf '%s\n' "$data" > "$remembered"
+    link_data
+fi
+
+# The GOG release keeps the soundtrack at the top of the install.
+if [ -n "$data" ] && [ -d "$data/music" ]; then
+    export QUAKE2_MUSICDIR="$data/music"
+fi
+
+# A first run starts in a window of a size worth playing in, with the mouse
+# held for play. id's default.cfg asks for fullscreen at 320x240 and leaves
+# the mouse free, which on a desktop is neither. After that, config.cfg has
+# the last word, as it does for everything else.
+set -- +set basedir "$base" "$@"
+if [ ! -f "$base/baseq2/config.cfg" ]; then
+    set -- "$@" +set sw_mode -1 +set vid_width 1280 +set vid_height 720 \
+           +set vid_fullscreen 0 +set _windowed_mouse 1 +set freelook 1 \
+           +set s_loadas8bit 0
+fi
+
+exec "$engine" "$@"

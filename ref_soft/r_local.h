@@ -160,7 +160,9 @@ extern oldrefdef_t      r_refdef;
 										//  polygon (while processing)
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!
 #define MAXHEIGHT       1200
-#define MAXWIDTH        1600
+// 1600 in the release. 1920 so the widescreen modes up to 1920x1200 can be
+// drawn; nothing static is sized by it except the warp tables below.
+#define MAXWIDTH        1920
 
 #define INFINITE_DISTANCE       0x10000         // distance that's always guaranteed to
 										//  be farther away than anything in
@@ -512,9 +514,14 @@ extern int              r_screenwidth;
 
 extern int              r_drawnpolycount;
 
-extern int      sintable[1280];
-extern int      intsintable[1280];
-extern int		blanktable[1280];		// PGM
+// The turbulence tables are read at the frame's width or height plus an
+// offset of up to CYCLE-1 (see D_WarpScreen), so that is their size. They
+// were 1280, which the underwater warp already read past at 1600 wide.
+#define TURB_TABLE_SIZE	(MAXWIDTH + CYCLE)
+
+extern int      sintable[TURB_TABLE_SIZE];
+extern int      intsintable[TURB_TABLE_SIZE];
+extern int		blanktable[TURB_TABLE_SIZE];		// PGM
 
 extern  vec3_t  vup, base_vup;
 extern  vec3_t  vpn, base_vpn;

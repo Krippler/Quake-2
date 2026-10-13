@@ -503,7 +503,18 @@ void V_RenderView( float stereo_separation )
 		cl.refdef.y = scr_vrect.y;
 		cl.refdef.width = scr_vrect.width;
 		cl.refdef.height = scr_vrect.height;
-		cl.refdef.fov_y = CalcFov (cl.refdef.fov_x, cl.refdef.width, cl.refdef.height);
+		// Hor+. The game's fov is the horizontal angle of a 4:3 picture,
+		// which is what every 1997 mode was; taken as the horizontal angle
+		// of a widescreen one it keeps the width and crops the top and
+		// bottom off, so 16:9 sees less than 4:3 did. Wider than 4:3, the
+		// vertical angle is kept instead and the sides are added.
+		if (cl.refdef.width * 3 > cl.refdef.height * 4)
+		{
+			cl.refdef.fov_y = CalcFov (cl.refdef.fov_x, cl.refdef.height * 4.0f / 3.0f, cl.refdef.height);
+			cl.refdef.fov_x = CalcFov (cl.refdef.fov_y, cl.refdef.height, cl.refdef.width);
+		}
+		else
+			cl.refdef.fov_y = CalcFov (cl.refdef.fov_x, cl.refdef.width, cl.refdef.height);
 		cl.refdef.time = cl.time*0.001;
 
 		cl.refdef.areabits = cl.frame.areabits;

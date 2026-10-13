@@ -286,6 +286,10 @@ void S_PaintChannels(int endtime)
 			}
 		}
 
+	// The music. On the CD it never went through the mixer at all -- the
+	// drive played it -- so this was not here; see linux/cd_stream.c.
+		CDAudio_MixPaintBuffer (paintbuffer, end - paintedtime);
+
 
 	// paint in the channels.
 		ch = channels;
@@ -378,8 +382,13 @@ void S_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int count, int offset)
 	if (ch->rightvol > 255)
 		ch->rightvol = 255;
 		
-	lscale = snd_scaletable[ ch->leftvol >> 11];
-	rscale = snd_scaletable[ ch->rightvol >> 11];
+	// >> 3: the table has 32 rows for volumes of 0 to 255. It was >> 11,
+	// which is row 0 -- silence -- for every volume there is. id's own x86
+	// builds used the assembler version of this function, so nobody heard
+	// that the C one played every 8-bit sound at nothing, and 8-bit is
+	// what s_loadas8bit, on by default, loads every sound as.
+	lscale = snd_scaletable[ ch->leftvol >> 3];
+	rscale = snd_scaletable[ ch->rightvol >> 3];
 	sfx = (signed char *)sc->data + ch->pos;
 
 	samp = &paintbuffer[offset];

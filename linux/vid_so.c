@@ -2,8 +2,6 @@
 // is used for both the software and OpenGL rendering versions of the
 // Quake refresh engine.
 
-#define SO_FILE "/etc/quake2.conf"
-
 #include <assert.h>
 #include <dlfcn.h> // ELF dl loader
 #include <sys/stat.h>
@@ -108,6 +106,15 @@ void VID_Restart_f (void)
 
 /*
 ** VID_GetModeInfo
+**
+** id's ten modes keep their numbers, so a config.cfg that says sw_mode 3
+** still means 640x480; the widescreen ones come after them. The video menu
+** shows them all in order of size. sw_mode -1 is whatever vid_width and
+** vid_height say, which is how the container starts at the size it was
+** asked for when that is not one of these.
+**
+** Every width is a multiple of eight, and none is larger than MAXWIDTH x
+** MAXHEIGHT in ref_soft/r_local.h.
 */
 typedef struct vidmode_s
 {
@@ -127,11 +134,44 @@ vidmode_t vid_modes[] =
 	{ "Mode 6: 1024x768",  1024, 768,  6 },
 	{ "Mode 7: 1152x864",  1152, 864,  7 },
 	{ "Mode 8: 1280x1024",  1280, 1024, 8 },
-	{ "Mode 9: 1600x1200", 1600, 1200, 9 }
+	{ "Mode 9: 1600x1200", 1600, 1200, 9 },
+	{ "Mode 10: 640x400",   640, 400,  10 },
+	{ "Mode 11: 1280x720",  1280, 720, 11 },
+	{ "Mode 12: 1280x800",  1280, 800, 12 },
+	{ "Mode 13: 1280x960",  1280, 960, 13 },
+	{ "Mode 14: 1360x768",  1360, 768, 14 },
+	{ "Mode 15: 1440x900",  1440, 900, 15 },
+	{ "Mode 16: 1600x900",  1600, 900, 16 },
+	{ "Mode 17: 1680x1050", 1680, 1050, 17 },
+	{ "Mode 18: 1920x1080", 1920, 1080, 18 },
+	{ "Mode 19: 1920x1200", 1920, 1200, 19 },
 };
+
+int VID_NumModes (void)
+{
+	return VID_NUM_MODES;
+}
 
 qboolean VID_GetModeInfo( int *width, int *height, int mode )
 {
+	if ( mode == -1 )
+	{
+		cvar_t	*w = Cvar_Get ("vid_width", "640", CVAR_ARCHIVE);
+		cvar_t	*h = Cvar_Get ("vid_height", "480", CVAR_ARCHIVE);
+
+		*width = (int)w->value & ~7;
+		*height = (int)h->value;
+		if (*width < 320)
+			*width = 320;
+		if (*width > 1920)
+			*width = 1920;
+		if (*height < 240)
+			*height = 240;
+		if (*height > 1200)
+			*height = 1200;
+		return true;
+	}
+
 	if ( mode < 0 || mode >= VID_NUM_MODES )
 		return false;
 
@@ -185,9 +225,6 @@ qboolean VID_LoadRefresh( char *name )
 	refimport_t	ri;
 	GetRefAPI_t	GetRefAPI;
 	char	fn[MAX_OSPATH];
-	struct stat st;
-	extern uid_t saved_euid;
-	FILE *fp;
 	
 	if ( reflib_active )
 	{
@@ -203,42 +240,12 @@ qboolean VID_LoadRefresh( char *name )
 
 	Com_Printf( "------- Loading %s -------\n", name );
 
-	//regain root
-	seteuid(saved_euid);
-
-	if ((fp = fopen(SO_FILE, "r")) == NULL) {
-		Com_Printf( "LoadLibrary(\"%s\") failed: can't open " SO_FILE " (required for location of ref libraries)\n", name);
-		return false;
-	}
-	fgets(fn, sizeof(fn), fp);
-	fclose(fp);
-	if (*fn && fn[strlen(fn) - 1] == '\n')
-		fn[strlen(fn) - 1] = 0;
-
-	strcat(fn, "/");
-	strcat(fn, name);
-
-	// permission checking
-	if (strstr(fn, "softx") == NULL) { // softx doesn't require root
-		if (stat(fn, &st) == -1) {
-			Com_Printf( "LoadLibrary(\"%s\") failed: %s\n", name, strerror(errno));
-			return false;
-		}
-		if (st.st_uid != 0) {
-			Com_Printf( "LoadLibrary(\"%s\") failed: ref is not owned by root\n", name);
-			return false;
-		}
-#if 0
-		if ((st.st_mode & 0777) & ~0700) {
-			Com_Printf( "LoadLibrary(\"%s\") failed: invalid permissions, must be 700 for security considerations\n", name);
-			return false;
-		}
-#endif
-	} else {
-		// softx requires we give up root now
-		setreuid(getuid(), getuid());
-		setegid(getgid());
-	}
+	// The original read the library's directory from /etc/quake2.conf and
+	// refused any renderer but softx that was not owned by root, because
+	// the SVGAlib and Glide ones ran setuid root to reach the hardware.
+	// Neither applies: there is one renderer, it draws to X, and it lives
+	// beside the engine.
+	Com_sprintf (fn, sizeof(fn), "%s/%s", Sys_ExeDir (), name);
 
 	if ( ( reflib_library = dlopen( fn, RTLD_NOW ) ) == 0 )
 	{
@@ -279,6 +286,7 @@ qboolean VID_LoadRefresh( char *name )
 	in_state.Key_Event_fp = Do_Key_Event;
 	in_state.viewangles = cl.viewangles;
 	in_state.in_strafe_state = &in_strafe.state;
+	in_state.key_dest = (int *)&cls.key_dest;
 
 	if ((RW_IN_Init_fp = dlsym(reflib_library, "RW_IN_Init")) == NULL ||
 		(RW_IN_Shutdown_fp = dlsym(reflib_library, "RW_IN_Shutdown")) == NULL ||
@@ -354,6 +362,14 @@ void VID_CheckChanges (void)
 		cl.refresh_prepped = false;
 		cls.disable_screen = true;
 
+		// The menu still offers the 1997 list of drivers; softx is the one
+		// that exists. See VID_Init.
+		if ( strcmp( vid_ref->string, "softx" ) )
+		{
+			Cvar_Set( "vid_ref", "softx" );
+			vid_ref->modified = false;
+		}
+
 		sprintf( name, "ref_%s.so", vid_ref->string );
 		if ( !VID_LoadRefresh( name ) )
 		{
@@ -393,11 +409,13 @@ VID_Init
 void VID_Init (void)
 {
 	/* Create the video variables so we know how to start the graphics drivers */
-	// if DISPLAY is defined, try X
-	if (getenv("DISPLAY"))
-		vid_ref = Cvar_Get ("vid_ref", "softx", CVAR_ARCHIVE);
-	else
-		vid_ref = Cvar_Get ("vid_ref", "soft", CVAR_ARCHIVE);
+	// softx is the only renderer this port builds: SVGAlib needs a console
+	// and root, and the GL renderer's Linux glue (GLX) was never in the
+	// source release. A config.cfg from another port that names "gl" or
+	// "soft" is put back to it here rather than failing to load.
+	vid_ref = Cvar_Get ("vid_ref", "softx", CVAR_ARCHIVE);
+	if (strcmp (vid_ref->string, "softx"))
+		Cvar_Set ("vid_ref", "softx");
 	vid_xpos = Cvar_Get ("vid_xpos", "3", CVAR_ARCHIVE);
 	vid_ypos = Cvar_Get ("vid_ypos", "22", CVAR_ARCHIVE);
 	vid_fullscreen = Cvar_Get ("vid_fullscreen", "0", CVAR_ARCHIVE);
@@ -441,9 +459,17 @@ void VID_Shutdown (void)
 cvar_t	*in_joystick;
 
 // This if fake, it's acutally done by the Refresh load
+void IN_PadInit (void);
+void IN_PadCommands (void);
+void IN_PadMove (usercmd_t *cmd);
+void IN_PadShutdown (void);
+
 void IN_Init (void)
 {
 	in_joystick	= Cvar_Get ("in_joystick", "0", CVAR_ARCHIVE);
+	// A controller is the engine's, not the renderer's: it outlives a
+	// vid_restart, and the page sends its state whichever renderer is up.
+	IN_PadInit ();
 }
 
 void Real_IN_Init (void)
@@ -456,18 +482,21 @@ void IN_Shutdown (void)
 {
 	if (RW_IN_Shutdown_fp)
 		RW_IN_Shutdown_fp();
+	IN_PadShutdown ();
 }
 
 void IN_Commands (void)
 {
 	if (RW_IN_Commands_fp)
 		RW_IN_Commands_fp();
+	IN_PadCommands ();
 }
 
 void IN_Move (usercmd_t *cmd)
 {
 	if (RW_IN_Move_fp)
 		RW_IN_Move_fp(cmd);
+	IN_PadMove (cmd);
 }
 
 void IN_Frame (void)

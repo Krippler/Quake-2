@@ -1,0 +1,40 @@
+# Keep the build context small, and make sure no game data is ever baked in.
+.git
+.gitignore
+*.pak
+*.PAK
+quake2data/
+baseq2/
+music/
+
+linux/build/
+linux/build-*/
+audiostream/linux/
+*.o
+*.d
+*.pcx
+*.sav
+DOCKER.md
+PORTING-NOTES.md
+PUBLISHING.md
+CHANGELOG.md
+docker-compose.yml
+templates/
+tools/
+.github/
+
+# The 1997 build files and the other platforms' code, which the image does
+# not compile.
+win32/
+irix/
+solaris/
+rhapsody/
+null/
+ref_gl/
+*.dsp
+*.dsw
+*.mak
+*.plg
+*.opt
+*.bce
+*.bcp

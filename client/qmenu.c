@@ -342,10 +342,17 @@ void Menu_Center( menuframework_s *menu )
 	menu->y = ( VID_HEIGHT - height ) / 2;
 }
 
+// The framework the menu on top drew this frame, or NULL for one without
+// (the main menu, the quit prompt). M_Keydown asks it whether the cursor is
+// on a text field, where Backspace deletes rather than going back.
+menuframework_s *m_drawn_framework;
+
 void Menu_Draw( menuframework_s *menu )
 {
 	int i;
 	menucommon_s *item;
+
+	m_drawn_framework = menu;
 
 	/*
 	** draw contents

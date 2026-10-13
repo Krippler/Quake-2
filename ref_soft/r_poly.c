@@ -988,7 +988,12 @@ void R_ClipAndDrawPoly( float alpha, qboolean isturbulent, qboolean textured )
 		scale = yscale * pout->zi;
 		pout->v = (ycenter - scale * transformed[1]);
 
-		pv += sizeof (vec5_t) / sizeof (pv);
+		// sizeof (*pv), a float. It was sizeof (pv), the pointer: four bytes
+		// in 1997, so a step of five floats, one vertex. Eight here, so a
+		// step of two, and every translucent surface -- water, glass, the
+		// force fields -- was drawn from the wrong vertices, twisted, and
+		// its span list ran off the end into whatever the stack held.
+		pv += sizeof (vec5_t) / sizeof (*pv);
 	}
 
 // draw it

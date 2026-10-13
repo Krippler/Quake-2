@@ -1,0 +1,73 @@
+name: Smoke test
+
+# There is no game data in this repository and there cannot be, so this builds
+# its own: tools/make-test-data.py writes a pak holding the palette, the
+# colormap, the console font, a few tones and a one-room map. The engine then
+# starts on a throwaway Xvfb and has to draw the console, change video mode,
+# put the tone on its audio pipe at the right pitch, load the map through the
+# game library, save and load a game, survive a stall with its sound intact,
+# pick the right music directory, and draw at depth 8 as well as 24.
+#
+# Locally, QUAKE2_SMOKE_DATA=/path/to/quake2 adds a last phase that loads a
+# real map from id's data.
+
+on:
+  push:
+    branches: ["master", "claude/**", "fix/**", "feat/**"]
+  pull_request:
+    branches: ["master"]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build and test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc libc6-dev make pkg-config \
+            libx11-dev libxext-dev libxrandr-dev libsndfile1-dev libasound2-dev \
+            xvfb x11-apps x11-utils xdotool imagemagick
+
+      # Every configuration has to keep linking: MUSIC=none and SOUND=oss are
+      # the ones nobody builds by hand and so the ones that rot.
+      - name: Build the other configurations
+        run: |
+          set -e
+          for combo in "SOUND=oss MUSIC=cd" "SOUND=stream MUSIC=none" "SOUND=alsa"; do
+            echo "== $combo"
+            make -C linux B=build-check clean >/dev/null
+            make -C linux B=build-check -j"$(nproc)" $combo
+          done
+
+      - name: Build the engine
+        run: make -C linux -j"$(nproc)"
+
+      - name: Build audiostream
+        run: make -C audiostream -j"$(nproc)"
+
+      - name: Run the smoke test
+        run: tools/smoke-test.sh "${RUNNER_TEMP}/quake2-smoke"
+
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-screenshots
+          path: ${{ runner.temp }}/quake2-smoke/*.png
+          if-no-files-found: ignore
+
+      - name: Check the shell and the client parse
+        run: |
+          sh -n docker/entrypoint.sh
+          sh -n tools/smoke-test.sh
+          sh -n tools/build-linux-tarball.sh
+          sh -n desktop/quake2
+          sh -n desktop/install.sh
+          python3 -c "import ast,sys; ast.parse(open('docker/quake-wsproxy.py').read())"
+          python3 -c "import ast,sys; ast.parse(open('tools/make-test-data.py').read())"
+          node --check docker/quake-gamepad.js
+          node --check docker/quake-ring.js
+          python3 -c "import xml.dom.minidom; xml.dom.minidom.parse('templates/unraid.xml')"

@@ -611,6 +611,16 @@ char *bindnames[][2] =
 int				keys_cursor;
 static int		bind_grab;
 
+extern menuframework_s *m_drawn_framework;
+
+// Whether the key bindings screen is waiting for a key to bind, so that a
+// controller's buttons are passed through as themselves rather than as menu
+// keys. See in_pad.c.
+qboolean M_KeysGrabbing (void)
+{
+	return bind_grab;
+}
+
 static menuframework_s	s_keys_menu;
 static menuaction_s		s_keys_attack_action;
 static menuaction_s		s_keys_change_weapon_action;
@@ -953,7 +963,7 @@ static void Keys_MenuInit( void )
 
 	Menu_AddItem( &s_keys_menu, ( void * ) &s_keys_help_computer_action );
 	
-	Menu_SetStatusBar( &s_keys_menu, "enter to change, backspace to clear" );
+	Menu_SetStatusBar( &s_keys_menu, "enter to change, del to clear" );
 	Menu_Center( &s_keys_menu );
 }
 
@@ -969,7 +979,9 @@ static const char *Keys_MenuKey( int key )
 
 	if ( bind_grab )
 	{	
-		if ( key != K_ESCAPE && key != '`' )
+		// Backspace cancels, as Escape does: it is the menu key, and binding
+		// it would be refused anyway.
+		if ( key != K_ESCAPE && key != K_BACKSPACE && key != '`' )
 		{
 			char cmd[1024];
 
@@ -977,7 +989,7 @@ static const char *Keys_MenuKey( int key )
 			Cbuf_InsertText (cmd);
 		}
 		
-		Menu_SetStatusBar( &s_keys_menu, "enter to change, backspace to clear" );
+		Menu_SetStatusBar( &s_keys_menu, "enter to change, del to clear" );
 		bind_grab = false;
 		return menu_out_sound;
 	}
@@ -988,8 +1000,7 @@ static const char *Keys_MenuKey( int key )
 	case K_ENTER:
 		KeyBindingFunc( item );
 		return menu_in_sound;
-	case K_BACKSPACE:		// delete bindings
-	case K_DEL:				// delete bindings
+	case K_DEL:				// delete bindings (Backspace goes back, as everywhere)
 	case K_KP_DEL:
 		M_UnbindCommand( bindnames[item->generic.localdata[0]][0] );
 		return menu_out_sound;
@@ -3986,6 +3997,7 @@ void M_Draw (void)
 	else
 		re.DrawFadeScreen ();
 
+	m_drawn_framework = NULL;
 	m_drawfunc ();
 
 	// delay playing the enter sound until after the
@@ -4007,6 +4019,20 @@ M_Keydown
 void M_Keydown (int key)
 {
 	const char *s;
+	menucommon_s *item;
+
+	// Backspace is the menu key (see Key_Event): it goes back a level, as
+	// Escape does, and answers no to a question. It is translated here, before
+	// the menu sees it, so that each menu's own Escape handling -- the player
+	// setup and the address book save what was typed on the way out -- runs
+	// for it too. Not on a text field, where it deletes, and not while the
+	// key bindings screen is waiting for a key, which handles it itself.
+	if (key == K_BACKSPACE && !bind_grab)
+	{
+		item = m_drawn_framework ? Menu_ItemAtCursor (m_drawn_framework) : NULL;
+		if (!item || item->type != MTYPE_FIELD)
+			key = K_ESCAPE;
+	}
 
 	if (m_keyfunc)
 		if ( ( s = m_keyfunc( key ) ) != 0 )
