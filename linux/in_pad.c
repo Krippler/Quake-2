@@ -438,7 +438,7 @@ PAD_MenuKey
 
 What a button does while a menu is up: the keys the menus already answer to.
 A is Enter and B is Escape, as on every console; Y clears a binding on the
-controls screen, as Backspace does. Anything else does nothing there.
+controls screen, as Del does. Anything else does nothing there.
 ================
 */
 static int PAD_MenuKey (int b)
@@ -447,7 +447,7 @@ static int PAD_MenuKey (int b)
 	{
 	case PB_A:		return K_ENTER;
 	case PB_B:		return K_ESCAPE;
-	case PB_Y:		return K_BACKSPACE;
+	case PB_Y:		return K_DEL;
 	case PB_UP:		return K_UPARROW;
 	case PB_DOWN:	return K_DOWNARROW;
 	case PB_LEFT:	return K_LEFTARROW;

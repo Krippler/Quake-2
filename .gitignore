@@ -5,3 +5,4 @@
 # Local test data and logs
 /quake2data/
 *.log
+/audiostream/linux/

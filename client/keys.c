@@ -531,6 +531,11 @@ void Key_SetBinding (int keynum, char *binding)
 	if (keynum == -1)
 		return;
 
+	// The menu key; see Key_Event. A binding for it in an old config.cfg is
+	// dropped here, and so not written back. Clearing it is allowed.
+	if (keynum == K_BACKSPACE && binding[0])
+		return;
+
 // free old bindings
 	if (keybindings[keynum])
 	{
@@ -602,6 +607,15 @@ void Key_Bind_f (void)
 	if (b==-1)
 	{
 		Com_Printf ("\"%s\" isn't a valid key\n", Cmd_Argv(1));
+		return;
+	}
+
+	if (b == K_BACKSPACE && c > 2 && Cmd_Argv(2)[0])
+	{
+		// Not said while the startup configs run: id's default.cfg binds
+		// it to invdrop, and every start would print this.
+		if (cls.state != ca_uninitialized)
+			Com_Printf ("BACKSPACE is the menu key, as ESCAPE is, and cannot be bound\n");
 		return;
 	}
 
@@ -807,6 +821,14 @@ void Key_Event (int key, qboolean down, unsigned time)
 
 	// any key during the attract mode will bring up the menu
 	if (cl.attractloop && cls.key_dest != key_menu)
+		key = K_ESCAPE;
+
+	// Backspace is the menu key too. In the container Escape belongs to the
+	// browser -- it is how the mouse is let go of -- so it never reaches the
+	// game, and something on the keyboard has to. From the game it does what
+	// Escape does; in the menus M_Keydown makes it go back; in the console
+	// and in chat it still deletes.
+	if (key == K_BACKSPACE && cls.key_dest == key_game)
 		key = K_ESCAPE;
 
 	// menu key is hardcoded, so the user can never unbind it

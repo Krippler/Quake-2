@@ -1,0 +1,24 @@
+services:
+  quake2:
+    build: .
+    image: quake2
+    container_name: quake2
+    ports:
+      - "6080:6080"           # noVNC, play at http://localhost:6080/
+      # - "5900:5900"         # raw VNC, if you would rather use a native client
+    volumes:
+      # The directory holding baseq2/pak0.pak -- your Quake II install, from
+      # the CD, from Steam, from GOG, or id's demo. Read-only: the container
+      # copies nothing and writes nothing here.
+      - ./quake2data:/quake2data:ro
+      - quake2-state:/quake2/state
+    environment:
+      QUAKE2_WIDTH: "640"     # the starting resolution, up to 1920
+      QUAKE2_HEIGHT: "480"    # ... by 1200; later, the Video menu's
+      # QUAKE2_GAME: "ctf"           # or a mod directory name
+      # QUAKE2_VNC_PASSWORD: "changeme"
+    # Arguments are passed to the engine, e.g. start straight in the first map:
+    # command: ["+map", "base1", "+skill", "1"]
+
+volumes:
+  quake2-state:
