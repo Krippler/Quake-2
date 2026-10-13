@@ -94,6 +94,28 @@ keyname_t keynames[] =
 	{"JOY3", K_JOY3},
 	{"JOY4", K_JOY4},
 
+	// A controller's buttons, as in_pad.c sends them: K_AUX1 onwards in the
+	// browser's standard order. Named here, ahead of the AUX names for the
+	// same keys, so a binding is written to config.cfg as PAD_A and not
+	// AUX1; a config that says AUX1 still reads.
+	{"PAD_A", K_AUX1},
+	{"PAD_B", K_AUX2},
+	{"PAD_X", K_AUX3},
+	{"PAD_Y", K_AUX4},
+	{"PAD_LB", K_AUX5},
+	{"PAD_RB", K_AUX6},
+	{"PAD_LT", K_AUX7},
+	{"PAD_RT", K_AUX8},
+	{"PAD_BACK", K_AUX9},
+	{"PAD_START", K_AUX10},
+	{"PAD_LS", K_AUX11},
+	{"PAD_RS", K_AUX12},
+	{"PAD_UP", K_AUX13},
+	{"PAD_DOWN", K_AUX14},
+	{"PAD_LEFT", K_AUX15},
+	{"PAD_RIGHT", K_AUX16},
+	{"PAD_GUIDE", K_AUX17},
+
 	{"AUX1", K_AUX1},
 	{"AUX2", K_AUX2},
 	{"AUX3", K_AUX3},

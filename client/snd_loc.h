@@ -121,6 +121,17 @@ void	SNDDMA_BeginPainting (void);
 
 void	SNDDMA_Submit(void);
 
+#ifdef SND_HAS_GETSAMPLES
+// The playback position as a running count of frames, for a backend that
+// keeps its own clock rather than reading a card's ring position.
+int		SNDDMA_GetSamples(void);
+void	SNDDMA_RebaseClock(int frames);
+#endif
+
+// Adds the music to a stretch of the paint buffer. cd_stream.c decodes it
+// from files; cd_linux.c, whose drive played it on its own, defines it empty.
+void	CDAudio_MixPaintBuffer(portable_samplepair_t *buffer, int count);
+
 //====================================================================
 
 #define	MAX_CHANNELS			32

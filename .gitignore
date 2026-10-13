@@ -1,0 +1,7 @@
+# Build output (linux/Makefile)
+/linux/build/
+/linux/build-*/
+
+# Local test data and logs
+/quake2data/
+*.log

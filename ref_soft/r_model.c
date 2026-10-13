@@ -483,8 +483,15 @@ void Mod_LoadTexinfo (lump_t *l)
 
 	for ( i=0 ; i<count ; i++, in++, out++)
 	{
-		for (j=0 ; j<8 ; j++)
+		// Was vecs[0][j] for j up to 8, walking the first row into the
+		// second. gcc diagnoses that as undefined and may drop the
+		// iterations past the first row: the second texture axis of every
+		// surface in the map, which is the bug Quake's model.c had too.
+		for (j=0 ; j<4 ; j++)
+		{
 			out->vecs[0][j] = LittleFloat (in->vecs[0][j]);
+			out->vecs[1][j] = LittleFloat (in->vecs[1][j]);
+		}
 		len1 = VectorLength (out->vecs[0]);
 		len2 = VectorLength (out->vecs[1]);
 		len1 = (len1 + len2)/2;

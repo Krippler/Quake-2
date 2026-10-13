@@ -612,11 +612,13 @@ int entitycmpfnc( const entity_t *a, const entity_t *b )
 	*/
 	if ( a->model == b->model )
 	{
-		return ( ( int ) a->skin - ( int ) b->skin );
+		// Pointers compared, not subtracted as ints: the difference of two
+		// 64-bit addresses truncated to 32 bits has no sign worth trusting.
+		return ( a->skin < b->skin ) ? -1 : ( a->skin > b->skin );
 	}
 	else
 	{
-		return ( ( int ) a->model - ( int ) b->model );
+		return ( a->model < b->model ) ? -1 : ( a->model > b->model );
 	}
 }
 

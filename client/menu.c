@@ -611,6 +611,14 @@ char *bindnames[][2] =
 int				keys_cursor;
 static int		bind_grab;
 
+// Whether the key bindings screen is waiting for a key to bind, so that a
+// controller's buttons are passed through as themselves rather than as menu
+// keys. See in_pad.c.
+qboolean M_KeysGrabbing (void)
+{
+	return bind_grab;
+}
+
 static menuframework_s	s_keys_menu;
 static menuaction_s		s_keys_attack_action;
 static menuaction_s		s_keys_change_weapon_action;

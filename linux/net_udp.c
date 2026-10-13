@@ -11,6 +11,7 @@
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <errno.h>
+#include <arpa/inet.h>
 
 #ifdef NeXT
 #include <libc.h>

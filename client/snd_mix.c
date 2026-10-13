@@ -286,6 +286,10 @@ void S_PaintChannels(int endtime)
 			}
 		}
 
+	// The music. On the CD it never went through the mixer at all -- the
+	// drive played it -- so this was not here; see linux/cd_stream.c.
+		CDAudio_MixPaintBuffer (paintbuffer, end - paintedtime);
+
 
 	// paint in the channels.
 		ch = channels;

@@ -15,6 +15,7 @@
 #include <linux/cdrom.h>
 
 #include "../client/client.h"
+#include "../client/snd_loc.h"
 
 static qboolean cdValid = false;
 static qboolean	playing = false;
@@ -417,4 +418,9 @@ void CDAudio_Shutdown(void)
 	CDAudio_Stop();
 	close(cdfile);
 	cdfile = -1;
+}
+
+// The drive played the music itself; there is nothing to mix.
+void CDAudio_MixPaintBuffer (portable_samplepair_t *buffer, int count)
+{
 }

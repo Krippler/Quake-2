@@ -12,7 +12,11 @@ typedef unsigned short int UINT2;
 #ifdef __alpha__
 typedef unsigned int UINT4;
 #else
-typedef unsigned long int UINT4;
+/* 32 bits, as MD4 is defined. It was unsigned long, which is 64 bits on
+   LP64: every rotate then carried its top bits into the next word, and
+   Com_BlockChecksum -- the map checksum a client and server compare --
+   came out different from every other Quake II's. */
+typedef unsigned int UINT4;
 #endif
 
   

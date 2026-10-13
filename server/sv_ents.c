@@ -505,8 +505,9 @@ void SV_FatPVS (vec3_t org)
 		if (j != i)
 			continue;		// already have the cluster we want
 		src = CM_ClusterPVS(leafs[i]);
+		// ints: "longs" counts 32-bit words, and a long is two of them here.
 		for (j=0 ; j<longs ; j++)
-			((long *)fatpvs)[j] |= ((long *)src)[j];
+			((int *)fatpvs)[j] |= ((int *)src)[j];
 	}
 }
 

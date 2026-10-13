@@ -1,0 +1,731 @@
+/*
+Copyright (C) 1997-2001 Id Software, Inc.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+*/
+// cd_stream.c -- music, from files rather than from a CD.
+//
+// Quake II's music is not in the game data. It is audio tracks 2 to 11 of the
+// CD-ROM, and cd_linux.c plays them by opening /dev/cdrom and issuing
+// CDROMPLAYTRKIND -- a drive command, to a drive, which tells its own DAC to
+// play. No container has one, and neither do most machines any more.
+//
+// So the same track numbers are looked up as files instead, and decoded and
+// mixed into the engine's own output. On the CD the music never went through
+// the mixer at all, which is why cd_volume in the 1997 code could only switch
+// the drive between paused and playing. Here it scales samples.
+//
+// Tracks are looked for as <dir>/track02.<ext>, numbered the way the CD was,
+// and matched without regard to case: the GOG release ships Track02.ogg, a
+// rip from most tools is track02.ogg, and every other source port settled on
+// the same names, so an existing music directory works without renaming.
+//
+// Decoding is libsndfile's: Ogg Vorbis, FLAC, WAV, Opus and, where the
+// installed build has it, MP3. Build with MUSIC=none to leave it out, and
+// CDAudio_Init reports that there is no music rather than that there are no
+// files.
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <dirent.h>
+
+#include "../client/client.h"
+#include "../client/snd_loc.h"
+
+#ifdef QUAKE_MUSIC_SNDFILE
+#include <sndfile.h>
+#endif
+
+// Track 1 is the data track on the Quake II CD; the music starts at 2.
+#define FIRST_MUSIC_TRACK	2
+#define MAX_MUSIC_TRACK		99
+
+static cvar_t	*cd_nocd;
+static cvar_t	*cd_volume;
+static cvar_t	*cd_musicdir;
+
+static qboolean	music_enabled = false;		// built with a decoder, and not -nocdaudio
+static qboolean	music_paused = false;
+static qboolean	music_looping = false;
+static int		music_track = 0;			// 0 = nothing playing
+static int		music_wanted = 0;			// what the map asked for, playing or not
+static char		music_dir[MAX_OSPATH];
+static char		music_dir_game[MAX_OSPATH];	// the game directory music_dir was found for
+
+// Extensions in the order they are tried. WAV last: a directory holding both
+// a compressed rip and the wav it was made from wants the compressed one.
+static const char *music_exts[] = { "ogg", "opus", "flac", "mp3", "wav", NULL };
+
+#ifdef QUAKE_MUSIC_SNDFILE
+
+static SNDFILE	*music_sf;
+static SF_INFO	music_info;
+
+// Where we are between two decoded source frames, so that a source rate that
+// is not the output rate still comes out at the right pitch and length.
+static float	music_frac;
+static float	music_prev[2];		// the frame behind music_frac
+static float	music_next[2];		// the frame ahead of it
+static float	music_step;			// source frames per output frame
+static qboolean	music_eof;
+
+#endif
+
+
+/*
+==================
+CDAudio_FindFile
+
+The name in dir that matches want, ignoring case, written into out. Returns
+false if there is none.
+==================
+*/
+static qboolean CDAudio_FindFile (const char *dir, const char *want, char *out, int outsize)
+{
+	DIR				*d;
+	struct dirent	*e;
+	qboolean		found = false;
+
+	d = opendir (dir);
+	if (!d)
+		return false;
+
+	while ((e = readdir (d)) != NULL)
+	{
+		if (!Q_stricmp (e->d_name, (char *)want))
+		{
+			Com_sprintf (out, outsize, "%s/%s", dir, e->d_name);
+			found = true;
+			break;
+		}
+	}
+
+	closedir (d);
+	return found;
+}
+
+
+/*
+==================
+CDAudio_DirHasFiles
+
+Whether dir holds anything that looks like a track. Checked rather than
+assumed: the container links a music directory into every game directory it
+finds, so an empty one is easy to end up with, and an empty directory that
+won would mean silence with no fallback rather than the base game's
+soundtrack.
+==================
+*/
+static qboolean CDAudio_DirHasFiles (const char *dir)
+{
+	struct stat		st;
+	DIR				*d;
+	struct dirent	*e;
+	qboolean		found = false;
+
+	if (!dir || !*dir)
+		return false;
+
+	if (stat (dir, &st) != 0 || !S_ISDIR (st.st_mode))
+		return false;
+
+	d = opendir (dir);
+	if (!d)
+		return false;
+
+	while (!found && (e = readdir (d)) != NULL)
+	{
+		const char	*ext;
+		int			i;
+
+		if (Q_strncasecmp (e->d_name, "track", 5))
+			continue;
+
+		ext = strrchr (e->d_name, '.');
+		if (!ext)
+			continue;
+
+		for (i = 0; music_exts[i]; i++)
+			if (!Q_stricmp ((char *)ext + 1, (char *)music_exts[i]))
+			{
+				found = true;
+				break;
+			}
+	}
+
+	closedir (d);
+	return found;
+}
+
+
+/*
+==================
+CDAudio_FindMusicDir
+
+The first of these that holds a track:
+
+  +set cd_musicdir <path>   an explicit override
+  <gamedir>/music           beside the pak files, which is where a rip goes
+  $QUAKE2_MUSICDIR          set by the container's entrypoint, or by hand
+  <basedir>/baseq2/music    so that a mod still finds the base game's music
+  <basedir>/music           where the GOG release keeps it
+
+The game directory beats the environment on purpose. The mission packs have
+soundtracks of their own, and a rip of each goes in its own directory --
+but $QUAKE2_MUSICDIR is necessarily one directory for every game the
+container can run, so if it won, a mission pack would play Quake II's music
+instead of its own.
+
+Looked for again whenever the game directory changes, since the game menu
+and a demo or server switching mod can both change it under a running
+engine.
+==================
+*/
+static void CDAudio_FindMusicDir (void)
+{
+	const char	*env;
+	char		trial[MAX_OSPATH];
+	cvar_t		*basedir;
+
+	music_dir[0] = 0;
+	Com_sprintf (music_dir_game, sizeof(music_dir_game), "%s", FS_Gamedir ());
+
+	if (CDAudio_DirHasFiles (cd_musicdir->string))
+	{
+		Com_sprintf (music_dir, sizeof(music_dir), "%s", cd_musicdir->string);
+		return;
+	}
+
+	Com_sprintf (trial, sizeof(trial), "%s/music", FS_Gamedir ());
+	if (CDAudio_DirHasFiles (trial))
+	{
+		Com_sprintf (music_dir, sizeof(music_dir), "%s", trial);
+		return;
+	}
+
+	env = getenv ("QUAKE2_MUSICDIR");
+	if (CDAudio_DirHasFiles (env))
+	{
+		Com_sprintf (music_dir, sizeof(music_dir), "%s", (char *)env);
+		return;
+	}
+
+	basedir = Cvar_Get ("basedir", ".", CVAR_NOSET);
+
+	Com_sprintf (trial, sizeof(trial), "%s/%s/music", basedir->string, BASEDIRNAME);
+	if (CDAudio_DirHasFiles (trial))
+	{
+		Com_sprintf (music_dir, sizeof(music_dir), "%s", trial);
+		return;
+	}
+
+	Com_sprintf (trial, sizeof(trial), "%s/music", basedir->string);
+	if (CDAudio_DirHasFiles (trial))
+		Com_sprintf (music_dir, sizeof(music_dir), "%s", trial);
+}
+
+
+/*
+==================
+CDAudio_CheckGamedir
+
+Called before anything is opened, so a change of game directory since the
+last track is noticed and the right soundtrack found.
+==================
+*/
+static void CDAudio_CheckGamedir (void)
+{
+	if (strcmp (music_dir_game, FS_Gamedir ()))
+	{
+		CDAudio_FindMusicDir ();
+		if (music_dir[0])
+			Com_Printf ("CDAudio: music from %s\n", music_dir);
+	}
+}
+
+
+#ifdef QUAKE_MUSIC_SNDFILE
+
+/*
+==================
+CDAudio_CloseTrack
+==================
+*/
+static void CDAudio_CloseTrack (void)
+{
+	if (music_sf)
+	{
+		sf_close (music_sf);
+		music_sf = NULL;
+	}
+	music_track = 0;
+	music_eof = false;
+}
+
+
+/*
+==================
+CDAudio_OpenTrack
+
+Tries each extension in turn. Returns false with nothing open if none of them
+is there, which is not an error: a partial rip is the normal case.
+==================
+*/
+static qboolean CDAudio_OpenTrack (int track)
+{
+	char	want[32];
+	char	path[MAX_OSPATH];
+	int		i;
+
+	CDAudio_CloseTrack ();
+
+	if (!music_dir[0] || !dma.speed)
+		return false;
+
+	for (i = 0; music_exts[i]; i++)
+	{
+		Com_sprintf (want, sizeof(want), "track%02d.%s", track, music_exts[i]);
+		if (!CDAudio_FindFile (music_dir, want, path, sizeof(path)))
+			continue;
+
+		memset (&music_info, 0, sizeof(music_info));
+		music_sf = sf_open (path, SFM_READ, &music_info);
+		if (music_sf)
+			break;
+
+		Com_Printf ("CDAudio: cannot decode %s: %s\n", path, sf_strerror (NULL));
+	}
+
+	if (!music_sf)
+		return false;
+
+	if (music_info.channels < 1 || music_info.channels > 2)
+	{
+		Com_Printf ("CDAudio: track %d has %d channels; only mono and stereo\n",
+					track, music_info.channels);
+		CDAudio_CloseTrack ();
+		return false;
+	}
+
+	if (music_info.samplerate < 1)
+	{
+		Com_Printf ("CDAudio: track %d reports a sample rate of %d\n",
+					track, music_info.samplerate);
+		CDAudio_CloseTrack ();
+		return false;
+	}
+
+	music_step = (float)music_info.samplerate / (float)dma.speed;
+	music_frac = 1.0f;				// forces both frames to be read first
+	music_prev[0] = music_prev[1] = 0;
+	music_next[0] = music_next[1] = 0;
+	music_eof = false;
+	music_track = track;
+
+	Com_Printf ("CDAudio: playing %s (%d Hz, %s)\n", path,
+				music_info.samplerate,
+				music_info.channels == 2 ? "stereo" : "mono");
+	return true;
+}
+
+
+/*
+==================
+CDAudio_NextSourceFrame
+
+One frame from the file, as a stereo pair. Returns false at the end of the
+file, having restarted it first if the track is looping.
+==================
+*/
+static qboolean CDAudio_NextSourceFrame (float *out)
+{
+	float		raw[2];
+	sf_count_t	got;
+
+	got = sf_readf_float (music_sf, raw, 1);
+	if (got < 1)
+	{
+		if (!music_looping)
+			return false;
+
+	// sf_seek back to the start rather than reopening: reopening an Ogg
+	// costs a decoder reset and a file open in the middle of a frame, and
+	// the loop is audible if it takes longer than the mixer's headroom.
+		if (sf_seek (music_sf, 0, SEEK_SET) < 0)
+			return false;
+
+		got = sf_readf_float (music_sf, raw, 1);
+		if (got < 1)
+			return false;
+	}
+
+	if (music_info.channels == 1)
+	{
+		out[0] = raw[0];
+		out[1] = raw[0];
+	}
+	else
+	{
+		out[0] = raw[0];
+		out[1] = raw[1];
+	}
+
+	return true;
+}
+
+
+/*
+==================
+CDAudio_MixPaintBuffer
+
+Called from S_PaintChannels with the stretch of paint buffer about to have
+the sound effects mixed into it. The music goes in at the paint buffer's own
+scale, a 16-bit sample shifted up by 8, which is the scale S_RawSamples
+writes the cinematics' sound at: the transfer stage shifts it back down and
+clips, so a full-scale sample here is a full-scale sample out.
+
+Resampling is linear. A CD rip is 44100 and the output is 22050, so this is
+almost always a straight 2:1 decimation; linear interpolation is inaudible on
+music at that ratio and costs two multiplies a sample.
+==================
+*/
+void CDAudio_MixPaintBuffer (portable_samplepair_t *buffer, int count)
+{
+	int		i;
+	float	vol;
+
+	if (!music_enabled || !music_sf || music_paused || music_eof)
+		return;
+
+	vol = cd_volume->value;
+	if (vol <= 0)
+		return;
+	if (vol > 1)
+		vol = 1;
+
+// 32767 rather than 32768: the transfer stage clips at 32767, and a track
+// mastered to full scale would otherwise clip on every trough.
+	vol *= 32767.0f * 256.0f;
+
+	for (i = 0; i < count; i++)
+	{
+		float	l, r;
+
+		while (music_frac >= 1.0f)
+		{
+			music_prev[0] = music_next[0];
+			music_prev[1] = music_next[1];
+
+			if (!CDAudio_NextSourceFrame (music_next))
+			{
+				music_eof = true;
+				CDAudio_CloseTrack ();
+				return;
+			}
+
+			music_frac -= 1.0f;
+		}
+
+		l = music_prev[0] + (music_next[0] - music_prev[0]) * music_frac;
+		r = music_prev[1] + (music_next[1] - music_prev[1]) * music_frac;
+
+		buffer[i].left  += (int)(l * vol);
+		buffer[i].right += (int)(r * vol);
+
+		music_frac += music_step;
+	}
+}
+
+#else	// !QUAKE_MUSIC_SNDFILE
+
+void CDAudio_MixPaintBuffer (portable_samplepair_t *buffer, int count)
+{
+}
+
+static void CDAudio_CloseTrack (void)
+{
+	music_track = 0;
+}
+
+static qboolean CDAudio_OpenTrack (int track)
+{
+	return false;
+}
+
+#endif	// QUAKE_MUSIC_SNDFILE
+
+
+/*
+==================
+CDAudio_Play
+==================
+*/
+void CDAudio_Play (int track, qboolean looping)
+{
+	if (!music_enabled)
+		return;
+
+	// A map with no "sounds" key on its worldspawn asks for track 0, which
+	// is silence; so does the cinematic code, on its way out.
+	if (track < FIRST_MUSIC_TRACK || track > MAX_MUSIC_TRACK)
+	{
+		if (track)
+			Com_DPrintf ("CDAudio: track %d out of range\n", track);
+		music_wanted = 0;
+		CDAudio_CloseTrack ();
+		return;
+	}
+
+	music_wanted = track;
+	music_looping = looping;
+
+	if (cd_nocd->value)
+		return;
+
+	CDAudio_CheckGamedir ();
+
+	if (music_track == track && !music_paused)
+		return;						// already playing it
+
+	music_paused = false;
+
+	if (!CDAudio_OpenTrack (track))
+		Com_DPrintf ("CDAudio: no file for track %d in %s\n", track,
+					 music_dir[0] ? music_dir : "(no music directory)");
+}
+
+
+void CDAudio_Stop (void)
+{
+	if (!music_enabled)
+		return;
+
+	CDAudio_CloseTrack ();
+	music_paused = false;
+}
+
+
+static void CDAudio_Pause (void)
+{
+	if (!music_enabled || !music_track)
+		return;
+
+	music_paused = true;
+}
+
+
+static void CDAudio_Resume (void)
+{
+	if (!music_enabled || !music_track)
+		return;
+
+	music_paused = false;
+}
+
+
+/*
+==================
+CDAudio_Update
+
+The 1997 version polled the drive here, because the drive was the only thing
+that knew whether the track had finished. The mixer notices the end of a file
+itself, so what is left is the menu's "CD music" switch, which sets cd_nocd:
+turned off, the music stops; turned back on, the map's track starts again.
+==================
+*/
+void CDAudio_Update (void)
+{
+	if (!music_enabled)
+		return;
+
+	if (cd_nocd->modified)
+	{
+		cd_nocd->modified = false;
+		if (cd_nocd->value)
+			CDAudio_Stop ();
+		else if (music_wanted)
+			CDAudio_Play (music_wanted, music_looping);
+	}
+}
+
+
+/*
+==================
+CD_f
+
+The same console command the CD player had, so that anything binding or
+scripting `cd play 4` still works, minus the commands that only meant
+something to a drive: eject, close, reset.
+==================
+*/
+static void CD_f (void)
+{
+	char	*command;
+
+	if (Cmd_Argc() < 2)
+	{
+		Com_Printf ("cd play <track> | loop <track> | stop | pause | resume | info\n");
+		return;
+	}
+
+	command = Cmd_Argv (1);
+
+	if (Q_stricmp (command, "on") == 0)
+	{
+		Cvar_Set ("cd_nocd", "0");
+		return;
+	}
+
+	if (Q_stricmp (command, "off") == 0)
+	{
+		Cvar_Set ("cd_nocd", "1");
+		return;
+	}
+
+	if (Q_stricmp (command, "play") == 0)
+	{
+		CDAudio_Play (atoi (Cmd_Argv (2)), false);
+		return;
+	}
+
+	if (Q_stricmp (command, "loop") == 0)
+	{
+		CDAudio_Play (atoi (Cmd_Argv (2)), true);
+		return;
+	}
+
+	if (Q_stricmp (command, "stop") == 0)
+	{
+		CDAudio_Stop ();
+		return;
+	}
+
+	if (Q_stricmp (command, "pause") == 0)
+	{
+		CDAudio_Pause ();
+		return;
+	}
+
+	if (Q_stricmp (command, "resume") == 0)
+	{
+		CDAudio_Resume ();
+		return;
+	}
+
+	if (Q_stricmp (command, "eject") == 0
+		|| Q_stricmp (command, "close") == 0
+		|| Q_stricmp (command, "reset") == 0
+		|| Q_stricmp (command, "remap") == 0)
+	{
+		Com_Printf ("cd %s: there is no drive; music comes from %s\n",
+					command, music_dir[0] ? music_dir : "nowhere -- see cd info");
+		return;
+	}
+
+	if (Q_stricmp (command, "info") == 0)
+	{
+		CDAudio_CheckGamedir ();
+#ifndef QUAKE_MUSIC_SNDFILE
+		Com_Printf ("No music: this build has no decoder.\n");
+#else
+		if (!music_dir[0])
+			Com_Printf ("No music directory. Looked for cd_musicdir,\n"
+						"<gamedir>/music, $QUAKE2_MUSICDIR,\n"
+						"<basedir>/" BASEDIRNAME "/music and <basedir>/music.\n");
+		else
+			Com_Printf ("Music directory: %s\n", music_dir);
+		if (music_track)
+			Com_Printf ("Playing track %d%s%s\n", music_track,
+						music_looping ? ", looping" : "",
+						music_paused ? ", paused" : "");
+		else if (music_wanted)
+			Com_Printf ("Track %d wanted, %s\n", music_wanted,
+						cd_nocd->value ? "but CD music is off" : "but there is no file for it");
+		else
+			Com_Printf ("Nothing playing\n");
+		Com_Printf ("Volume is %g\n", cd_volume->value);
+#endif
+		return;
+	}
+
+	Com_Printf ("cd: unknown command \"%s\"\n", command);
+}
+
+
+/*
+==================
+CDAudio_Init
+==================
+*/
+int CDAudio_Init (void)
+{
+	cvar_t	*cv;
+
+	cv = Cvar_Get ("nocdaudio", "0", CVAR_NOSET);
+	if (cv->value)
+		return -1;
+
+	cd_nocd = Cvar_Get ("cd_nocd", "0", CVAR_ARCHIVE);
+	cd_nocd->modified = false;
+	cd_volume = Cvar_Get ("cd_volume", "1", CVAR_ARCHIVE);
+	cd_musicdir = Cvar_Get ("cd_musicdir", "", CVAR_NOSET);
+
+	Cmd_AddCommand ("cd", CD_f);
+
+#ifndef QUAKE_MUSIC_SNDFILE
+	Com_Printf ("CDAudio: built without a decoder; no music.\n");
+	return -1;
+#else
+	music_enabled = true;
+
+	CDAudio_FindMusicDir ();
+
+	if (!music_dir[0])
+	{
+	// Not an error. The demo has no music to go with it -- the tracks were
+	// on the CD -- so this is the ordinary case for anyone who has not
+	// ripped their own.
+		Com_Printf ("CDAudio: no music directory; put track02.ogg and\n"
+					"         friends in <gamedir>/music to hear the soundtrack.\n");
+		return 0;
+	}
+
+	Com_Printf ("CDAudio: music from %s\n", music_dir);
+	return 0;
+#endif
+}
+
+
+void CDAudio_Activate (qboolean active)
+{
+	if (active)
+		CDAudio_Resume ();
+	else
+		CDAudio_Pause ();
+}
+
+
+void CDAudio_Shutdown (void)
+{
+	if (!music_enabled)
+		return;
+
+	CDAudio_CloseTrack ();
+	music_enabled = false;
+}

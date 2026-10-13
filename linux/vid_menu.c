@@ -1,24 +1,33 @@
+// vid_menu.c -- the Video menu, for the X11 software renderer.
+//
+// id's had a driver row (SVGAlib, X11, OpenGL) and two pages, one per kind of
+// renderer. This build has one renderer, so it has one page: the mode list
+// is every mode vid_so.c knows, in order of size, and fullscreen and the
+// mouse are only offered where they mean something -- on a desktop, not in
+// the container, where the window is the whole screen already and the
+// browser has the pointer.
+
 #include "../client/client.h"
 #include "../client/qmenu.h"
 
-#define REF_SOFT	0
-#define REF_SOFTX11	1
-#define REF_OPENGL	2
-
-extern cvar_t *vid_ref;
 extern cvar_t *vid_fullscreen;
 extern cvar_t *vid_gamma;
 extern cvar_t *scr_viewsize;
 
-static cvar_t *gl_mode;
-static cvar_t *gl_driver;
-static cvar_t *gl_picmip;
-static cvar_t *gl_ext_palettedtexture;
+typedef struct vidmode_s
+{
+	const char *description;
+	int         width, height;
+	int         mode;
+} vidmode_t;
+
+extern vidmode_t vid_modes[];
+int VID_NumModes (void);
 
 static cvar_t *sw_mode;
 static cvar_t *sw_stipplealpha;
-
 static cvar_t *_windowed_mouse;
+static cvar_t *vid_resizescreen;
 
 extern void M_ForceMenuOff( void );
 
@@ -29,42 +38,26 @@ MENU INTERACTION
 
 ====================================================================
 */
-#define SOFTWARE_MENU 0
-#define OPENGL_MENU   1
+
+#define MAX_MENU_MODES	32
 
 static menuframework_s  s_software_menu;
-static menuframework_s	s_opengl_menu;
-static menuframework_s *s_current_menu;
-static int				s_current_menu_index;
 
-static menulist_s		s_mode_list[2];
-static menulist_s		s_ref_list[2];
-static menuslider_s		s_tq_slider;
-static menuslider_s		s_screensize_slider[2];
-static menuslider_s		s_brightness_slider[2];
-static menulist_s  		s_fs_box[2];
+static menulist_s		s_mode_list;
+static menuslider_s		s_screensize_slider;
+static menuslider_s		s_brightness_slider;
+static menulist_s  		s_fs_box;
 static menulist_s  		s_stipple_box;
-static menulist_s  		s_paletted_texture_box;
 static menulist_s  		s_windowed_mouse;
-static menuaction_s		s_apply_action[2];
-static menuaction_s		s_defaults_action[2];
+static menuaction_s		s_apply_action;
+static menuaction_s		s_defaults_action;
 
-static void DriverCallback( void *unused )
-{
-	s_ref_list[!s_current_menu_index].curvalue = s_ref_list[s_current_menu_index].curvalue;
-
-	if ( s_ref_list[s_current_menu_index].curvalue < 2 )
-	{
-		s_current_menu = &s_software_menu;
-		s_current_menu_index = 0;
-	}
-	else
-	{
-		s_current_menu = &s_opengl_menu;
-		s_current_menu_index = 1;
-	}
-
-}
+// The mode list, in the order shown, and the sw_mode each row sets. The last
+// row is the custom size, when sw_mode -1 is in use.
+static char				s_mode_names[MAX_MENU_MODES + 1][24];
+static const char		*s_mode_items[MAX_MENU_MODES + 2];
+static int				s_mode_for_item[MAX_MENU_MODES + 1];
+static int				s_mode_count;
 
 static void ScreenSizeCallback( void *s )
 {
@@ -76,19 +69,9 @@ static void ScreenSizeCallback( void *s )
 static void BrightnessCallback( void *s )
 {
 	menuslider_s *slider = ( menuslider_s * ) s;
+	float gamma = ( 0.8 - ( slider->curvalue/10.0 - 0.5 ) ) + 0.5;
 
-	if ( s_current_menu_index == 0)
-		s_brightness_slider[1].curvalue = s_brightness_slider[0].curvalue;
-	else
-		s_brightness_slider[0].curvalue = s_brightness_slider[1].curvalue;
-
-	if ( stricmp( vid_ref->string, "soft" ) == 0 ||
-		 stricmp( vid_ref->string, "softx" ) == 0 )
-	{
-		float gamma = ( 0.8 - ( slider->curvalue/10.0 - 0.5 ) ) + 0.5;
-
-		Cvar_SetValue( "vid_gamma", gamma );
-	}
+	Cvar_SetValue( "vid_gamma", gamma );
 }
 
 static void ResetDefaults( void *unused )
@@ -99,70 +82,82 @@ static void ResetDefaults( void *unused )
 static void ApplyChanges( void *unused )
 {
 	float gamma;
-
-	/*
-	** make values consistent
-	*/
-	s_fs_box[!s_current_menu_index].curvalue = s_fs_box[s_current_menu_index].curvalue;
-	s_brightness_slider[!s_current_menu_index].curvalue = s_brightness_slider[s_current_menu_index].curvalue;
-	s_ref_list[!s_current_menu_index].curvalue = s_ref_list[s_current_menu_index].curvalue;
+	int mode;
 
 	/*
 	** invert sense so greater = brighter, and scale to a range of 0.5 to 1.3
 	*/
-	gamma = ( 0.8 - ( s_brightness_slider[s_current_menu_index].curvalue/10.0 - 0.5 ) ) + 0.5;
+	gamma = ( 0.8 - ( s_brightness_slider.curvalue/10.0 - 0.5 ) ) + 0.5;
 
 	Cvar_SetValue( "vid_gamma", gamma );
 	Cvar_SetValue( "sw_stipplealpha", s_stipple_box.curvalue );
-	Cvar_SetValue( "gl_picmip", 3 - s_tq_slider.curvalue );
-	Cvar_SetValue( "vid_fullscreen", s_fs_box[s_current_menu_index].curvalue );
-	Cvar_SetValue( "gl_ext_palettedtexture", s_paletted_texture_box.curvalue );
-	Cvar_SetValue( "sw_mode", s_mode_list[SOFTWARE_MENU].curvalue );
-	Cvar_SetValue( "gl_mode", s_mode_list[OPENGL_MENU].curvalue );
-	Cvar_SetValue( "_windowed_mouse", s_windowed_mouse.curvalue);
 
-	switch ( s_ref_list[s_current_menu_index].curvalue )
+	mode = s_mode_for_item[s_mode_list.curvalue];
+	if ( mode != (int)sw_mode->value )
+		Cvar_SetValue( "sw_mode", mode );
+
+	if ( !vid_resizescreen->value )
 	{
-	case REF_SOFT:
-		Cvar_Set( "vid_ref", "soft" );
-		break;
-	case REF_SOFTX11:
-		Cvar_Set( "vid_ref", "softx" );
-		break;
-	case REF_OPENGL:
-		Cvar_Set( "vid_ref", "gl" );
-		Cvar_Set( "gl_driver", "opengl32" );
-		break;
+		Cvar_SetValue( "vid_fullscreen", s_fs_box.curvalue );
+		Cvar_SetValue( "_windowed_mouse", s_windowed_mouse.curvalue);
 	}
-
-#if 0
-	/*
-	** update appropriate stuff if we're running OpenGL and gamma
-	** has been modified
-	*/
-	if ( stricmp( vid_ref->string, "gl" ) == 0 )
-	{
-		if ( vid_gamma->modified )
-		{
-			vid_ref->modified = true;
-			if ( stricmp( gl_driver->string, "3dfxgl" ) == 0 )
-			{
-				char envbuffer[1024];
-				float g;
-
-				vid_ref->modified = true;
-
-				g = 2.00 * ( 0.8 - ( vid_gamma->value - 0.5 ) ) + 1.0F;
-				Com_sprintf( envbuffer, sizeof(envbuffer), "SST_GAMMA=%f", g );
-				putenv( envbuffer );
-
-				vid_gamma->modified = false;
-			}
-		}
-	}
-#endif
 
 	M_ForceMenuOff();
+}
+
+/*
+** VID_SortModes
+**
+** The rows of the mode list: every mode, smallest first, and the custom size
+** at the end if that is what is in use.
+*/
+static void VID_SortModes( void )
+{
+	int i, j, n, t;
+	int order[MAX_MENU_MODES];
+
+	n = VID_NumModes();
+	if ( n > MAX_MENU_MODES )
+		n = MAX_MENU_MODES;
+
+	for ( i = 0; i < n; i++ )
+		order[i] = i;
+	for ( i = 1; i < n; i++ )
+	{
+		for ( j = i; j > 0; j-- )
+		{
+			vidmode_t *a = &vid_modes[order[j-1]];
+			vidmode_t *b = &vid_modes[order[j]];
+
+			if ( a->width < b->width || ( a->width == b->width && a->height <= b->height ) )
+				break;
+			t = order[j-1]; order[j-1] = order[j]; order[j] = t;
+		}
+	}
+
+	s_mode_count = 0;
+	for ( i = 0; i < n; i++ )
+	{
+		vidmode_t *m = &vid_modes[order[i]];
+
+		Com_sprintf( s_mode_names[s_mode_count], sizeof( s_mode_names[0] ),
+					 "[%d %d]", m->width, m->height );
+		s_mode_items[s_mode_count] = s_mode_names[s_mode_count];
+		s_mode_for_item[s_mode_count] = order[i];
+		s_mode_count++;
+	}
+
+	if ( (int)sw_mode->value == -1 )
+	{
+		Com_sprintf( s_mode_names[s_mode_count], sizeof( s_mode_names[0] ),
+					 "[%d %d custom]", (int)Cvar_VariableValue( "vid_width" ) & ~7,
+					 (int)Cvar_VariableValue( "vid_height" ) );
+		s_mode_items[s_mode_count] = s_mode_names[s_mode_count];
+		s_mode_for_item[s_mode_count] = -1;
+		s_mode_count++;
+	}
+
+	s_mode_items[s_mode_count] = 0;
 }
 
 /*
@@ -170,197 +165,114 @@ static void ApplyChanges( void *unused )
 */
 void VID_MenuInit( void )
 {
-	static const char *resolutions[] = 
-	{
-		"[320 240  ]",
-		"[400 300  ]",
-		"[512 384  ]",
-		"[640 480  ]",
-		"[800 600  ]",
-		"[960 720  ]",
-		"[1024 768 ]",
-		"[1152 864 ]",
-		"[1280 1024]",
-		"[1600 1200]",
-		0
-	};
-	static const char *refs[] =
-	{
-		"[software      ]",
-		"[software X11  ]",
-		"[default OpenGL]",
-		0
-	};
 	static const char *yesno_names[] =
 	{
 		"no",
 		"yes",
 		0
 	};
-	int i;
+	int i, y;
 
-	if ( !gl_driver )
-		gl_driver = Cvar_Get( "gl_driver", "opengl32", 0 );
-	if ( !gl_picmip )
-		gl_picmip = Cvar_Get( "gl_picmip", "0", 0 );
-	if ( !gl_mode )
-		gl_mode = Cvar_Get( "gl_mode", "3", 0 );
 	if ( !sw_mode )
 		sw_mode = Cvar_Get( "sw_mode", "0", 0 );
-	if ( !gl_ext_palettedtexture )
-		gl_ext_palettedtexture = Cvar_Get( "gl_ext_palettedtexture", "1", CVAR_ARCHIVE );
-
 	if ( !sw_stipplealpha )
 		sw_stipplealpha = Cvar_Get( "sw_stipplealpha", "0", CVAR_ARCHIVE );
-
 	if ( !_windowed_mouse)
         _windowed_mouse = Cvar_Get( "_windowed_mouse", "0", CVAR_ARCHIVE );
-
-	s_mode_list[SOFTWARE_MENU].curvalue = sw_mode->value;
-	s_mode_list[OPENGL_MENU].curvalue = gl_mode->value;
-
+	if ( !vid_resizescreen )
+		vid_resizescreen = Cvar_Get( "vid_resizescreen", "0", CVAR_NOSET );
 	if ( !scr_viewsize )
 		scr_viewsize = Cvar_Get ("viewsize", "100", CVAR_ARCHIVE);
 
-	s_screensize_slider[SOFTWARE_MENU].curvalue = scr_viewsize->value/10;
-	s_screensize_slider[OPENGL_MENU].curvalue = scr_viewsize->value/10;
+	VID_SortModes();
 
-	if ( strcmp( vid_ref->string, "soft" ) == 0)
-	{
-		s_current_menu_index = SOFTWARE_MENU;
-		s_ref_list[0].curvalue = s_ref_list[1].curvalue = REF_SOFT;
-	}
-	else if (strcmp( vid_ref->string, "softx" ) == 0 ) 
-	{
-		s_current_menu_index = SOFTWARE_MENU;
-		s_ref_list[0].curvalue = s_ref_list[1].curvalue = REF_SOFTX11;
-	}
-	else if ( strcmp( vid_ref->string, "gl" ) == 0 )
-	{
-		s_current_menu_index = OPENGL_MENU;
-		s_ref_list[s_current_menu_index].curvalue = REF_OPENGL;
-#if 0
-		if ( strcmp( gl_driver->string, "3dfxgl" ) == 0 )
-			s_ref_list[s_current_menu_index].curvalue = REF_3DFX;
-		else if ( strcmp( gl_driver->string, "pvrgl" ) == 0 )
-			s_ref_list[s_current_menu_index].curvalue = REF_POWERVR;
-		else if ( strcmp( gl_driver->string, "opengl32" ) == 0 )
-			s_ref_list[s_current_menu_index].curvalue = REF_OPENGL;
-		else
-			s_ref_list[s_current_menu_index].curvalue = REF_VERITE;
-#endif
-	}
+	s_mode_list.curvalue = 0;
+	for ( i = 0; i < s_mode_count; i++ )
+		if ( s_mode_for_item[i] == (int)sw_mode->value )
+			s_mode_list.curvalue = i;
 
 	s_software_menu.x = viddef.width * 0.50;
 	s_software_menu.nitems = 0;
-	s_opengl_menu.x = viddef.width * 0.50;
-	s_opengl_menu.nitems = 0;
 
-	for ( i = 0; i < 2; i++ )
-	{
-		s_ref_list[i].generic.type = MTYPE_SPINCONTROL;
-		s_ref_list[i].generic.name = "driver";
-		s_ref_list[i].generic.x = 0;
-		s_ref_list[i].generic.y = 0;
-		s_ref_list[i].generic.callback = DriverCallback;
-		s_ref_list[i].itemnames = refs;
+	y = 0;
 
-		s_mode_list[i].generic.type = MTYPE_SPINCONTROL;
-		s_mode_list[i].generic.name = "video mode";
-		s_mode_list[i].generic.x = 0;
-		s_mode_list[i].generic.y = 10;
-		s_mode_list[i].itemnames = resolutions;
+	s_mode_list.generic.type = MTYPE_SPINCONTROL;
+	s_mode_list.generic.name = "video mode";
+	s_mode_list.generic.x = 0;
+	s_mode_list.generic.y = y;
+	s_mode_list.itemnames = s_mode_items;
+	y += 10;
 
-		s_screensize_slider[i].generic.type	= MTYPE_SLIDER;
-		s_screensize_slider[i].generic.x		= 0;
-		s_screensize_slider[i].generic.y		= 20;
-		s_screensize_slider[i].generic.name	= "screen size";
-		s_screensize_slider[i].minvalue = 3;
-		s_screensize_slider[i].maxvalue = 12;
-		s_screensize_slider[i].generic.callback = ScreenSizeCallback;
+	s_screensize_slider.generic.type	= MTYPE_SLIDER;
+	s_screensize_slider.generic.x		= 0;
+	s_screensize_slider.generic.y		= y;
+	s_screensize_slider.generic.name	= "screen size";
+	s_screensize_slider.minvalue = 3;
+	s_screensize_slider.maxvalue = 12;
+	s_screensize_slider.curvalue = scr_viewsize->value/10;
+	s_screensize_slider.generic.callback = ScreenSizeCallback;
+	y += 10;
 
-		s_brightness_slider[i].generic.type	= MTYPE_SLIDER;
-		s_brightness_slider[i].generic.x	= 0;
-		s_brightness_slider[i].generic.y	= 30;
-		s_brightness_slider[i].generic.name	= "brightness";
-		s_brightness_slider[i].generic.callback = BrightnessCallback;
-		s_brightness_slider[i].minvalue = 5;
-		s_brightness_slider[i].maxvalue = 13;
-		s_brightness_slider[i].curvalue = ( 1.3 - vid_gamma->value + 0.5 ) * 10;
-
-		s_fs_box[i].generic.type = MTYPE_SPINCONTROL;
-		s_fs_box[i].generic.x	= 0;
-		s_fs_box[i].generic.y	= 40;
-		s_fs_box[i].generic.name	= "fullscreen";
-		s_fs_box[i].itemnames = yesno_names;
-		s_fs_box[i].curvalue = vid_fullscreen->value;
-
-		s_defaults_action[i].generic.type = MTYPE_ACTION;
-		s_defaults_action[i].generic.name = "reset to default";
-		s_defaults_action[i].generic.x    = 0;
-		s_defaults_action[i].generic.y    = 90;
-		s_defaults_action[i].generic.callback = ResetDefaults;
-
-		s_apply_action[i].generic.type = MTYPE_ACTION;
-		s_apply_action[i].generic.name = "apply";
-		s_apply_action[i].generic.x    = 0;
-		s_apply_action[i].generic.y    = 100;
-		s_apply_action[i].generic.callback = ApplyChanges;
-	}
+	s_brightness_slider.generic.type	= MTYPE_SLIDER;
+	s_brightness_slider.generic.x	= 0;
+	s_brightness_slider.generic.y	= y;
+	s_brightness_slider.generic.name	= "brightness";
+	s_brightness_slider.generic.callback = BrightnessCallback;
+	s_brightness_slider.minvalue = 5;
+	s_brightness_slider.maxvalue = 13;
+	s_brightness_slider.curvalue = ( 1.3 - vid_gamma->value + 0.5 ) * 10;
+	y += 10;
 
 	s_stipple_box.generic.type = MTYPE_SPINCONTROL;
 	s_stipple_box.generic.x	= 0;
-	s_stipple_box.generic.y	= 60;
+	s_stipple_box.generic.y	= y;
 	s_stipple_box.generic.name	= "stipple alpha";
 	s_stipple_box.curvalue = sw_stipplealpha->value;
 	s_stipple_box.itemnames = yesno_names;
+	y += 10;
+
+	s_fs_box.generic.type = MTYPE_SPINCONTROL;
+	s_fs_box.generic.x	= 0;
+	s_fs_box.generic.y	= y;
+	s_fs_box.generic.name	= "fullscreen";
+	s_fs_box.itemnames = yesno_names;
+	s_fs_box.curvalue = vid_fullscreen->value;
 
 	s_windowed_mouse.generic.type = MTYPE_SPINCONTROL;
 	s_windowed_mouse.generic.x  = 0;
-	s_windowed_mouse.generic.y  = 72;
-	s_windowed_mouse.generic.name   = "windowed mouse";
+	s_windowed_mouse.generic.y  = y + 10;
+	s_windowed_mouse.generic.name   = "hold mouse";
 	s_windowed_mouse.curvalue = _windowed_mouse->value;
 	s_windowed_mouse.itemnames = yesno_names;
 
-	s_tq_slider.generic.type	= MTYPE_SLIDER;
-	s_tq_slider.generic.x		= 0;
-	s_tq_slider.generic.y		= 60;
-	s_tq_slider.generic.name	= "texture quality";
-	s_tq_slider.minvalue = 0;
-	s_tq_slider.maxvalue = 3;
-	s_tq_slider.curvalue = 3-gl_picmip->value;
+	if ( !vid_resizescreen->value )
+		y += 20;
 
-	s_paletted_texture_box.generic.type = MTYPE_SPINCONTROL;
-	s_paletted_texture_box.generic.x	= 0;
-	s_paletted_texture_box.generic.y	= 70;
-	s_paletted_texture_box.generic.name	= "8-bit textures";
-	s_paletted_texture_box.itemnames = yesno_names;
-	s_paletted_texture_box.curvalue = gl_ext_palettedtexture->value;
+	s_defaults_action.generic.type = MTYPE_ACTION;
+	s_defaults_action.generic.name = "reset to default";
+	s_defaults_action.generic.x    = 0;
+	s_defaults_action.generic.y    = y + 10;
+	s_defaults_action.generic.callback = ResetDefaults;
 
-	Menu_AddItem( &s_software_menu, ( void * ) &s_ref_list[SOFTWARE_MENU] );
-	Menu_AddItem( &s_software_menu, ( void * ) &s_mode_list[SOFTWARE_MENU] );
-	Menu_AddItem( &s_software_menu, ( void * ) &s_screensize_slider[SOFTWARE_MENU] );
-	Menu_AddItem( &s_software_menu, ( void * ) &s_brightness_slider[SOFTWARE_MENU] );
-	Menu_AddItem( &s_software_menu, ( void * ) &s_fs_box[SOFTWARE_MENU] );
+	s_apply_action.generic.type = MTYPE_ACTION;
+	s_apply_action.generic.name = "apply";
+	s_apply_action.generic.x    = 0;
+	s_apply_action.generic.y    = y + 20;
+	s_apply_action.generic.callback = ApplyChanges;
+
+	Menu_AddItem( &s_software_menu, ( void * ) &s_mode_list );
+	Menu_AddItem( &s_software_menu, ( void * ) &s_screensize_slider );
+	Menu_AddItem( &s_software_menu, ( void * ) &s_brightness_slider );
 	Menu_AddItem( &s_software_menu, ( void * ) &s_stipple_box );
-	Menu_AddItem( &s_software_menu, ( void * ) &s_windowed_mouse );
-
-	Menu_AddItem( &s_opengl_menu, ( void * ) &s_ref_list[OPENGL_MENU] );
-	Menu_AddItem( &s_opengl_menu, ( void * ) &s_mode_list[OPENGL_MENU] );
-	Menu_AddItem( &s_opengl_menu, ( void * ) &s_screensize_slider[OPENGL_MENU] );
-	Menu_AddItem( &s_opengl_menu, ( void * ) &s_brightness_slider[OPENGL_MENU] );
-	Menu_AddItem( &s_opengl_menu, ( void * ) &s_fs_box[OPENGL_MENU] );
-	Menu_AddItem( &s_opengl_menu, ( void * ) &s_tq_slider );
-	Menu_AddItem( &s_opengl_menu, ( void * ) &s_paletted_texture_box );
-
-	Menu_AddItem( &s_software_menu, ( void * ) &s_defaults_action[SOFTWARE_MENU] );
-	Menu_AddItem( &s_software_menu, ( void * ) &s_apply_action[SOFTWARE_MENU] );
-	Menu_AddItem( &s_opengl_menu, ( void * ) &s_defaults_action[OPENGL_MENU] );
-	Menu_AddItem( &s_opengl_menu, ( void * ) &s_apply_action[OPENGL_MENU] );
+	if ( !vid_resizescreen->value )
+	{
+		Menu_AddItem( &s_software_menu, ( void * ) &s_fs_box );
+		Menu_AddItem( &s_software_menu, ( void * ) &s_windowed_mouse );
+	}
+	Menu_AddItem( &s_software_menu, ( void * ) &s_defaults_action );
+	Menu_AddItem( &s_software_menu, ( void * ) &s_apply_action );
 
 	Menu_Center( &s_software_menu );
-	Menu_Center( &s_opengl_menu );
-	s_opengl_menu.x -= 8;
 	s_software_menu.x -= 8;
 }
 
@@ -373,11 +285,6 @@ void VID_MenuDraw (void)
 {
 	int w, h;
 
-	if ( s_current_menu_index == 0 )
-		s_current_menu = &s_software_menu;
-	else
-		s_current_menu = &s_opengl_menu;
-
 	/*
 	** draw the banner
 	*/
@@ -387,12 +294,12 @@ void VID_MenuDraw (void)
 	/*
 	** move cursor to a reasonable starting position
 	*/
-	Menu_AdjustCursor( s_current_menu, 1 );
+	Menu_AdjustCursor( &s_software_menu, 1 );
 
 	/*
 	** draw the menu
 	*/
-	Menu_Draw( s_current_menu );
+	Menu_Draw( &s_software_menu );
 }
 
 /*
@@ -404,12 +311,13 @@ const char *VID_MenuKey( int key )
 {
 	extern void M_PopMenu( void );
 
-	menuframework_s *m = s_current_menu;
+	menuframework_s *m = &s_software_menu;
 	static const char *sound = "misc/menu1.wav";
 
 	switch ( key )
 	{
 	case K_ESCAPE:
+	case K_BACKSPACE:
 		M_PopMenu();
 		return NULL;
 	case K_UPARROW:
@@ -433,5 +341,3 @@ const char *VID_MenuKey( int key )
 
 	return sound;
 }
-
-
