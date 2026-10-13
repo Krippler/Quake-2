@@ -176,6 +176,12 @@ template. Point **Game data** at your Quake II directory; `PUID`/`PGID` are
 **"No Quake II game data found"** -- the mount does not have `baseq2/pak0.pak`
 within four levels of its top. Check the path on the left of `-v`.
 
+**"pics/conchars.pcx is missing"** -- the pak files are the 2023
+re-release's (its `rerelease/baseq2/pak0.pak`, 14,000-odd files). Those are
+for the re-release's own engine: its maps need more than the 1997 network
+protocol carries, and its console font is not there. Mount the install
+directory itself, or copy the original `baseq2` beside `rerelease/` instead.
+
 **"cannot write to /quake2/state"** -- a host directory was bind-mounted there
 and the container's user cannot write to it. Use `PUID`/`PGID`, `--user`, or a
 named volume.

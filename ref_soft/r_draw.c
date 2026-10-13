@@ -154,6 +154,16 @@ Draw_InitLocal
 void Draw_InitLocal (void)
 {
 	draw_chars = Draw_FindPic ("conchars");
+
+	// Every Quake II pak0 has the console font. One without it is not the
+	// game this engine plays -- the 2023 re-release's is the one met in
+	// practice, whose maps the 1997 network protocol cannot carry either --
+	// and every message after this would be drawn with it.
+	if (!draw_chars)
+		ri.Sys_Error (ERR_FATAL, "pics/conchars.pcx is missing, so this is not the "
+			"original Quake II's data. The 2023 re-release's own pak files are "
+			"for its own engine; the original game's baseq2 is beside its "
+			"rerelease folder in the same install, and that is the one to use");
 }
 
 
@@ -176,7 +186,7 @@ void Draw_Char (int x, int y, int num)
 
 	num &= 255;
 
-	if (num == 32 || num == 32+128)
+	if (num == 32 || num == 32+128 || !draw_chars)
 		return;
 
 	if (y <= -8)

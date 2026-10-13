@@ -5,6 +5,15 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **The 2023 re-release's pak files crashed the engine** in `Draw_Char` once
+  their maps overflowed the network protocol. They are not data this engine
+  can play, and it now stops at once saying so, and where the original
+  game's `baseq2` is in the same install.
+
 ## [1.2.0] — 2026-10-13
 
 ### Added
