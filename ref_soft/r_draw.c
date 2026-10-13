@@ -154,6 +154,15 @@ Draw_InitLocal
 void Draw_InitLocal (void)
 {
 	draw_chars = Draw_FindPic ("conchars");
+
+	// Every pak0 of the original game has the console font; the 2023
+	// re-release's has not, and plays here only on top of the original's,
+	// which supplies it and the rest of the original look (R_LoadUsable).
+	if (!draw_chars)
+		ri.Sys_Error (ERR_FATAL, "pics/conchars.pcx is missing. The 2023 re-release's "
+			"pak plays here only with the original game's paks beside it, which "
+			"have the fonts and pictures it lacks: they are in the baseq2 beside "
+			"its rerelease folder, in the same install");
 }
 
 
@@ -176,7 +185,7 @@ void Draw_Char (int x, int y, int num)
 
 	num &= 255;
 
-	if (num == 32 || num == 32+128)
+	if (num == 32 || num == 32+128 || !draw_chars)
 		return;
 
 	if (y <= -8)

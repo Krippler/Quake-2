@@ -28,9 +28,35 @@ there: the container builds a game directory of its own in the state volume
 the pak files.
 
 The container finds `baseq2` itself when the mount is a level or more above
-it, so a whole Steam or GOG install directory works. It skips a `rerelease`
-directory: that is the 2023 re-release's own data, which this 2001 engine
-cannot read; the original game's `baseq2` sits beside it.
+it, so a whole Steam or GOG install directory works. The 2023 re-release
+keeps its own data in a `rerelease` folder beside the original game's
+`baseq2`, which is what plays by default; see below for playing its pak too.
+
+### The 2023 re-release's pak
+
+`-e QUAKE2_RERELEASE=1` puts the re-release's pak
+(`rerelease/baseq2/pak0.pak`, mounted with the rest of the install) on top of
+the original game's. For every file the engine then takes the first copy it
+can read, so you get the re-release's maps -- with their new lighting --
+models and textures, and wherever the re-release's copy is missing or in a
+form a 1997 engine cannot use, the original's stands in. Its console font,
+for one, is not in the re-release's pak at all; the original's is used, and
+the menus and status bar look as they always did.
+
+What plays from it, by the re-release's own maps:
+
+| | |
+| --- | --- |
+| the base campaign, The Reckoning, the deathmatch maps | yes, from the re-release's copies |
+| `q2dm3` and four Ground Zero maps | from the original game's copies: the re-release's have faces wider than the software renderer draws |
+| the N64 campaign (`q64/`) | no: wider faces, and textures in a format of its own |
+| Call of the Machine (`mgu*`) | no: maps in the re-release's extended QBSP format |
+| its demos | no: recorded in the re-release's network protocol; the original game's play instead |
+
+Each copy passed over is named in the log with the reason. Two things the
+re-release draws are not here: its real-time shadowed lights
+(`dynamic_light`) and see-through grates, so a few surfaces lit only by
+those are darker than in the re-release.
 
 Each other directory with pak files, a `maps` directory or a
 `gamex86_64.so` in it is a game: `ctf`, a mission pack, a mod. Start on one
@@ -67,6 +93,7 @@ apart from the sound effects'.
 | --- | --- | --- |
 | `QUAKE2_WIDTH`, `QUAKE2_HEIGHT` | 640, 480 | The resolution a fresh state volume starts at, up to 1920x1200. After that the Video menu's choice is in `config.cfg` and wins |
 | `QUAKE2_GAME` | | The game directory to start on: `xatrix` (The Reckoning), `rogue` (Ground Zero), `ctf`, or a mod. Empty is the base game |
+| `QUAKE2_RERELEASE` | 0 | 1 plays the 2023 re-release's pak on top of the original game's ([above](#the-2023-re-releases-pak)) |
 | `QUAKE2_MODERN_CONTROLS` | 1 | 0 starts a fresh volume on id's 1997 controls instead (below) |
 | `QUAKE2_VNC_PASSWORD` | | A password for the picture. Without it there is none |
 | `PUID`, `PGID` | 1001 | Who the container runs as, and so who owns the state volume's files. 99 and 100 on Unraid |
@@ -175,6 +202,12 @@ template. Point **Game data** at your Quake II directory; `PUID`/`PGID` are
 
 **"No Quake II game data found"** -- the mount does not have `baseq2/pak0.pak`
 within four levels of its top. Check the path on the left of `-v`.
+
+**"pics/conchars.pcx is missing"** -- the pak files are the 2023
+re-release's alone (its `rerelease/baseq2/pak0.pak`, 14,000-odd files). Its
+pak has no console font and no 1997 pictures, and plays only on top of the
+original game's: mount the whole install, with `QUAKE2_RERELEASE=1` if you
+want the re-release's pak as well.
 
 **"cannot write to /quake2/state"** -- a host directory was bind-mounted there
 and the container's user cannot write to it. Use `PUID`/`PGID`, `--user`, or a

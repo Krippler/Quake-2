@@ -364,9 +364,49 @@ n=$(colours depth8)
 say "at depth 8 the room drew in $n colours"
 stop_engine
 
+# --------------------------------------------------------- 6: the re-release
+#
+# The 2023 re-release's pak on top of the original's, as QUAKE2_RERELEASE=1
+# links it: for each file the first copy the engine can read is used, and the
+# stand-in's QBSP map, 24-bit picture and protocol-2023 demo each give way to
+# the original's copy underneath; its own map loads from it.
+say "phase 6: a re-release pak on top of the original's"
+start_x 24
+ln -sfn "$work/rerelease/baseq2/pak0.pak" "$work/baseq2/pak9.pak"
+rm -f "$work/baseq2/config.cfg"
+run_engine rerelease +set sw_mode 3 +set developer 1 +map smoke
+wait_for_log rerelease "client_connect\|entered the game" \
+    || die "the map did not load with the re-release pak on top; see $work/rerelease.log"
+sleep 2
+alive rerelease
+grep -q "Added packfile .*pak9.pak" "$work/rerelease.log" || die "pak9.pak was not opened"
+grep -q "maps/smoke.bsp is in the re-release's extended QBSP format" "$work/rerelease.log" \
+    || die "the QBSP copy of the map was not passed over; see $work/rerelease.log"
+grep -q "pics/i_health.pcx is not an 8-bit paletted PCX" "$work/rerelease.log" \
+    || die "the 24-bit picture was not passed over; see $work/rerelease.log"
+n=$(colours rerelease)
+[ "$n" -ge 3 ] || die "with the re-release pak on top the room holds $n colour(s)"
+say "the original's map and picture stood in for the re-release's; the room drew in $n colours"
+
+console "map rr_only"
+wait_for_log rerelease "pak9.pak : maps/rr_only.bsp" \
+    || die "the re-release pak's own map was not loaded from it; see $work/rerelease.log"
+sleep 2
+alive rerelease
+say "a map only the re-release pak has loaded from it"
+
+console "demomap demo1.dm2"
+wait_for_log rerelease "No demo demos/demo1.dm2 in protocol 34" \
+    || die "a protocol 2023 demo was not refused; see $work/rerelease.log"
+sleep 1
+alive rerelease
+say "a demo in protocol 2023 was refused, and the engine carried on"
+stop_engine
+rm -f "$work/baseq2/pak9.pak"
+
 # ------------------------------------------------------------ real data
 if [ -n "${QUAKE2_SMOKE_DATA:-}" ]; then
-    say "phase 6: real game data from $QUAKE2_SMOKE_DATA"
+    say "phase 7: real game data from $QUAKE2_SMOKE_DATA"
     start_x 24
     # Linked into a directory of its own, as the container does, so that
     # the config.cfg and anything else the engine writes stays out of the

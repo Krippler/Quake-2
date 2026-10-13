@@ -703,6 +703,16 @@ void	FS_FCloseFile (FILE *f);
 // note: this can't be called from another DLL, due to MS libc issues
 
 int		FS_LoadFile (char *path, void **buffer);
+int		FS_LoadFileSkip (char *path, void **buffer, int skip);
+int		FS_FOpenFileSkip (char *filename, FILE **file, int skip);
+int		FS_LoadUsableFile (char *path, void **buffer,
+			qboolean (*usable) (const byte *buf, int len, char *why, int whysize));
+
+// usable.c: whether this engine reads a copy of a file
+qboolean BSP_Usable (const byte *buf, int len, char *why, int whysize);
+qboolean MD2_Usable (const byte *buf, int len, char *why, int whysize);
+qboolean PCX_Usable (const byte *buf, int len, char *why, int whysize);
+qboolean WAL_Usable (const byte *buf, int len, char *why, int whysize);
 // a null buffer will just return the file length without loading
 // a -1 length is not present
 

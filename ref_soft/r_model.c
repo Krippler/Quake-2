@@ -82,6 +82,22 @@ void Mod_Init (void)
 
 /*
 ==================
+Mod_Usable
+
+Whether a copy of a model is one this renderer reads; see R_LoadUsable.
+==================
+*/
+static qboolean Mod_Usable (const byte *buf, int len, char *why, int whysize)
+{
+	if (len >= 4 && LittleLong (*(unsigned *)buf) == IDALIASHEADER)
+		return MD2_Usable (buf, len, why, whysize);
+	if (len >= 4 && LittleLong (*(unsigned *)buf) == IDSPRITEHEADER)
+		return true;
+	return BSP_Usable (buf, len, why, whysize);
+}
+
+/*
+==================
 Mod_ForName
 
 Loads in a model for the given name
@@ -133,7 +149,7 @@ model_t *Mod_ForName (char *name, qboolean crash)
 	//
 	// load the file
 	//
-	modfilelen = ri.FS_LoadFile (mod->name, (void **)&buf);
+	modfilelen = R_LoadUsable (mod->name, (void **)&buf, Mod_Usable, true);
 	if (!buf)
 	{
 		if (crash)
@@ -875,6 +891,151 @@ void Mod_LoadPlanes (lump_t *l)
 
 /*
 =================
+Mod_LoadDecoupledLightmaps
+
+The 2023 re-release's maps leave every face's lightofs at -1 and keep their
+lighting in a BSPX lump, DECOUPLED_LM: for each face a lightmap of its own
+size, anywhere in the lighting lump, with a matrix from world space to its
+texels. This renderer lights a surface from a grid of samples 16 texture
+units apart, starting at its texturemins, which is what the 1997 compiler
+wrote and what r_light.c and the surface cache index. So the re-release's
+lightmaps are resampled onto that grid here, once, as the map loads: each
+grid point is taken back to the face's plane in world space, then into the
+re-release lightmap, and read bilinearly. Each RGB sample becomes one
+brightness as Mod_LoadLighting makes it, the brightest of the three.
+=================
+*/
+typedef struct
+{
+	unsigned short	width, height;
+	int				offset;			// into the lighting lump, -1 for none
+	float			vecs[2][4];		// world to lightmap texels
+} dlmface_t;
+
+static void Mod_LoadDecoupledLightmaps (dheader_t *header, int filelen)
+{
+	int			i, j, k, n, ofs, end, numlumps, lofs = 0, llen = 0;
+	int			smax, tmax, styles, total, w, h, style;
+	byte		*e, *light, *rgb, *out;
+	dlmface_t	*lm;
+	msurface_t	*surf;
+	float		*a, *b, *c, det, bc[3], ca[3], ab[3], r0, r1, r2;
+	float		p0[3], ds[3], dt[3], p[3], u, v, fu, fv;
+	int			iu, iv, iu1, iv1, x;
+	lump_t		*ll = &header->lumps[LUMP_LIGHTING];
+
+	end = 0;
+	for (i=0 ; i<HEADER_LUMPS ; i++)
+		if (header->lumps[i].fileofs + header->lumps[i].filelen > end)
+			end = header->lumps[i].fileofs + header->lumps[i].filelen;
+	ofs = (end + 3) & ~3;
+	if (ofs + 8 > filelen || memcmp (mod_base + ofs, "BSPX", 4))
+		return;
+	numlumps = LittleLong (*(int *)(mod_base + ofs + 4));
+	for (i=0 ; i<numlumps && ofs + 8 + (i+1)*32 <= filelen ; i++)
+	{
+		e = mod_base + ofs + 8 + i*32;
+		if (!strncmp ((char *)e, "DECOUPLED_LM", 24))
+		{
+			lofs = LittleLong (*(int *)(e + 24));
+			llen = LittleLong (*(int *)(e + 28));
+		}
+	}
+	if (!llen)
+		return;
+	if (lofs < 0 || llen < 0 || lofs > filelen || llen > filelen - lofs
+		|| llen != loadmodel->numsurfaces * (int)sizeof(dlmface_t))
+	{
+		ri.Con_Printf (PRINT_ALL, "%s: DECOUPLED_LM is not one entry a face; unlit\n", loadmodel->name);
+		return;
+	}
+	lm = (dlmface_t *)(mod_base + lofs);
+	light = mod_base + ll->fileofs;
+
+	// how much the 16-unit grids take
+	total = 0;
+	for (i=0, surf = loadmodel->surfaces ; i<loadmodel->numsurfaces ; i++, surf++)
+	{
+		if (LittleLong (lm[i].offset) < 0 || (surf->flags & (SURF_DRAWTURB|SURF_DRAWSKY)))
+			continue;
+		for (styles=0 ; styles<MAXLIGHTMAPS && surf->styles[styles] != 255 ; styles++)
+			;
+		total += ((surf->extents[0]>>4)+1) * ((surf->extents[1]>>4)+1) * styles;
+	}
+	if (!total)
+		return;
+	out = Hunk_Alloc (total);
+
+	for (i=0, surf = loadmodel->surfaces ; i<loadmodel->numsurfaces ; i++, surf++)
+	{
+		ofs = LittleLong (lm[i].offset);
+		w = LittleShort (lm[i].width);
+		h = LittleShort (lm[i].height);
+		if (ofs < 0 || (surf->flags & (SURF_DRAWTURB|SURF_DRAWSKY)) || w <= 0 || h <= 0)
+			continue;
+		for (styles=0 ; styles<MAXLIGHTMAPS && surf->styles[styles] != 255 ; styles++)
+			;
+		if (!styles || ofs + w*h*3*styles > ll->filelen)
+			continue;
+
+		// the point on the face's plane at texture coordinates (s, t):
+		// three planes, s, t and the face's own, solved by Cramer's rule
+		a = surf->texinfo->vecs[0];
+		b = surf->texinfo->vecs[1];
+		c = surf->plane->normal;
+		CrossProduct (b, c, bc);
+		CrossProduct (c, a, ca);
+		CrossProduct (a, b, ab);
+		det = DotProduct (a, bc);
+		if (fabs (det) < 1e-6)
+			continue;
+		r0 = surf->texturemins[0] - a[3];
+		r1 = surf->texturemins[1] - b[3];
+		r2 = surf->plane->dist;
+		for (k=0 ; k<3 ; k++)
+		{
+			p0[k] = (r0*bc[k] + r1*ca[k] + r2*ab[k]) / det;
+			ds[k] = 16 * bc[k] / det;
+			dt[k] = 16 * ca[k] / det;
+		}
+
+		smax = (surf->extents[0]>>4)+1;
+		tmax = (surf->extents[1]>>4)+1;
+		surf->samples = out;
+		for (style=0 ; style<styles ; style++)
+		{
+			rgb = light + ofs + style*w*h*3;
+			for (n=0 ; n<tmax ; n++)
+				for (j=0 ; j<smax ; j++)
+				{
+					for (k=0 ; k<3 ; k++)
+						p[k] = p0[k] + j*ds[k] + n*dt[k];
+					// texel centres are half a texel in
+					u = DotProduct (p, lm[i].vecs[0]) + lm[i].vecs[0][3] - 0.5f;
+					v = DotProduct (p, lm[i].vecs[1]) + lm[i].vecs[1][3] - 0.5f;
+					if (u < 0) u = 0;
+					if (v < 0) v = 0;
+					if (u > w-1) u = w-1;
+					if (v > h-1) v = h-1;
+					iu = (int)u;  iv = (int)v;
+					fu = u - iu;  fv = v - iv;
+					iu1 = iu+1 < w ? iu+1 : iu;
+					iv1 = iv+1 < h ? iv+1 : iv;
+#define LUM(x,y) (rgb[((y)*w+(x))*3] > rgb[((y)*w+(x))*3+1] \
+	? (rgb[((y)*w+(x))*3] > rgb[((y)*w+(x))*3+2] ? rgb[((y)*w+(x))*3] : rgb[((y)*w+(x))*3+2]) \
+	: (rgb[((y)*w+(x))*3+1] > rgb[((y)*w+(x))*3+2] ? rgb[((y)*w+(x))*3+1] : rgb[((y)*w+(x))*3+2]))
+					x = (int)(LUM(iu,iv)*(1-fu)*(1-fv) + LUM(iu1,iv)*fu*(1-fv)
+						+ LUM(iu,iv1)*(1-fu)*fv + LUM(iu1,iv1)*fu*fv + 0.5f);
+#undef LUM
+					*out++ = x > 255 ? 255 : x;
+				}
+		}
+	}
+	ri.Con_Printf (PRINT_DEVELOPER, "%s: lighting resampled from DECOUPLED_LM\n", loadmodel->name);
+}
+
+/*
+=================
 Mod_LoadBrushModel
 =================
 */
@@ -909,6 +1070,7 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer)
 	Mod_LoadPlanes (&header->lumps[LUMP_PLANES]);
 	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]);
 	Mod_LoadFaces (&header->lumps[LUMP_FACES]);
+	Mod_LoadDecoupledLightmaps (header, modfilelen);
 	Mod_LoadMarksurfaces (&header->lumps[LUMP_LEAFFACES]);
 	Mod_LoadVisibility (&header->lumps[LUMP_VISIBILITY]);
 	Mod_LoadLeafs (&header->lumps[LUMP_LEAFS]);

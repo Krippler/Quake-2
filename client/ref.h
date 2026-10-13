@@ -217,6 +217,11 @@ typedef struct
 	qboolean	(*Vid_GetModeInfo)( int *width, int *height, int mode );
 	void		(*Vid_MenuInit)( void );
 	void		(*Vid_NewWindow)( int width, int height );
+
+	// FS_LoadFile for the copy of a file skip copies down the search path,
+	// past one this renderer cannot read (R_LoadUsable). At the end so the
+	// fields above keep their places.
+	int		(*FS_LoadFileSkip) (char *name, void **buf, int skip);
 } refimport_t;
 
 

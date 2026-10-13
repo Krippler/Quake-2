@@ -588,7 +588,9 @@ cmodel_t *CM_LoadMap (char *name, qboolean clientload, unsigned *checksum)
 	//
 	// load the file
 	//
-	length = FS_LoadFile (name, (void **)&buf);
+	// the first copy this engine reads, which past a re-release map in the
+	// extended format is the original game's (usable.c)
+	length = FS_LoadUsableFile (name, (void **)&buf, BSP_Usable);
 	if (!buf)
 		Com_Error (ERR_DROP, "Couldn't load %s", name);
 

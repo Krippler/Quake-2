@@ -69,6 +69,10 @@
           Description="Which game to start on. Leave empty for the base game; xatrix for The Reckoning, rogue for Ground Zero, ctf for Threewave CTF, or a mod directory name. The directory has to be in the game data mount."
           Type="Variable" Display="always" Required="false" Mask="false"></Config>
 
+  <Config Name="Re-release pak" Target="QUAKE2_RERELEASE" Default="0"
+          Description="1 plays the 2023 re-release's pak (rerelease/baseq2/pak0.pak, in the game data mount) on top of the original game's: its remade maps, with the original's files standing in for whatever of it this engine cannot read."
+          Type="Variable" Display="advanced" Required="false" Mask="false">0</Config>
+
   <Config Name="VNC password" Target="QUAKE2_VNC_PASSWORD" Default=""
           Description="Optional. There is no authentication without it, and the transport is plain HTTP either way -- do not expose this to the internet."
           Type="Variable" Display="always" Required="false" Mask="true"></Config>

@@ -297,6 +297,56 @@ discover_games() {
     esac
 
     FOUND_GAMES=$(printf '%s' "$FOUND_GAMES" | sed 's/^ *//')
+
+    link_rerelease
+}
+
+#
+# QUAKE2_RERELEASE=1: the 2023 re-release's pak on top of the original game's.
+# Steam and GOG keep it in rerelease/baseq2/ beside the original baseq2. It is
+# linked into baseq2 as pak9.pak, the last the engine opens and so the first
+# it searches; for each file the engine then takes the first copy it can read
+# (qcommon/usable.c), and where the re-release's copy is missing -- the
+# console font and the rest of the 1997 pictures -- or in a form this engine
+# does not read, the original's underneath is used, so the game looks as it
+# did.
+#
+link_rerelease() {
+    slot="$BASEDIR/baseq2/pak9.pak"
+    if [ "${QUAKE2_RERELEASE:-0}" != "1" ]; then
+        # turned off again: take away only a link this made
+        case "$(readlink "$slot" 2>/dev/null)" in
+            */[Rr][Ee][Rr][Ee][Ll][Ee][Aa][Ss][Ee]/*) rm -f "$slot" ;;
+        esac
+        return 0
+    fi
+
+    rr=$(find "$DATADIR" -maxdepth 5 -ipath '*/rerelease/baseq2/pak0.pak' \
+              -printf '%d %p\n' 2>/dev/null | sort -n | head -n 1 | cut -d' ' -f2-)
+    if [ -z "$rr" ]; then
+        log "QUAKE2_RERELEASE=1, but there is no rerelease/baseq2/pak0.pak in the"
+        log "  mount; playing the original game's data alone"
+        return 0
+    fi
+    case " $FOUND_GAMES " in
+        *" baseq2 "*) ;;
+        *)
+            log "QUAKE2_RERELEASE=1, but the original game's baseq2 is not in the"
+            log "  mount. The re-release's pak plays here only on top of it: it has"
+            log "  no console font or 1997 pictures of its own"
+            return 0
+            ;;
+    esac
+    if [ -e "$slot" ] && [ ! -L "$slot" ]; then
+        log "baseq2 has a pak9.pak of its own; not adding the re-release's"
+        return 0
+    fi
+    if [ "$(readlink "$slot" 2>/dev/null)" != "$rr" ]; then
+        ln -sfn "$rr" "$slot"
+        log "the 2023 re-release's pak ($rr) is on top of the original game's"
+        log "  as baseq2/pak9.pak; whatever of it this engine cannot read, the"
+        log "  original's copy stands in for"
+    fi
 }
 
 log "looking for game data in $DATADIR"

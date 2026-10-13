@@ -80,6 +80,34 @@ PCX LOADING
 */
 
 /*
+=================
+R_LoadUsable
+
+ri.FS_LoadFile, for the first copy of name down the search path that
+usable() (qcommon/usable.c) accepts: past a 24-bit picture or an extended
+map in the 2023 re-release's pak, to the original game's copy underneath.
+Pictures and textures say so only with developer 1, since a re-release pak
+can pass over hundreds of them; models and maps always do.
+=================
+*/
+int R_LoadUsable (char *name, void **buf,
+	qboolean (*usable) (const byte *buf, int len, char *why, int whysize), qboolean loud)
+{
+	int		skip, len;
+	char	why[128];
+
+	for (skip = 0 ; ; skip++)
+	{
+		len = ri.FS_LoadFileSkip (name, buf, skip);
+		if (!*buf || usable (*buf, len, why, sizeof(why)))
+			return len;
+		ri.Con_Printf (loud ? PRINT_ALL : PRINT_DEVELOPER,
+			"%s %s; looking further down the search path\n", name, why);
+		ri.FS_FreeFile (*buf);
+	}
+}
+
+/*
 ==============
 LoadPCX
 ==============
@@ -98,7 +126,7 @@ void LoadPCX (char *filename, byte **pic, byte **palette, int *width, int *heigh
 	//
 	// load the file
 	//
-	len = ri.FS_LoadFile (filename, (void **)&raw);
+	len = R_LoadUsable (filename, (void **)&raw, PCX_Usable, false);
 	if (!raw)
 	{
 		ri.Con_Printf (PRINT_DEVELOPER, "Bad pcx file %s\n", filename);
@@ -452,7 +480,7 @@ image_t *R_LoadWal (char *name)
 	image_t		*image;
 	int			size;
 
-	ri.FS_LoadFile (name, (void **)&mt);
+	R_LoadUsable (name, (void **)&mt, WAL_Usable, false);
 	if (!mt)
 	{
 		ri.Con_Printf (PRINT_ALL, "R_LoadWal: can't load %s\n", name);

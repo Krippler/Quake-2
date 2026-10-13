@@ -16,6 +16,7 @@ services:
       QUAKE2_WIDTH: "640"     # the starting resolution, up to 1920
       QUAKE2_HEIGHT: "480"    # ... by 1200; later, the Video menu's
       # QUAKE2_GAME: "xatrix"        # rogue, ctf, or a mod directory name
+      # QUAKE2_RERELEASE: "1"        # the 2023 re-release's pak on top
       # QUAKE2_VNC_PASSWORD: "changeme"
     # Arguments are passed to the engine, e.g. start straight in the first map:
     # command: ["+map", "base1", "+skill", "1"]

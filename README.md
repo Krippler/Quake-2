@@ -58,7 +58,10 @@ redistribute. Any of these works:
 - a Steam or GOG install, or a CD install: the directory with `baseq2/` in it.
   A Steam install of the 2023 re-release still has the original game's
   `baseq2` beside its `rerelease` folder, and that is the one this engine
-  plays; mounting the whole install directory finds it.
+  plays; mounting the whole install directory finds it. With
+  `-e QUAKE2_RERELEASE=1` the re-release's own pak goes on top, for its
+  remade maps, with the original game's files standing in for whatever of
+  it a 1997 engine cannot read ([DOCKER.md](DOCKER.md#the-2023-re-releases-pak)).
 - id's free demo (`q2-314-demo-x86.exe`, a zip archive): its
   `Install/Data/baseq2` holds `pak0.pak` and the three demo maps.
 
