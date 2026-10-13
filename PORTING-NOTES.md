@@ -167,9 +167,10 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   maps in QBSP format, the soldier with 575 frames, `q2dm3` with its wide
   faces each come from the original's paks. Server, client and renderer
   settle on the same copy of a map, and its checksum agrees.
-- **`server/sv_user.c`**: a demo whose first message is not protocol 34 is
-  passed over the same way; the re-release's are in 2022. With none left the
-  demo loop ends at the console.
+- **`server/sv_user.c`**: a demo whose first message is in a protocol later
+  than 34 is passed over the same way; the re-release's are in 2022. The
+  original game's are in 26, from its first release, and play, as the 3.21
+  client meant them to. With none left the demo loop ends at the console.
 - **`ref_soft/r_model.c`**: the re-release's maps leave every face's
   `lightofs` at -1 and keep their lighting in a BSPX lump, `DECOUPLED_LM`:
   per face, a lightmap of its own size (8 units a texel) and a matrix from
@@ -258,6 +259,27 @@ higher the resolution the smaller it got. It is drawn at a whole multiple,
 it out as it always has, and the renderer multiplies each `Draw_` call and
 the 3D view's rectangle back up. 0, the default, is the largest multiple that
 leaves 640x400 of room (3 at 1920x1200, 2 at 1280x720); 1 is id's.
+
+**`ref_soft/r_bsp.c`**: `R_RecursiveClipBPoly`, which cuts a moving brush's
+faces up along the world's BSP planes, worked out a vertex's side of a plane
+once as the end of one edge and again as the start of the next. Built with
+`-ffast-math` the two need not agree for a vertex on the plane, which the
+re-release's finely split maps have many of; the face then crossed the plane
+once, and the edge closing it was made from the entry and exit points of
+whatever call had last set them -- static, never reset. The result was a
+crash in `R_EmitEdge` or scanlines of garbage. Distances are taken through
+one non-inlined function, the points are reset each call, and a face that
+crosses once is left without the closing edge. Found by rendering every map
+from thousands of random viewpoints in an optimised build.
+
+**`ref_soft/r_rast.c`**: `R_RenderBmodelFace` checked there was room for the
+face's edges, not the fragment's, which the splitting above makes longer.
+
+**`ref_soft/r_main.c`**: `sw_maxedges` defaulted to `STRINGER(MAXSTACKSURFACES)`,
+which is the string `"x"`, so 0, so `MINEDGES`' 2000; `sw_maxsurfs` to the
+1000 on the stack. Busy views in the re-release's maps ran out, and the faces
+left over were not drawn. 32000 and 16000 now, on the heap, and the last
+map's freed rather than leaked.
 
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,

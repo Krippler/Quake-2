@@ -250,8 +250,15 @@ void R_Register (void)
 	sw_clearcolor = ri.Cvar_Get ("sw_clearcolor", "2", 0);
 	sw_drawflat = ri.Cvar_Get ("sw_drawflat", "0", 0);
 	sw_draworder = ri.Cvar_Get ("sw_draworder", "0", 0);
-	sw_maxedges = ri.Cvar_Get ("sw_maxedges", STRINGER(MAXSTACKSURFACES), 0);
-	sw_maxsurfs = ri.Cvar_Get ("sw_maxsurfs", "0", 0);
+	// How many edges and surfaces a frame may hold. Run out and faces are
+	// left undrawn, the background showing through them as black. id's
+	// default for edges was STRINGER(MAXSTACKSURFACES), which is the string
+	// "x" -- 0, so the 2000 of MINEDGES -- and for surfaces the 1000 of
+	// NUMSTACKSURFACES: enough for 1997's maps at 320x240, not for the 2023
+	// re-release's with twice the faces. Both live on the heap at these
+	// sizes, a couple of megabytes.
+	sw_maxedges = ri.Cvar_Get ("sw_maxedges", "32000", 0);
+	sw_maxsurfs = ri.Cvar_Get ("sw_maxsurfs", "16000", 0);
 	sw_mipcap = ri.Cvar_Get ("sw_mipcap", "0", 0);
 	sw_mipscale = ri.Cvar_Get ("sw_mipscale", "1", 0);
 	sw_reportedgeout = ri.Cvar_Get ("sw_reportedgeout", "0", 0);
@@ -378,6 +385,8 @@ void R_Shutdown (void)
 R_NewMap
 ===============
 */
+static surf_t	*surfaces_alloc;	// what R_NewMap malloced, to free
+
 void R_NewMap (void)
 {
 	r_viewcluster = -1;
@@ -387,9 +396,17 @@ void R_NewMap (void)
 	if (r_cnumsurfs <= MINSURFACES)
 		r_cnumsurfs = MINSURFACES;
 
+	// the last map's, which id's code left behind on every map change
+	if (surfaces_alloc)
+		free (surfaces_alloc);
+	surfaces_alloc = NULL;
+	if (auxedges)
+		free (auxedges);
+	auxedges = NULL;
+
 	if (r_cnumsurfs > NUMSTACKSURFACES)
 	{
-		surfaces = malloc (r_cnumsurfs * sizeof(surf_t));
+		surfaces = surfaces_alloc = malloc (r_cnumsurfs * sizeof(surf_t));
 		surface_p = surfaces;
 		surf_max = &surfaces[r_cnumsurfs];
 		r_surfsonstack = false;

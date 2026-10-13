@@ -47,8 +47,11 @@ void SV_BeginDemoserver (void)
 
 	// The first message of a demo is svc_serverdata, which opens with the
 	// protocol it was recorded in. The 2023 re-release's demos are in its
-	// own, 2023, which this server cannot play back; a copy in 34, the
-	// original game's, is looked for further down the search path.
+	// own, 2022, which this server cannot play back; a copy from 1997 is
+	// looked for further down the search path. That is not only 34: the
+	// demos in the original game's pak0 were recorded by its first release,
+	// in 26, and the client plays those by design (the "BIG HACK" in
+	// CL_ParseServerData).
 	for (skip = 0 ; ; skip++)
 	{
 		FS_FOpenFileSkip (name, &sv.demofile, skip);
@@ -57,13 +60,13 @@ void SV_BeginDemoserver (void)
 		protocol = 0;
 		if (fread (&len, 4, 1, sv.demofile) == 1 && fread (&cmd, 1, 1, sv.demofile) == 1
 			&& cmd == svc_serverdata && fread (&protocol, 4, 1, sv.demofile) == 1
-			&& LittleLong (protocol) == PROTOCOL_VERSION)
+			&& LittleLong (protocol) > 0 && LittleLong (protocol) <= PROTOCOL_VERSION)
 		{
 			fseek (sv.demofile, -9, SEEK_CUR);
 			return;
 		}
-		Com_Printf ("%s is in protocol %i, not %i; looking further down the search path\n",
-			name, LittleLong (protocol), PROTOCOL_VERSION);
+		Com_Printf ("%s is in protocol %i, not one from 1997; looking further down the search path\n",
+			name, LittleLong (protocol));
 		fclose (sv.demofile);
 		sv.demofile = NULL;
 	}
@@ -73,7 +76,7 @@ void SV_BeginDemoserver (void)
 		// every copy is a demo this cannot play: end the loop of demos
 		// here, at the console, rather than go round it at full speed
 		Cvar_Set ("nextserver", "");
-		Com_Error (ERR_DROP, "No demo %s in protocol %i to play\n", name, PROTOCOL_VERSION);
+		Com_Error (ERR_DROP, "No demo %s in a 1997 protocol to play\n", name);
 	}
 	Com_Error (ERR_DROP, "Couldn't open %s\n", name);
 }

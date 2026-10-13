@@ -737,7 +737,8 @@ R_RenderBmodelFace
 */
 void R_RenderBmodelFace (bedge_t *pedges, msurface_t *psurf)
 {
-	int			i;
+	int			i, numedges;
+	bedge_t		*pe;
 	unsigned	mask;
 	mplane_t	*pplane;
 	float		distinv;
@@ -759,10 +760,17 @@ void R_RenderBmodelFace (bedge_t *pedges, msurface_t *psurf)
 		return;
 	}
 
-// ditto if not enough edges left, or switch to auxedges if possible
-	if ((edge_p + psurf->numedges + 4) >= edge_max)
+// ditto if not enough edges left, or switch to auxedges if possible.
+// Counted from the fragment itself: R_RecursiveClipBPoly adds an edge at
+// each BSP plane that splits the face, so a piece of it can have more than
+// the face, and checking psurf->numedges let the edges run past edge_max
+// into whatever followed them -- a crash in R_EmitEdge, or scanlines of
+// garbage, on the 2023 re-release's more finely split maps.
+	for (numedges = 0, pe = pedges ; pe ; pe = pe->pnext)
+		numedges++;
+	if ((edge_p + numedges + 4) >= edge_max)
 	{
-		r_outofedges += psurf->numedges;
+		r_outofedges += numedges;
 		return;
 	}
 
