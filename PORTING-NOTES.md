@@ -13,13 +13,15 @@ OpenGL trees are untouched and unbuilt.
 
 `linux/Makefile` is new. Zoid's `Makefile.i386` built seven targets against
 gcc 2.7, an i386 assembler, SVGAlib, 3dfx Glide and Mesa 2.6, from a tree it
-expected at `/grog/NewWork/Quake2/code`. The new one builds four, as C:
+expected at `/grog/NewWork/Quake2/code`. The new one builds six, as C:
 
 - `quake2`, the engine, linked `-rdynamic` so a crash backtrace has names in
   it;
 - `ref_softx.so`, the software renderer drawing to X11;
 - `baseq2/gamex86_64.so` and `ctf/gamex86_64.so`, the two game libraries
-  whose source is in the release.
+  whose source is in the release;
+- `xatrix/gamex86_64.so` and `rogue/gamex86_64.so`, the mission packs, from
+  Yamagi Quake II's GPLv2 code (see [The mission packs](#the-mission-packs)).
 
 The assembler is 32-bit only, and `q_shared.h` already turns it off wherever
 `__i386__` is not defined (`id386` 0), so nothing had to be done to leave it

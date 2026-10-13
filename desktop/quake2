@@ -5,7 +5,7 @@
 #   quake2                     play; finds the game files by itself
 #   quake2 --data DIR          play the game files in DIR, and remember it
 #   quake2 [engine options]    anything else goes to the engine: +map base1,
-#                              +set game ctf, +set vid_fullscreen 1, ...
+#                              +set game xatrix, +set vid_fullscreen 1, ...
 #
 # What this does is what the container's entrypoint does, for one person on
 # one machine. Quake II writes its settings, saves and screenshots into the

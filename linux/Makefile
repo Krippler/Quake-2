@@ -3,8 +3,8 @@
 # Zoid's Makefile.i386 built seven targets against gcc 2.7, an i386
 # assembler, SVGAlib, 3dfx Glide and Mesa 2.6, from a tree mounted at
 # /grog/NewWork/Quake2/code. This builds the ones that still make sense --
-# the engine, the X11 software renderer and the two game libraries whose
-# source is here -- as portable C, because the assembler is 32-bit only and
+# the engine, the X11 software renderer and the game libraries: the two
+# whose source is in id's release, and the mission packs -- as portable C, because the assembler is 32-bit only and
 # q_shared.h already turns it off (id386 is 0 wherever __i386__ is not
 # defined, which is here).
 #
