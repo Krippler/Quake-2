@@ -91,7 +91,7 @@ run_engine() {
     mkfifo "$work/$name.fifo"
     cat "$work/$name.fifo" > "$work/$name.raw" &
     cat_pid=$!
-    DISPLAY="$disp" QUAKE2_AUDIO_FIFO="$work/$name.fifo" ${RUN_ENV:-} \
+    env DISPLAY="$disp" QUAKE2_AUDIO_FIFO="$work/$name.fifo" ${RUN_ENV:-} \
         "$engine" +set basedir "$work" +set vid_resizescreen 1 "$@" \
         >"$work/$name.log" 2>&1 &
     game_pid=$!
@@ -221,6 +221,9 @@ n=$(colours console)
 [ "$n" -ge 3 ] || die "the console holds $n colour(s); nothing was drawn"
 say "the console holds $n distinct colours"
 
+# Long enough that the pipe has carried a good stretch, however quickly the
+# steps above went.
+sleep 4
 stop_engine
 grep -q "Received signal 15, shutting down" "$work/console.log" \
     || die "the engine did not shut down through the signal handler"
