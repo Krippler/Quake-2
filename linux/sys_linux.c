@@ -76,7 +76,8 @@ void Sys_Printf (char *fmt, ...)
 
 void Sys_Quit (void)
 {
-	CL_Shutdown ();
+	// Com_Quit, the only caller, has shut the client down already; doing it
+	// again only printed "recursive shutdown".
 	Qcommon_Shutdown ();
     fcntl (0, F_SETFL, fcntl (0, F_GETFL, 0) & ~FNDELAY);
 	_exit(0);

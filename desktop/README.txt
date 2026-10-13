@@ -1,0 +1,79 @@
+Quake II for the Linux desktop
+==============================
+
+id Software's 2001 GPL source release of Quake II, ported to current 64-bit
+Linux: the software renderer, the single-player game and Threewave CTF. It
+needs the game files from a copy of Quake II you own (Steam, GOG, or the
+original CD), or id's free demo; none are included.
+
+Install
+-------
+
+    ./install.sh                  for you alone, into ~/.local
+    sudo ./install.sh /usr/local  for everybody on the machine
+
+Then start Quake II from your desktop's menu, or run `quake2`
+(~/.local/bin/quake2 if ~/.local/bin is not on your PATH).
+
+It runs on Ubuntu 22.04, Debian 12, Fedora 35 or anything newer, under X11
+or XWayland, and needs these libraries, which almost every desktop already
+has:
+
+    Debian, Ubuntu:  sudo apt install libasound2 libsndfile1 libxrandr2
+    Fedora:          sudo dnf install alsa-lib libsndfile libXrandr
+    Arch:            sudo pacman -S alsa-lib libsndfile libxrandr
+
+Game controllers need SDL2 as well (libsdl2-2.0-0, SDL2, sdl2), which is
+installed wherever Steam is. Without it the game runs, without a controller.
+
+Game files
+----------
+
+The first time it starts, Quake II looks for a Steam or GOG copy in the
+usual places. If it does not find yours:
+
+    quake2 --data /path/to/Quake2
+
+where /path/to/Quake2 is the directory with baseq2/pak0.pak in it (for
+Steam, .../steamapps/common/Quake 2). It is remembered after that. Your game
+files are only read; settings, saves and screenshots go in
+~/.local/share/quake2.
+
+The music was audio tracks on the CD. A rip as track02.ogg, track03.ogg and
+so on in baseq2/music is played; the GOG release's music folder is found by
+itself.
+
+Playing
+-------
+
+The first start is a 1280x720 window with WASD-style mouse look on. Options
+-> Video sets the resolution (up to 1920x1200) and fullscreen; fullscreen
+scales the picture up to fill the monitor, as does resizing the window.
+
+The mouse is held while you play, and let go in the menus and the console,
+and when another window has the focus. "hold mouse" in the Video menu turns
+that off.
+
+A game controller works as soon as it is plugged in. Its buttons are keys
+(PAD_A, PAD_B and so on) bound in Options -> Customize Controls; the sticks
+move and look. In the menus, A chooses, B goes back and Start opens and
+closes them.
+
+Escape and Backspace both open the menu. F1 shows the mission's objectives.
+
+Sound goes to ALSA's default device, which is PipeWire or PulseAudio on a
+desktop that runs either. +set s_alsadevice NAME picks another.
+
+Anything after `quake2` is passed to the engine: `quake2 +map base1`,
+`quake2 +set game ctf`.
+
+Uninstall
+---------
+
+    ./install.sh --uninstall [PREFIX]
+
+Settings and saves stay in ~/.local/share/quake2.
+
+Source, the Docker version for playing in a browser, and the full notes:
+https://github.com/Krippler/Quake-2
+Licensed under the GNU General Public License, version 2: see COPYING.

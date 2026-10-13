@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Quake II
+Comment=id Software's Quake II, from its GPL source release
+Exec=quake2
+Icon=quake2
+Terminal=false
+Categories=Game;ActionGame;
+StartupWMClass=Quake2
