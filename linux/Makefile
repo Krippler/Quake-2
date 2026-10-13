@@ -128,7 +128,7 @@ CLIENT_SRCS = \
 	game/m_flash.c \
 	qcommon/cmd.c qcommon/cmodel.c qcommon/common.c qcommon/crc.c \
 	qcommon/cvar.c qcommon/files.c qcommon/md4.c qcommon/net_chan.c \
-	qcommon/pmove.c \
+	qcommon/pmove.c qcommon/usable.c \
 	server/sv_ccmds.c server/sv_ents.c server/sv_game.c server/sv_init.c \
 	server/sv_main.c server/sv_send.c server/sv_user.c server/sv_world.c \
 	linux/$(CD_SRC) linux/q_shlinux.c linux/vid_menu.c linux/vid_so.c \
@@ -144,7 +144,7 @@ REF_SOFT_SRCS = \
 	ref_soft/r_edge.c ref_soft/r_image.c ref_soft/r_light.c ref_soft/r_main.c \
 	ref_soft/r_misc.c ref_soft/r_model.c ref_soft/r_part.c ref_soft/r_poly.c \
 	ref_soft/r_polyse.c ref_soft/r_rast.c ref_soft/r_scan.c \
-	ref_soft/r_sprite.c ref_soft/r_surf.c \
+	ref_soft/r_sprite.c ref_soft/r_surf.c qcommon/usable.c \
 	game/q_shared.c linux/q_shlinux.c linux/glob.c linux/rw_x11.c
 
 # -lXrandr lets the video menu resize the X screen as well as the window; see

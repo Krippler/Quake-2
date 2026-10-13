@@ -566,6 +566,14 @@ extern cvar_t   *scr_scale;
 
 extern int      r_scale, r_vw, r_vh;
 void R_NewWindow (void);
+
+int R_LoadUsable (char *name, void **buf,
+	qboolean (*usable) (const byte *buf, int len, char *why, int whysize), qboolean loud);
+// qcommon/usable.c
+qboolean BSP_Usable (const byte *buf, int len, char *why, int whysize);
+qboolean MD2_Usable (const byte *buf, int len, char *why, int whysize);
+qboolean PCX_Usable (const byte *buf, int len, char *why, int whysize);
+qboolean WAL_Usable (const byte *buf, int len, char *why, int whysize);
 void R_ScaleRect (int *x, int *y, int *w, int *h);
 extern cvar_t   *sw_reportsurfout;
 extern cvar_t   *sw_reportedgeout;

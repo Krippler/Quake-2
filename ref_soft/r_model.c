@@ -82,6 +82,22 @@ void Mod_Init (void)
 
 /*
 ==================
+Mod_Usable
+
+Whether a copy of a model is one this renderer reads; see R_LoadUsable.
+==================
+*/
+static qboolean Mod_Usable (const byte *buf, int len, char *why, int whysize)
+{
+	if (len >= 4 && LittleLong (*(unsigned *)buf) == IDALIASHEADER)
+		return MD2_Usable (buf, len, why, whysize);
+	if (len >= 4 && LittleLong (*(unsigned *)buf) == IDSPRITEHEADER)
+		return true;
+	return BSP_Usable (buf, len, why, whysize);
+}
+
+/*
+==================
 Mod_ForName
 
 Loads in a model for the given name
@@ -133,7 +149,7 @@ model_t *Mod_ForName (char *name, qboolean crash)
 	//
 	// load the file
 	//
-	modfilelen = ri.FS_LoadFile (mod->name, (void **)&buf);
+	modfilelen = R_LoadUsable (mod->name, (void **)&buf, Mod_Usable, true);
 	if (!buf)
 	{
 		if (crash)

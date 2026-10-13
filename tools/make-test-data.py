@@ -473,6 +473,26 @@ def main():
             f.write(make_wav(seconds=20, freq=freq, rate=44100, sustain=True,
                              bits=16))
 
+    # A stand-in for the 2023 re-release's pak, which goes on top of the
+    # one above as baseq2/pak9.pak (docker/entrypoint.sh): the same paths in
+    # forms this engine cannot read -- the map in the extended QBSP format, a
+    # 24-bit picture, a demo in protocol 2023 -- no console font, a
+    # default.cfg for its own engine, and one map of its own that is fine.
+    bsp = make_bsp()
+    rgb = bytearray(pcx(24, 24, bytes([0]) * 576, palette))
+    rgb[65] = 3                     # three colour planes: 24-bit
+    demo = struct.pack("<iBi", 5, 12, 2023)     # svc_serverdata, protocol 2023
+    rerelease = [
+        ("maps/smoke.bsp", b"QBSP" + bsp[4:]),
+        ("maps/rr_only.bsp", bsp),
+        ("pics/i_health.pcx", bytes(rgb)),
+        ("demos/demo1.dm2", demo + struct.pack("<i", -1)),
+        ("default.cfg", b"bind a_button +attack\n"),
+    ]
+    os.makedirs(os.path.join(dest, "rerelease", "baseq2"), exist_ok=True)
+    with open(os.path.join(dest, "rerelease", "baseq2", "pak0.pak"), "wb") as f:
+        f.write(build_pak(rerelease))
+
     for name, data in files:
         print("%-24s %8d bytes" % (name, len(data)))
 

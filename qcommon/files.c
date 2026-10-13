@@ -203,6 +203,10 @@ a seperate file.
 */
 int file_from_pak = 0;
 #ifndef NO_ADDONS
+// How many copies of the next file asked for to pass over: see
+// FS_LoadFileSkip.
+static int	fs_skip;
+
 int FS_FOpenFile (char *filename, FILE **file)
 {
 	searchpath_t	*search;
@@ -219,7 +223,7 @@ int FS_FOpenFile (char *filename, FILE **file)
 		if (!strncmp (filename, link->from, link->fromlength))
 		{
 			Com_sprintf (netpath, sizeof(netpath), "%s%s",link->to, filename+link->fromlength);
-			*file = fopen (netpath, "rb");
+			*file = fs_skip ? NULL : fopen (netpath, "rb");
 			if (*file)
 			{		
 				Com_DPrintf ("link file: %s\n",netpath);
@@ -242,6 +246,11 @@ int FS_FOpenFile (char *filename, FILE **file)
 			for (i=0 ; i<pak->numfiles ; i++)
 				if (!Q_strcasecmp (pak->files[i].name, filename))
 				{	// found it!
+					if (fs_skip)
+					{	// but a copy further down the path is wanted
+						fs_skip--;
+						break;
+					}
 					file_from_pak = 1;
 					Com_DPrintf ("PackFile: %s : %s\n",pak->filename, filename);
 				// open a new file on the pakfile
@@ -261,6 +270,13 @@ int FS_FOpenFile (char *filename, FILE **file)
 			*file = fopen (netpath, "rb");
 			if (!*file)
 				continue;
+			if (fs_skip)
+			{
+				fclose (*file);
+				*file = NULL;
+				fs_skip--;
+				continue;
+			}
 			
 			Com_DPrintf ("FindFile: %s\n",netpath);
 
@@ -424,6 +440,68 @@ int FS_LoadFile (char *path, void **buffer)
 	return len;
 }
 
+
+/*
+============
+FS_LoadFileSkip
+
+FS_LoadFile, for the copy of path that comes skip copies after the first in
+the search path. The same path is in both the original game's paks and the
+2023 re-release's, sometimes in a form this engine cannot read; the loaders
+walk down the copies until one will do (FS_LoadUsableFile, and the
+renderer's R_LoadUsable).
+============
+*/
+int FS_LoadFileSkip (char *path, void **buffer, int skip)
+{
+	int		len;
+
+	fs_skip = skip;
+	len = FS_LoadFile (path, buffer);
+	fs_skip = 0;
+	return len;
+}
+
+/*
+============
+FS_FOpenFileSkip
+
+FS_FOpenFile for the copy skip copies down the search path.
+============
+*/
+int FS_FOpenFileSkip (char *filename, FILE **file, int skip)
+{
+	int		len;
+
+	fs_skip = skip;
+	len = FS_FOpenFile (filename, file);
+	fs_skip = 0;
+	return len;
+}
+
+/*
+============
+FS_LoadUsableFile
+
+The first copy of path in the search path that usable() accepts (usable.c).
+Each copy passed over is said why on the console.
+============
+*/
+int FS_LoadUsableFile (char *path, void **buffer,
+	qboolean (*usable) (const byte *buf, int len, char *why, int whysize))
+{
+	int		skip, len;
+	char	why[128];
+
+	for (skip = 0 ; ; skip++)
+	{
+		len = FS_LoadFileSkip (path, buffer, skip);
+		if (!*buffer || usable (*buffer, len, why, sizeof(why)))
+			return len;
+		Com_Printf ("%s %s; looking further down the search path\n", path, why);
+		FS_FreeFile (*buffer);
+	}
+}
 
 /*
 =============

@@ -40,11 +40,42 @@ SV_BeginDemoServer
 void SV_BeginDemoserver (void)
 {
 	char		name[MAX_OSPATH];
+	int			skip, len, protocol;
+	byte		cmd;
 
 	Com_sprintf (name, sizeof(name), "demos/%s", sv.name);
-	FS_FOpenFile (name, &sv.demofile);
-	if (!sv.demofile)
-		Com_Error (ERR_DROP, "Couldn't open %s\n", name);
+
+	// The first message of a demo is svc_serverdata, which opens with the
+	// protocol it was recorded in. The 2023 re-release's demos are in its
+	// own, 2023, which this server cannot play back; a copy in 34, the
+	// original game's, is looked for further down the search path.
+	for (skip = 0 ; ; skip++)
+	{
+		FS_FOpenFileSkip (name, &sv.demofile, skip);
+		if (!sv.demofile)
+			break;
+		protocol = 0;
+		if (fread (&len, 4, 1, sv.demofile) == 1 && fread (&cmd, 1, 1, sv.demofile) == 1
+			&& cmd == svc_serverdata && fread (&protocol, 4, 1, sv.demofile) == 1
+			&& LittleLong (protocol) == PROTOCOL_VERSION)
+		{
+			fseek (sv.demofile, -9, SEEK_CUR);
+			return;
+		}
+		Com_Printf ("%s is in protocol %i, not %i; looking further down the search path\n",
+			name, LittleLong (protocol), PROTOCOL_VERSION);
+		fclose (sv.demofile);
+		sv.demofile = NULL;
+	}
+
+	if (skip)
+	{
+		// every copy is a demo this cannot play: end the loop of demos
+		// here, at the console, rather than go round it at full speed
+		Cvar_Set ("nextserver", "");
+		Com_Error (ERR_DROP, "No demo %s in protocol %i to play\n", name, PROTOCOL_VERSION);
+	}
+	Com_Error (ERR_DROP, "Couldn't open %s\n", name);
 }
 
 /*
