@@ -48,6 +48,19 @@ static mvertex_t	*pfrontenter, *pfrontexit;
 
 static qboolean		makeclippededge;
 
+/*
+A vertex's distance from a splitting plane. Every edge's two ends are
+measured here, so the vertex that ends one edge and starts the next is on
+the same side of the plane both times: with -ffast-math the compiler is free
+to compute the same expression differently in two places, and a vertex
+lying on the plane -- the 2023 re-release's maps have plenty -- could come
+out on both sides, giving a polygon one crossing instead of two.
+*/
+static __attribute__((noinline)) float R_BPolyDist (mvertex_t *v, mplane_t *p)
+{
+	return DotProduct (v->position, p->normal) - p->dist;
+}
+
 
 //===========================================================================
 
@@ -166,6 +179,7 @@ void R_RecursiveClipBPoly (bedge_t *pedges, mnode_t *pnode, msurface_t *psurf)
 	psideedges[0] = psideedges[1] = NULL;
 
 	makeclippededge = false;
+	pfrontenter = pfrontexit = NULL;	// not the last call's, stale
 
 // transform the BSP plane into model space
 // FIXME: cache these?
@@ -184,8 +198,7 @@ void R_RecursiveClipBPoly (bedge_t *pedges, mnode_t *pnode, msurface_t *psurf)
 	// set the status for the last point as the previous point
 	// FIXME: cache this stuff somehow?
 		plastvert = pedges->v[0];
-		lastdist = DotProduct (plastvert->position, tplane.normal) -
-				   tplane.dist;
+		lastdist = R_BPolyDist (plastvert, &tplane);
 
 		if (lastdist > 0)
 			lastside = 0;
@@ -194,7 +207,7 @@ void R_RecursiveClipBPoly (bedge_t *pedges, mnode_t *pnode, msurface_t *psurf)
 
 		pvert = pedges->v[1];
 
-		dist = DotProduct (pvert->position, tplane.normal) - tplane.dist;
+		dist = R_BPolyDist (pvert, &tplane);
 
 		if (dist > 0)
 			side = 0;
@@ -264,8 +277,11 @@ void R_RecursiveClipBPoly (bedge_t *pedges, mnode_t *pnode, msurface_t *psurf)
 	}
 
 // if anything was clipped, reconstitute and add the edges along the clip
-// plane to both sides (but in opposite directions)
-	if (makeclippededge)
+// plane to both sides (but in opposite directions). A polygon that crossed
+// the plane only once is not a closed polygon on either side; it is drawn
+// without the closing edge rather than with one to wherever the last
+// polygon happened to cross.
+	if (makeclippededge && pfrontenter && pfrontexit)
 	{
 		if (numbedges >= (MAX_BMODEL_EDGES - 2))
 		{

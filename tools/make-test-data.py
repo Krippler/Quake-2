@@ -456,6 +456,11 @@ def main():
         ("sound/smoke/tone.wav", make_wav()),
         ("sound/smoke/long.wav", make_wav(seconds=30, sustain=True)),
         ("maps/smoke.bsp", make_bsp()),
+        # A demo as the original game's pak0 has them: recorded by the
+        # first release, in protocol 26, which the 3.21 client plays. Just
+        # its first message's opening and the end marker; the test asks
+        # only that it is not refused.
+        ("demos/old.dm2", struct.pack("<iBi", 5, 12, 26) + struct.pack("<i", -1)),
         # Say nothing at startup that the test does not ask for: id's own
         # default.cfg binds keys, and an empty one is quieter than its absence.
         ("default.cfg", b"// smoke test\n"),

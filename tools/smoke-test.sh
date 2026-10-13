@@ -396,11 +396,20 @@ alive rerelease
 say "a map only the re-release pak has loaded from it"
 
 console "demomap demo1.dm2"
-wait_for_log rerelease "No demo demos/demo1.dm2 in protocol 34" \
+wait_for_log rerelease "No demo demos/demo1.dm2 in a 1997 protocol" \
     || die "a protocol 2023 demo was not refused; see $work/rerelease.log"
 sleep 1
 alive rerelease
 say "a demo in protocol 2023 was refused, and the engine carried on"
+
+# The original game's demos are in protocol 26, from its first release, and
+# play; only the re-release's are refused.
+console "demomap old.dm2"
+sleep 2
+grep -q "demos/old.dm2 is in protocol" "$work/rerelease.log" \
+    && die "a protocol 26 demo, as the original game's are, was refused; see $work/rerelease.log"
+alive rerelease
+say "a demo in protocol 26, as the original game's are, was not refused"
 stop_engine
 rm -f "$work/baseq2/pak9.pak"
 

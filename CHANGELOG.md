@@ -5,6 +5,37 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.1] — 2026-10-13
+
+### Fixed
+
+- **A crash in `R_EmitEdge`, and black bands across the view**, near doors,
+  lifts and other moving brushes, most of all in the re-release's maps.
+  `R_RecursiveClipBPoly` measured each vertex's distance from a splitting
+  plane twice, and with `-ffast-math` the two could disagree for a vertex on
+  the plane; the polygon then crossed it once, and the clip edge was made
+  from the last call's points. Each distance is now measured one way, and a
+  stray crossing is left open rather than joined to stale points. Found by
+  rendering every map from thousands of random viewpoints.
+- **A brush fragment could write past the end of the frame's edges**: the
+  room check counted the face's edges, not the fragment's, which BSP
+  splitting makes longer.
+- **Faces went undrawn, black, in busy views**: a frame held 2000 edges and
+  1000 surfaces, sized for 1997 at 320x240 -- the `sw_maxedges` default was
+  meant to be larger, but was written as the string "x". Now 32000 and
+  16000, freed with each map rather than leaked.
+- **city2 from the re-release would not load** (`PF_setmodel: NULL`): its
+  maps have triggers with no brush, fired only by name, which the 1997 game
+  code hands the engine as a NULL model. The engine leaves such an entity
+  without a model, as the re-release does, rather than stopping the map.
+  Every map in the re-release's pak that this engine reads -- 146 of them,
+  the base campaign, both mission packs', the deathmatch maps -- now loads
+  to a connected player.
+- **The title screen's demos stopped playing in 1.3.0**, with or without the
+  re-release: the original game's demos are in protocol 26, from its first
+  release, and only 34 was accepted. Any 1997 protocol is now; the
+  re-release's 2022 demos are still passed over.
+
 ## [1.3.0] — 2026-10-13
 
 ### Added
