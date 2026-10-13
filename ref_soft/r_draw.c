@@ -25,6 +25,102 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 image_t		*draw_chars;				// 8*8 graphic characters
 
+/*
+The 2D layer -- menus, console, status bar, crosshair -- was drawn a screen
+pixel to a pixel of its art, which at 320x240 filled the screen and at
+1920x1200 is a postage stamp in the middle of it. It is drawn at a whole
+multiple instead: the client is told the screen is r_vw x r_vh, lays
+everything out in those units as it always has, and each Draw_ call and the
+3D view's rectangle are multiplied up by r_scale here.
+
+scr_scale 0 picks the largest multiple that leaves at least 640x400 of
+room, so 1 up to 1279 wide, 2 at 1280x720 or 1600x1200, 3 at 1920x1200.
+1 is id's.
+*/
+int			r_scale = 1;
+int			r_vw, r_vh;
+
+void R_NewWindow (void)
+{
+	int		s;
+
+	s = (int)scr_scale->value;
+	if (s <= 0)
+	{
+		s = vid.width / 640;
+		if (vid.height / 400 < s)
+			s = vid.height / 400;
+	}
+	// the menus are laid out for 320x240, and need it
+	while (s > 1 && (vid.width / s < 320 || vid.height / s < 240))
+		s--;
+	if (s < 1)
+		s = 1;
+
+	r_scale = s;
+	r_vw = vid.width / s;
+	r_vh = vid.height / s;
+	ri.Vid_NewWindow (r_vw, r_vh);
+}
+
+/*
+A rectangle in the client's units, in screen pixels. An edge on the right
+or bottom of the client's screen goes to the real one's, which is up to
+r_scale-1 pixels further when the scale does not divide the screen evenly.
+*/
+void R_ScaleRect (int *x, int *y, int *w, int *h)
+{
+	int		x1, y1;
+
+	if (r_scale == 1)
+		return;
+	x1 = *x + *w;
+	y1 = *y + *h;
+	x1 = x1 >= r_vw ? vid.width : x1 * r_scale;
+	y1 = y1 >= r_vh ? vid.height : y1 * r_scale;
+	*x *= r_scale;
+	*y *= r_scale;
+	*w = x1 - *x;
+	*h = y1 - *y;
+}
+
+/*
+w x h pixels of art, stride apart, at x,y in the client's units, each one
+r_scale pixels square, clipped to the screen.
+*/
+static void Draw_Scaled (int x, int y, byte *source, int w, int h, int stride,
+		qboolean transparent)
+{
+	int		s = r_scale;
+	int		x0, y0, x1, y1, px, py, c;
+	byte	*row, *dest;
+
+	x0 = x * s;
+	y0 = y * s;
+	x1 = (x + w) * s;
+	y1 = (y + h) * s;
+	if (x0 < 0)
+		x0 = 0;
+	if (y0 < 0)
+		y0 = 0;
+	if (x1 > vid.width)
+		x1 = vid.width;
+	if (y1 > vid.height)
+		y1 = vid.height;
+
+	for (py = y0 ; py < y1 ; py++)
+	{
+		row = source + (py - y * s) / s * stride;
+		dest = vid.buffer + py * vid.rowbytes;
+		for (px = x0 ; px < x1 ; px++)
+		{
+			c = row[(px - x * s) / s];
+			if (!transparent || c != TRANSPARENT_COLOR)
+				dest[px] = c;
+		}
+	}
+}
+
 //=============================================================================
 
 /*
@@ -87,8 +183,15 @@ void Draw_Char (int x, int y, int num)
 		return;			// totally off screen
 
 //	if ( ( y + 8 ) >= vid.height )
-	if ( ( y + 8 ) > vid.height )		// PGM - status text was missing in sw...
+	if ( ( y + 8 ) > r_vh )		// PGM - status text was missing in sw...
 		return;
+
+	if (r_scale > 1)
+	{
+		Draw_Scaled (x, y, draw_chars->pixels[0] + ((num>>4)<<10) + ((num&15)<<3),
+			8, 8, 128, true);
+		return;
+	}
 
 #ifdef PARANOID
 	if (y > vid.height - 8 || x < 0 || x > vid.width - 8)
@@ -172,6 +275,9 @@ void Draw_StretchPicImplementation (int x, int y, int w, int h, image_t	*pic)
 		(x + w > vid.width) ||
 		(y + h > vid.height))
 	{
+		// a frame laid out before the scale or the mode changed
+		if (r_scale > 1 || x + w > vid.width || y + h > vid.height)
+			return;
 		ri.Sys_Error (ERR_FATAL,"Draw_Pic: bad coordinates");
 	}
 
@@ -227,6 +333,7 @@ void Draw_StretchPic (int x, int y, int w, int h, char *name)
 		ri.Con_Printf (PRINT_ALL, "Can't find pic: %s\n", name);
 		return;
 	}
+	R_ScaleRect (&x, &y, &w, &h);
 	Draw_StretchPicImplementation (x, y, w, h, pic);
 }
 
@@ -242,6 +349,7 @@ void Draw_StretchRaw (int x, int y, int w, int h, int cols, int rows, byte *data
 	pic.pixels[0] = data;
 	pic.width = cols;
 	pic.height = rows;
+	R_ScaleRect (&x, &y, &w, &h);
 	Draw_StretchPicImplementation (x, y, w, h, &pic);
 }
 
@@ -266,9 +374,16 @@ void Draw_Pic (int x, int y, char *name)
 	}
 
 	if ((x < 0) ||
-		(x + pic->width > vid.width) ||
-		(y + pic->height > vid.height))
+		(x + pic->width > r_vw) ||
+		(y + pic->height > r_vh))
 		return;	//	ri.Sys_Error (ERR_FATAL,"Draw_Pic: bad coordinates");
+
+	if (r_scale > 1)
+	{
+		Draw_Scaled (x, y, pic->pixels[0], pic->width, pic->height,
+			pic->width, pic->transparent);
+		return;
+	}
 
 	height = pic->height;
 	source = pic->pixels[0];
@@ -350,6 +465,7 @@ void Draw_TileClear (int x, int y, int w, int h, char *name)
 	image_t		*pic;
 	int			x2;
 
+	R_ScaleRect (&x, &y, &w, &h);
 	if (x < 0)
 	{
 		w += x;
@@ -377,9 +493,9 @@ void Draw_TileClear (int x, int y, int w, int h, char *name)
 	pdest = vid.buffer + y*vid.rowbytes;
 	for (i=0 ; i<h ; i++, pdest += vid.rowbytes)
 	{
-		psrc = pic->pixels[0] + pic->width * ((i+y)&63);
+		psrc = pic->pixels[0] + pic->width * (((i+y)/r_scale)&63);
 		for (j=x ; j<x2 ; j++)
-			pdest[j] = psrc[j&63];
+			pdest[j] = psrc[(j/r_scale)&63];
 	}
 }
 
@@ -396,6 +512,7 @@ void Draw_Fill (int x, int y, int w, int h, int c)
 	byte			*dest;
 	int				u, v;
 
+	R_ScaleRect (&x, &y, &w, &h);
 	if (x+w > vid.width)
 		w = vid.width - x;
 	if (y+h > vid.height)

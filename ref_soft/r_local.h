@@ -495,7 +495,7 @@ surfcache_t     *D_CacheSurface (msurface_t *surface, int miplevel);
 
 extern int      d_vrectx, d_vrecty, d_vrectright_particle, d_vrectbottom_particle;
 
-extern int      d_pix_min, d_pix_max, d_pix_shift;
+extern int      d_pix_min, d_pix_max, d_pix_shift, d_pix_scale;
 
 extern pixel_t  *d_viewbuffer;
 extern short *d_pzbuffer;
@@ -562,6 +562,11 @@ extern cvar_t   *sw_maxsurfs;
 extern cvar_t   *sw_mipcap;
 extern cvar_t   *sw_mipscale;
 extern cvar_t   *sw_mode;
+extern cvar_t   *scr_scale;
+
+extern int      r_scale, r_vw, r_vh;
+void R_NewWindow (void);
+void R_ScaleRect (int *x, int *y, int *w, int *h);
 extern cvar_t   *sw_reportsurfout;
 extern cvar_t   *sw_reportedgeout;
 extern cvar_t   *sw_stipplealpha;

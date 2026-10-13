@@ -453,7 +453,7 @@ pack_t *FS_LoadPackFile (char *packfile)
 	int				numpackfiles;
 	pack_t			*pack;
 	FILE			*packhandle;
-	dpackfile_t		info[MAX_FILES_IN_PACK];
+	dpackfile_t		*info;
 	unsigned		checksum;
 
 	packhandle = fopen(packfile, "rb");
@@ -466,15 +466,26 @@ pack_t *FS_LoadPackFile (char *packfile)
 	header.dirofs = LittleLong (header.dirofs);
 	header.dirlen = LittleLong (header.dirlen);
 
+	// MAX_FILES_IN_PACK was id's own pak tool's limit, not the format's, and
+	// later paks (the 2023 re-release's among them) have more. The directory
+	// is read onto the heap instead of a 256K array on the stack, at the size
+	// it says it is, once that size is checked against the file.
+	if (header.dirlen < 0 || header.dirofs < 0
+		|| header.dirlen % sizeof(dpackfile_t))
+		Com_Error (ERR_FATAL, "%s has a damaged directory", packfile);
 	numpackfiles = header.dirlen / sizeof(dpackfile_t);
 
-	if (numpackfiles > MAX_FILES_IN_PACK)
-		Com_Error (ERR_FATAL, "%s has %i files", packfile, numpackfiles);
+	info = malloc (header.dirlen ? header.dirlen : 1);
+	if (!info)
+		Com_Error (ERR_FATAL, "%s: out of memory for %i files", packfile, numpackfiles);
+	fseek (packhandle, header.dirofs, SEEK_SET);
+	if (fread (info, 1, header.dirlen, packhandle) != (size_t)header.dirlen)
+	{
+		free (info);
+		Com_Error (ERR_FATAL, "%s is cut short", packfile);
+	}
 
 	newfiles = Z_Malloc (numpackfiles * sizeof(packfile_t));
-
-	fseek (packhandle, header.dirofs, SEEK_SET);
-	fread (info, 1, header.dirlen, packhandle);
 
 // crc the directory to check for modifications
 	checksum = Com_BlockChecksum ((void *)info, header.dirlen);
@@ -486,10 +497,13 @@ pack_t *FS_LoadPackFile (char *packfile)
 // parse the directory
 	for (i=0 ; i<numpackfiles ; i++)
 	{
-		strcpy (newfiles[i].name, info[i].name);
+		// a name that fills all 56 bytes has no terminator
+		memcpy (newfiles[i].name, info[i].name, sizeof(info[i].name));
+		newfiles[i].name[sizeof(info[i].name)] = 0;
 		newfiles[i].filepos = LittleLong(info[i].filepos);
 		newfiles[i].filelen = LittleLong(info[i].filelen);
 	}
+	free (info);
 
 	pack = Z_Malloc (sizeof (pack_t));
 	strcpy (pack->filename, packfile);

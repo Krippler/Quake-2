@@ -868,10 +868,12 @@ void Master_Shutdown (void)
 {
 	int			i;
 
-	if (!dedicated->value)
+	// A fatal error while the file system starts comes here before SV_Init
+	// has made either cvar.
+	if (!dedicated || !dedicated->value)
 		return;		// only dedicated servers send heartbeats
 
-	if (!public_server->value)
+	if (!public_server || !public_server->value)
 		return;		// a private dedicated game
 
 	// send to group master

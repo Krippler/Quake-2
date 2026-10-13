@@ -50,6 +50,9 @@ Playing
 The first start is a 1280x720 window with WASD-style mouse look on. Options
 -> Video sets the resolution (up to 1920x1200) and fullscreen; fullscreen
 scales the picture up to fill the monitor, as does resizing the window.
+The menus and the status bar grow with the resolution; scr_scale at the
+console overrides that (1 is the original, pixel for pixel). Options has a
+music volume slider beside the effects volume.
 
 The mouse is held while you play, and let go in the menus and the console,
 and when another window has the focus. "hold mouse" in the Video menu turns
