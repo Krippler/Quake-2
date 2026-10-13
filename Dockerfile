@@ -33,6 +33,8 @@ RUN apt-get update \
 WORKDIR /src
 COPY client/ ./client/
 COPY ctf/ ./ctf/
+COPY xatrix/ ./xatrix/
+COPY rogue/ ./rogue/
 COPY game/ ./game/
 COPY linux/ ./linux/
 COPY qcommon/ ./qcommon/
@@ -52,6 +54,7 @@ COPY audiostream/ ./audiostream/
 RUN make -C linux -j"$(nproc)" SOUND=stream MUSIC=sndfile \
  && strip --strip-unneeded linux/build/quake2 linux/build/ref_softx.so \
           linux/build/baseq2/gamex86_64.so linux/build/ctf/gamex86_64.so \
+          linux/build/xatrix/gamex86_64.so linux/build/rogue/gamex86_64.so \
  && test -x linux/build/quake2
 
 # Reads the engine's pipe and serves the sound to the browser, because the
@@ -101,6 +104,8 @@ COPY --from=build /src/linux/build/quake2 /usr/local/games/quake2/quake2
 COPY --from=build /src/linux/build/ref_softx.so /usr/local/games/quake2/ref_softx.so
 COPY --from=build /src/linux/build/baseq2/gamex86_64.so /usr/local/games/quake2/baseq2/gamex86_64.so
 COPY --from=build /src/linux/build/ctf/gamex86_64.so /usr/local/games/quake2/ctf/gamex86_64.so
+COPY --from=build /src/linux/build/xatrix/gamex86_64.so /usr/local/games/quake2/xatrix/gamex86_64.so
+COPY --from=build /src/linux/build/rogue/gamex86_64.so /usr/local/games/quake2/rogue/gamex86_64.so
 COPY --from=build /src/audiostream/linux/audiostream /usr/local/games/quake2/audiostream
 COPY docker/entrypoint.sh /usr/local/bin/quake2-entrypoint
 

@@ -2,7 +2,8 @@ Quake II for the Linux desktop
 ==============================
 
 id Software's 2001 GPL source release of Quake II, ported to current 64-bit
-Linux: the software renderer, the single-player game and Threewave CTF. It
+Linux: the software renderer, the single-player game, Threewave CTF and the
+two mission packs, The Reckoning and Ground Zero. It
 needs the game files from a copy of Quake II you own (Steam, GOG, or the
 original CD), or id's free demo; none are included.
 
@@ -65,7 +66,9 @@ Sound goes to ALSA's default device, which is PipeWire or PulseAudio on a
 desktop that runs either. +set s_alsadevice NAME picks another.
 
 Anything after `quake2` is passed to the engine: `quake2 +map base1`,
-`quake2 +set game ctf`.
+`quake2 +set game ctf`. The mission packs start with
+`quake2 +set game xatrix` (The Reckoning) or `quake2 +set game rogue`
+(Ground Zero); New Game then starts the pack's campaign.
 
 Uninstall
 ---------

@@ -12,6 +12,8 @@
 #   lib/quake2/ref_softx.so                   its renderer
 #   lib/quake2/baseq2/gamex86_64.so           the single-player game
 #   lib/quake2/ctf/gamex86_64.so              Threewave CTF
+#   lib/quake2/xatrix/gamex86_64.so           The Reckoning
+#   lib/quake2/rogue/gamex86_64.so            Ground Zero
 #   share/applications/quake2.desktop         the entry in the desktop's menu
 #   share/icons/hicolor/48x48/apps/quake2.png
 #
@@ -32,7 +34,8 @@ fi
 prefix="${1:-$HOME/.local}"
 
 libs="lib/quake2/quake2 lib/quake2/ref_softx.so lib/quake2/baseq2/gamex86_64.so
-lib/quake2/ctf/gamex86_64.so"
+lib/quake2/ctf/gamex86_64.so lib/quake2/xatrix/gamex86_64.so
+lib/quake2/rogue/gamex86_64.so"
 files="bin/quake2 $libs share/applications/quake2.desktop
 share/icons/hicolor/48x48/apps/quake2.png"
 
@@ -41,6 +44,7 @@ if [ "$uninstall" = 1 ]; then
         rm -f "$prefix/$f"
     done
     rmdir "$prefix/lib/quake2/baseq2" "$prefix/lib/quake2/ctf" \
+          "$prefix/lib/quake2/xatrix" "$prefix/lib/quake2/rogue" \
           "$prefix/lib/quake2" 2>/dev/null || true
     echo "Removed Quake II from $prefix. Settings and saves are still in"
     echo "${XDG_DATA_HOME:-$HOME/.local/share}/quake2."
@@ -70,6 +74,7 @@ if ! ldconfig -p 2>/dev/null | grep -q 'libSDL2-2.0.so.0'; then
 fi
 
 install -d "$prefix/bin" "$prefix/lib/quake2/baseq2" "$prefix/lib/quake2/ctf" \
+           "$prefix/lib/quake2/xatrix" "$prefix/lib/quake2/rogue" \
            "$prefix/share/applications" "$prefix/share/icons/hicolor/48x48/apps"
 for f in $libs; do
     install -m 755 "$here/$f" "$prefix/$f"

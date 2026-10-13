@@ -5,6 +5,22 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.1.0] — 2026-10-13
+
+### Added
+
+- **The mission packs play.** The Reckoning (`xatrix`) and Ground Zero
+  (`rogue`) now run their own game code, so their new monsters, weapons and
+  items are there; until now their data ran on the single-player game's code
+  without them. The code is Yamagi Quake II's GPLv2 versions, carried
+  unmodified in `xatrix/` and `rogue/`; id's own 1998 release of it is under
+  a licence that does not allow modified copies. Start on one with
+  `QUAKE2_GAME=xatrix` or `rogue` in the container, or
+  `quake2 +set game xatrix` on the desktop. Both are in the image and the
+  Linux tarball.
+- The smoke test loads its map under each mission pack's library and saves
+  and loads a game in each.
+
 ## [1.0.0] — 2026-10-13
 
 The 2001 GPL release of Quake II, building and running on a current 64-bit

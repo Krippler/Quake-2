@@ -21,6 +21,8 @@
 #   build/ref_softx.so               the software renderer, drawing to X11
 #   build/baseq2/gamex86_64.so       the single-player game
 #   build/ctf/gamex86_64.so          Threewave CTF
+#   build/xatrix/gamex86_64.so       The Reckoning, the first mission pack
+#   build/rogue/gamex86_64.so        Ground Zero, the second
 #
 # The engine finds the renderer and the game libraries beside itself, so the
 # directory can be moved anywhere as a whole. A game directory in the data
@@ -163,6 +165,19 @@ GAME_SRCS = $(patsubst $(TOP)/%,%,$(wildcard $(TOP)/game/g_*.c $(TOP)/game/m_*.c
 CTF_SRCS  = $(patsubst $(TOP)/%,%,$(wildcard $(TOP)/ctf/g_*.c $(TOP)/ctf/m_*.c \
               $(TOP)/ctf/p_*.c)) ctf/q_shared.c
 
+# The mission packs are Yamagi Quake II's GPLv2 versions, kept as they come
+# from upstream (see xatrix/UPSTREAM and rogue/UPSTREAM): id's own 1998 source
+# for them is under a licence that does not allow modified copies. Built
+# with Yamagi's own flags, not the 1997 code's, since they are already
+# 64-bit clean. YQ2OSTYPE and YQ2ARCH go into their savegames, and match
+# Yamagi's own builds so saves move between the two.
+MP_CFLAGS = -O2 -fno-strict-aliasing -fwrapv -fvisibility=hidden -fPIC \
+            -Wno-format-truncation -Wno-format-overflow \
+            -DYQ2OSTYPE=\"Linux\" -DYQ2ARCH=\"$(shell uname -m)\" \
+            $(EXTRA_CFLAGS)
+XATRIX_SRCS = $(patsubst $(TOP)/%,%,$(shell find $(TOP)/xatrix/src -name '*.c'))
+ROGUE_SRCS  = $(patsubst $(TOP)/%,%,$(shell find $(TOP)/rogue/src -name '*.c'))
+
 # Each library gets its own object directory: q_shared.c and friends are built
 # into all of them, and the renderer's copy has to be built without the
 # engine's sound and music flags.
@@ -170,9 +185,12 @@ ENGINE_OBJS = $(patsubst %.c,$(B)/obj/engine/%.o,$(CLIENT_SRCS))
 REF_OBJS    = $(patsubst %.c,$(B)/obj/ref_soft/%.o,$(REF_SOFT_SRCS))
 GAME_OBJS   = $(patsubst %.c,$(B)/obj/baseq2/%.o,$(GAME_SRCS))
 CTF_OBJS    = $(patsubst %.c,$(B)/obj/ctf/%.o,$(CTF_SRCS))
+XATRIX_OBJS = $(patsubst %.c,$(B)/obj/xatrix/%.o,$(XATRIX_SRCS))
+ROGUE_OBJS  = $(patsubst %.c,$(B)/obj/rogue/%.o,$(ROGUE_SRCS))
 
 TARGETS = $(B)/quake2 $(B)/ref_softx.so $(B)/baseq2/gamex86_64.so \
-          $(B)/ctf/gamex86_64.so
+          $(B)/ctf/gamex86_64.so $(B)/xatrix/gamex86_64.so \
+          $(B)/rogue/gamex86_64.so
 
 all: $(TARGETS)
 
@@ -198,6 +216,22 @@ $(B)/obj/ref_soft/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(ALL_CFLAGS) -MMD -MP -o $@ -c $<
 
+$(B)/xatrix/gamex86_64.so: $(XATRIX_OBJS)
+	@mkdir -p $(dir $@)
+	$(CC) $(MP_CFLAGS) -shared -Wl,-Bsymbolic -o $@ $^ -lm
+
+$(B)/rogue/gamex86_64.so: $(ROGUE_OBJS)
+	@mkdir -p $(dir $@)
+	$(CC) $(MP_CFLAGS) -shared -Wl,-Bsymbolic -o $@ $^ -lm
+
+$(B)/obj/xatrix/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(MP_CFLAGS) -MMD -MP -o $@ -c $<
+
+$(B)/obj/rogue/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(MP_CFLAGS) -MMD -MP -o $@ -c $<
+
 $(B)/obj/baseq2/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(ALL_CFLAGS) -MMD -MP -o $@ -c $<
@@ -208,7 +242,8 @@ $(B)/obj/ctf/%.o: %.c
 
 # Zoid's Makefile listed no header dependencies at all, so editing qcommon.h
 # rebuilt nothing and left a binary half-built against the old one.
--include $(ENGINE_OBJS:.o=.d) $(REF_OBJS:.o=.d) $(GAME_OBJS:.o=.d) $(CTF_OBJS:.o=.d)
+-include $(ENGINE_OBJS:.o=.d) $(REF_OBJS:.o=.d) $(GAME_OBJS:.o=.d) $(CTF_OBJS:.o=.d) \
+         $(XATRIX_OBJS:.o=.d) $(ROGUE_OBJS:.o=.d)
 
 strip: $(TARGETS)
 	$(STRIP) $(TARGETS)
@@ -234,12 +269,15 @@ ifneq ($(SOUND),alsa)
 	$(error make install is for the desktop build: make SOUND=alsa install)
 endif
 	install -d $(DESTDIR)$(PREFIX)/bin $(LIBDIR)/baseq2 $(LIBDIR)/ctf \
+		$(LIBDIR)/xatrix $(LIBDIR)/rogue \
 		$(DESTDIR)$(PREFIX)/share/applications \
 		$(DESTDIR)$(PREFIX)/share/icons/hicolor/48x48/apps
 	install -m 755 $(B)/quake2 $(LIBDIR)/quake2
 	install -m 755 $(B)/ref_softx.so $(LIBDIR)/ref_softx.so
 	install -m 755 $(B)/baseq2/gamex86_64.so $(LIBDIR)/baseq2/gamex86_64.so
 	install -m 755 $(B)/ctf/gamex86_64.so $(LIBDIR)/ctf/gamex86_64.so
+	install -m 755 $(B)/xatrix/gamex86_64.so $(LIBDIR)/xatrix/gamex86_64.so
+	install -m 755 $(B)/rogue/gamex86_64.so $(LIBDIR)/rogue/gamex86_64.so
 	install -m 755 $(DESKTOP)/quake2 $(DESTDIR)$(PREFIX)/bin/quake2
 	install -m 644 $(DESKTOP)/quake2.png \
 		$(DESTDIR)$(PREFIX)/share/icons/hicolor/48x48/apps/quake2.png
@@ -250,9 +288,10 @@ uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/quake2 \
 		$(LIBDIR)/quake2 $(LIBDIR)/ref_softx.so \
 		$(LIBDIR)/baseq2/gamex86_64.so $(LIBDIR)/ctf/gamex86_64.so \
+		$(LIBDIR)/xatrix/gamex86_64.so $(LIBDIR)/rogue/gamex86_64.so \
 		$(DESTDIR)$(PREFIX)/share/applications/quake2.desktop \
 		$(DESTDIR)$(PREFIX)/share/icons/hicolor/48x48/apps/quake2.png
-	-rmdir $(LIBDIR)/baseq2 $(LIBDIR)/ctf $(LIBDIR)
+	-rmdir $(LIBDIR)/baseq2 $(LIBDIR)/ctf $(LIBDIR)/xatrix $(LIBDIR)/rogue $(LIBDIR)
 
 clean:
 	rm -rf $(B)
