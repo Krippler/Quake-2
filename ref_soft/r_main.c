@@ -117,6 +117,7 @@ cvar_t	*sw_draworder;
 cvar_t	*sw_maxedges;
 cvar_t	*sw_maxsurfs;
 cvar_t  *sw_mode;
+cvar_t  *scr_scale;
 cvar_t	*sw_reportedgeout;
 cvar_t	*sw_reportsurfout;
 cvar_t  *sw_stipplealpha;
@@ -259,6 +260,7 @@ void R_Register (void)
 	sw_surfcacheoverride = ri.Cvar_Get ("sw_surfcacheoverride", "0", 0);
 	sw_waterwarp = ri.Cvar_Get ("sw_waterwarp", "1", 0);
 	sw_mode = ri.Cvar_Get( "sw_mode", "0", CVAR_ARCHIVE );
+	scr_scale = ri.Cvar_Get( "scr_scale", "0", CVAR_ARCHIVE );	// see r_draw.c
 
 	r_lefthand = ri.Cvar_Get( "hand", "0", CVAR_USERINFO | CVAR_ARCHIVE );
 	r_speeds = ri.Cvar_Get ("r_speeds", "0", 0);
@@ -992,6 +994,14 @@ void R_RenderFrame (refdef_t *fd)
 {
 	r_newrefdef = *fd;
 
+	// the client's rectangle is in its units (r_draw.c), and a frame laid
+	// out before the scale changed may run off the screen
+	R_ScaleRect (&r_newrefdef.x, &r_newrefdef.y, &r_newrefdef.width, &r_newrefdef.height);
+	if (r_newrefdef.x + r_newrefdef.width > vid.width)
+		r_newrefdef.width = vid.width - r_newrefdef.x;
+	if (r_newrefdef.y + r_newrefdef.height > vid.height)
+		r_newrefdef.height = vid.height - r_newrefdef.y;
+
 	if (!r_worldmodel && !( r_newrefdef.rdflags & RDF_NOWORLDMODEL ) )
 		ri.Sys_Error (ERR_FATAL,"R_RenderView: NULL worldmodel");
 
@@ -1145,6 +1155,14 @@ void R_BeginFrame( float camera_separation )
 				ri.Sys_Error( ERR_FATAL, "ref_soft::R_BeginFrame() - catastrophic mode change failure\n" );
 			}
 		}
+	}
+	// after the mode, which calls R_NewWindow itself, so the first frame
+	// does not tell the client about a screen that is not there yet
+	if ( scr_scale->modified )
+	{
+		scr_scale->modified = false;
+		if ( vid.width )
+			R_NewWindow ();
 	}
 }
 

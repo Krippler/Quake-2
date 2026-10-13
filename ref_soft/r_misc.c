@@ -37,7 +37,7 @@ extern int			d_aflatcolor;
 
 int	d_vrectx, d_vrecty, d_vrectright_particle, d_vrectbottom_particle;
 
-int	d_pix_min, d_pix_max, d_pix_shift;
+int	d_pix_min, d_pix_max, d_pix_shift, d_pix_scale;
 
 int		d_scantable[MAXHEIGHT];
 short	*zspantable[MAXHEIGHT]; 
@@ -86,11 +86,20 @@ void D_ViewChanged (void)
 	d_zrowbytes = vid.width * 2;
 	d_zwidth = vid.width;
 
-	d_pix_min = r_refdef.vrect.width / 320;
+	// A particle's size on the screen. id took it from the view's width and
+	// shifted by 8 - width/320, which doubles the size for every 320 pixels
+	// added: right at 320 and 640, and at 1920 more than five times too big
+	// for the screen. It grows with the view in proportion now (d_pix_scale,
+	// in R_DrawParticle), and from its height, which a wider screen does not
+	// change: a widescreen mode sees more to the sides, not bigger particles.
+	// At 320x240 every number here is what it was.
+	d_pix_scale = r_refdef.vrect.height;
+
+	d_pix_min = r_refdef.vrect.height / 240;
 	if (d_pix_min < 1)
 		d_pix_min = 1;
 
-	d_pix_max = (int)((float)r_refdef.vrect.width / (320.0 / 4.0) + 0.5);
+	d_pix_max = (int)((float)r_refdef.vrect.height / (240.0 / 4.0) + 0.5);
 	d_pix_shift = 8 - (int)((float)r_refdef.vrect.width / 320.0 + 0.5);
 	if (d_pix_max < 1)
 		d_pix_max = 1;

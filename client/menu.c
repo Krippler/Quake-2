@@ -1041,7 +1041,7 @@ static menuslider_s		s_options_sfxvolume_slider;
 static menulist_s		s_options_joystick_box;
 static menulist_s		s_options_cdvolume_box;
 static menulist_s		s_options_quality_list;
-static menulist_s		s_options_compatibility_list;
+static menuslider_s		s_options_musicvolume_slider;
 static menulist_s		s_options_console_action;
 
 static void CrosshairFunc( void *unused )
@@ -1089,6 +1089,7 @@ static float ClampCvar( float min, float max, float value )
 static void ControlsSetMenuItemValues( void )
 {
 	s_options_sfxvolume_slider.curvalue		= Cvar_VariableValue( "s_volume" ) * 10;
+	s_options_musicvolume_slider.curvalue	= Cvar_VariableValue( "cd_volume" ) * 10;
 	s_options_cdvolume_box.curvalue 		= !Cvar_VariableValue("cd_nocd");
 	s_options_quality_list.curvalue			= !Cvar_VariableValue( "s_loadas8bit" );
 	s_options_sensitivity_slider.curvalue	= ( sensitivity->value ) * 2;
@@ -1151,6 +1152,14 @@ static void UpdateVolumeFunc( void *unused )
 	Cvar_SetValue( "s_volume", s_options_sfxvolume_slider.curvalue / 10 );
 }
 
+// The soundtrack's own volume (cd_volume, linux/cd_stream.c), which plays
+// through the mixer here rather than a CD drive's analogue output, and so
+// can have one.
+static void UpdateMusicVolumeFunc( void *unused )
+{
+	Cvar_SetValue( "cd_volume", s_options_musicvolume_slider.curvalue / 10 );
+}
+
 static void UpdateCDVolumeFunc( void *unused )
 {
 	Cvar_SetValue( "cd_nocd", !s_options_cdvolume_box.curvalue );
@@ -1188,8 +1197,7 @@ static void UpdateSoundQualityFunc( void *unused )
 		Cvar_SetValue( "s_khz", 11 );
 		Cvar_SetValue( "s_loadas8bit", true );
 	}
-	
-	Cvar_SetValue( "s_primary", s_options_compatibility_list.curvalue );
+
 
 	M_DrawTextBox( 8, 120 - 48, 36, 3 );
 	M_Print( 16 + 16, 120 - 48 + 8,  "Restarting the sound system. This" );
@@ -1215,10 +1223,6 @@ void Options_MenuInit( void )
 		"low", "high", 0
 	};
 
-	static const char *compatibility_items[] =
-	{
-		"max compatibility", "max performance", 0
-	};
 
 	static const char *yesno_names[] =
 	{
@@ -1254,29 +1258,30 @@ void Options_MenuInit( void )
 	s_options_sfxvolume_slider.maxvalue		= 10;
 	s_options_sfxvolume_slider.curvalue		= Cvar_VariableValue( "s_volume" ) * 10;
 
+	s_options_musicvolume_slider.generic.type	= MTYPE_SLIDER;
+	s_options_musicvolume_slider.generic.x	= 0;
+	s_options_musicvolume_slider.generic.y	= 10;
+	s_options_musicvolume_slider.generic.name	= "music volume";
+	s_options_musicvolume_slider.generic.callback	= UpdateMusicVolumeFunc;
+	s_options_musicvolume_slider.minvalue		= 0;
+	s_options_musicvolume_slider.maxvalue		= 10;
+	s_options_musicvolume_slider.curvalue		= Cvar_VariableValue( "cd_volume" ) * 10;
+
 	s_options_cdvolume_box.generic.type	= MTYPE_SPINCONTROL;
 	s_options_cdvolume_box.generic.x		= 0;
-	s_options_cdvolume_box.generic.y		= 10;
-	s_options_cdvolume_box.generic.name	= "CD music";
+	s_options_cdvolume_box.generic.y		= 20;
+	s_options_cdvolume_box.generic.name	= "music";
 	s_options_cdvolume_box.generic.callback	= UpdateCDVolumeFunc;
 	s_options_cdvolume_box.itemnames		= cd_music_items;
 	s_options_cdvolume_box.curvalue 		= !Cvar_VariableValue("cd_nocd");
 
 	s_options_quality_list.generic.type	= MTYPE_SPINCONTROL;
 	s_options_quality_list.generic.x		= 0;
-	s_options_quality_list.generic.y		= 20;;
+	s_options_quality_list.generic.y		= 30;
 	s_options_quality_list.generic.name		= "sound quality";
 	s_options_quality_list.generic.callback = UpdateSoundQualityFunc;
 	s_options_quality_list.itemnames		= quality_items;
 	s_options_quality_list.curvalue			= !Cvar_VariableValue( "s_loadas8bit" );
-
-	s_options_compatibility_list.generic.type	= MTYPE_SPINCONTROL;
-	s_options_compatibility_list.generic.x		= 0;
-	s_options_compatibility_list.generic.y		= 30;
-	s_options_compatibility_list.generic.name	= "sound compatibility";
-	s_options_compatibility_list.generic.callback = UpdateSoundQualityFunc;
-	s_options_compatibility_list.itemnames		= compatibility_items;
-	s_options_compatibility_list.curvalue		= Cvar_VariableValue( "s_primary" );
 
 	s_options_sensitivity_slider.generic.type	= MTYPE_SLIDER;
 	s_options_sensitivity_slider.generic.x		= 0;
@@ -1363,9 +1368,9 @@ void Options_MenuInit( void )
 	ControlsSetMenuItemValues();
 
 	Menu_AddItem( &s_options_menu, ( void * ) &s_options_sfxvolume_slider );
+	Menu_AddItem( &s_options_menu, ( void * ) &s_options_musicvolume_slider );
 	Menu_AddItem( &s_options_menu, ( void * ) &s_options_cdvolume_box );
 	Menu_AddItem( &s_options_menu, ( void * ) &s_options_quality_list );
-	Menu_AddItem( &s_options_menu, ( void * ) &s_options_compatibility_list );
 	Menu_AddItem( &s_options_menu, ( void * ) &s_options_sensitivity_slider );
 	Menu_AddItem( &s_options_menu, ( void * ) &s_options_alwaysrun_box );
 	Menu_AddItem( &s_options_menu, ( void * ) &s_options_invertmouse_box );

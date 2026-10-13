@@ -1371,8 +1371,9 @@ static qboolean SWimp_InitGraphics( qboolean fullscreen )
 {
 	int		rw, rh;
 
-	// let the sound and input subsystems know about the new window
-	ri.Vid_NewWindow (vid.width, vid.height);
+	// let the client know about the new window, in the units it lays the
+	// screen out in (R_NewWindow, r_draw.c)
+	R_NewWindow ();
 
 	// The container: the screen is the window, so it is made the frame's
 	// size before the window is. If the server will not resize, take the

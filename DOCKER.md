@@ -58,7 +58,8 @@ The soundtrack was audio tracks 2 to 11 on the CD. A rip as `track02.ogg`,
 `baseq2/music` plays when a map asks for it. Each game's own `music`
 directory wins, then a `music` directory at the top of the mount (where the
 GOG release keeps it), then `baseq2/music`. `cd info` at the console says
-which directory it is using.
+which directory it is using. **Options → music volume** sets its level
+apart from the sound effects'.
 
 ## Settings
 
@@ -145,6 +146,11 @@ In the menus A chooses, B goes back and the left stick or d-pad moves.
 included; the container's X screen is resized to match, and the page scales
 the picture to the window. Widescreen modes see more to the sides rather than
 less at the top and bottom.
+
+The menus, the console and the status bar are drawn larger as the resolution
+goes up, at a whole multiple of their size (three times at 1920x1200), so
+they stay about the size they were at 640x480. `scr_scale` at the console
+sets the multiple yourself; `scr_scale 1` is id's, pixel for pixel.
 
 The renderer is in software, so every pixel costs CPU. The log says how many
 cores the container was given.

@@ -526,7 +526,7 @@ void R_DrawParticle( void )
 	** determine the screen area covered by the particle,
 	** which also means clamping to a min and max
 	*/
-	pix = izi >> d_pix_shift;
+	pix = izi * d_pix_scale / (240 << 7);	// izi >> 7 at 240 lines; see D_ViewChanged
 	if (pix < d_pix_min)
 		pix = d_pix_min;
 	else if (pix > d_pix_max)

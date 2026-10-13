@@ -126,6 +126,21 @@ built for Yamagi Quake II, whose game API is id's, drops in.
   `baseq2`, and again whenever the game directory changes. The `cd` command
   and the menu's CD music switch (`cd_nocd`) work as before; `cd_volume`
   scales it.
+- **`client/menu.c`**: Options has a music volume slider, for `cd_volume`,
+  in the place of "sound compatibility", which set `s_primary`, a DirectSound
+  setting that nothing outside Windows ever read.
+
+## Files and errors
+
+- **`qcommon/files.c`**: a pak with more than 4096 files was a fatal error.
+  4096 was id's pak tool's limit, not the format's, and later paks -- the
+  2023 re-release's among them -- have more. The directory is read onto the
+  heap at the size it gives, once that is checked against the file, and a
+  name that fills all 56 bytes no longer runs into the next field.
+- **`server/sv_main.c`**: a fatal error while the file system starts, a pak
+  that is not one for instance, shuts the server down before `SV_Init` has
+  made the `dedicated` cvar; `Master_Shutdown` read it through a null
+  pointer, and the error's message was lost to a crash.
 
 ## The system layer
 
@@ -188,6 +203,20 @@ table keeps id's ten modes at their numbers and adds widescreen ones up to
 size, and fullscreen and the mouse grab where they mean something.
 
 **`ref_soft/r_local.h`**: `MAXWIDTH` 1600 to 1920.
+
+**`ref_soft/r_misc.c`, `r_part.c`**: a particle's size was `izi >> (8 -
+width/320)`, doubling for every 320 pixels of width: right at 320 and 640,
+and at 1920 wide more than five times too big for the screen. It is in
+proportion to the view now, and to its height, so a widescreen mode does not
+make particles bigger either; at 320x240 every number is what it was.
+
+**`ref_soft/r_draw.c`, `r_main.c`, `linux/rw_x11.c`**: the 2D layer -- menus,
+console, status bar -- was drawn a screen pixel to a pixel of its art, so the
+higher the resolution the smaller it got. It is drawn at a whole multiple,
+`scr_scale`: the client is told the screen is that many times smaller, lays
+it out as it always has, and the renderer multiplies each `Draw_` call and
+the 3D view's rectangle back up. 0, the default, is the largest multiple that
+leaves 640x400 of room (3 at 1920x1200, 2 at 1280x720); 1 is id's.
 
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,

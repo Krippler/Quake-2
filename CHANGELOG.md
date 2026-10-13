@@ -5,7 +5,27 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
-## [Unreleased]
+## [1.2.0] — 2026-10-13
+
+### Added
+
+- **A music volume slider** in Options, under the effects volume. It sets
+  `cd_volume`, and replaces "sound compatibility", a Windows-only setting
+  that did nothing here.
+- **The menus, console and status bar scale with the resolution**, at a whole
+  multiple chosen for the screen: three times at 1920x1200, so they are no
+  longer a small block in the middle of it. `scr_scale` sets it by hand; 1 is
+  the original.
+
+### Fixed
+
+- **Particles were far too big at high resolutions**: id's formula doubled
+  their size for every 320 pixels of width, five times too big at 1920. They
+  keep the same size relative to the screen now, widescreen included.
+- **A pak with more than 4096 files**, such as the 2023 re-release's, stopped
+  the engine; it loads now.
+- **An error while the game data loads crashed the engine** (SIGSEGV in
+  `Master_Shutdown`) instead of saying what was wrong. It says it now.
 
 ### Changed
 
