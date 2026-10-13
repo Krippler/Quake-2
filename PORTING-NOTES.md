@@ -167,6 +167,11 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   maps in QBSP format, the soldier with 575 frames, `q2dm3` with its wide
   faces each come from the original's paks. Server, client and renderer
   settle on the same copy of a map, and its checksum agrees.
+- **`server/sv_game.c`**: `PF_setmodel` given no model leaves the entity
+  without one instead of stopping the map. The re-release's maps have
+  point-sized triggers fired only by name (city2's `trigger_once`), which
+  the 1997 game code passes on as a NULL model; this covers the base game,
+  CTF and the vendored mission packs alike without touching their code.
 - **`server/sv_user.c`**: a demo whose first message is in a protocol later
   than 34 is passed over the same way; the re-release's are in 2022. The
   original game's are in 26, from its first release, and play, as the 3.21

@@ -24,6 +24,13 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   1000 surfaces, sized for 1997 at 320x240 -- the `sw_maxedges` default was
   meant to be larger, but was written as the string "x". Now 32000 and
   16000, freed with each map rather than leaked.
+- **city2 from the re-release would not load** (`PF_setmodel: NULL`): its
+  maps have triggers with no brush, fired only by name, which the 1997 game
+  code hands the engine as a NULL model. The engine leaves such an entity
+  without a model, as the re-release does, rather than stopping the map.
+  Every map in the re-release's pak that this engine reads -- 146 of them,
+  the base campaign, both mission packs', the deathmatch maps -- now loads
+  to a connected player.
 - **The title screen's demos stopped playing in 1.3.0**, with or without the
   re-release: the original game's demos are in protocol 26, from its first
   release, and only 34 was accepted. Any 1997 protocol is now; the

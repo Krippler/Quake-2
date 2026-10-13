@@ -164,8 +164,15 @@ void PF_setmodel (edict_t *ent, char *name)
 	int		i;
 	cmodel_t	*mod;
 
+	// The 2023 re-release's maps have triggers with no brush, fired only by
+	// name, which its game code allows and the 1997 game code passes here
+	// as a NULL model -- an error that stopped city2 loading. The entity is
+	// left without a model, as the re-release leaves it.
 	if (!name)
-		Com_Error (ERR_DROP, "PF_setmodel: NULL");
+	{
+		Com_DPrintf ("PF_setmodel: entity %i has no model\n", NUM_FOR_EDICT(ent));
+		return;
+	}
 
 	i = SV_ModelIndex (name);
 		
