@@ -67,6 +67,8 @@ redistribute. Any of these works:
 ├── baseq2/pak0.pak, pak1.pak, pak2.pak
 ├── baseq2/music/track02.ogg ...   the soundtrack, if you have a rip
 ├── ctf/pak0.pak                   Threewave CTF
+├── xatrix/pak0.pak                The Reckoning
+├── rogue/pak0.pak                 Ground Zero
 └── <mod>/                         anything else
 ```
 
@@ -74,12 +76,14 @@ redistribute. Any of these works:
 `baseq2/music/track02.ogg`, `track03.ogg` and so on, and it plays. The GOG
 release's `music/` folder is found by itself.
 
-**Mission packs.** The Reckoning (`xatrix`) and Ground Zero (`rogue`) need
-game code of their own, which id released separately and which is not in this
-repository yet. A mod or mission pack that ships a `gamex86_64.so` built for
-this engine or for Yamagi Quake II (the game API is the same) runs on it;
-anything else runs on the single-player game's code, which is fine for
-data-only mods and leaves a mission pack's new monsters missing.
+**Mission packs.** The Reckoning (`xatrix`) and Ground Zero (`rogue`) play
+with their own game code, which this repository carries in Yamagi Quake II's
+GPLv2 versions ([`xatrix/`](xatrix), [`rogue/`](rogue)). Put each pack's
+directory beside `baseq2` and start on it with `-e QUAKE2_GAME=xatrix` (or
+`rogue`); New Game then starts the pack's own campaign. A mod that ships a
+`gamex86_64.so` built for this engine or for Yamagi Quake II (the game API is
+the same) runs that; anything else runs on the single-player game's code,
+which is fine for data-only mods.
 
 ## Common settings
 

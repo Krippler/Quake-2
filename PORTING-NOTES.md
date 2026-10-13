@@ -191,6 +191,33 @@ size, and fullscreen and the mouse grab where they mean something.
 picture; wider than that, the vertical angle is kept and the sides are added,
 rather than the top and bottom cropped.
 
+## The mission packs
+
+`xatrix/` (The Reckoning) and `rogue/` (Ground Zero) are not id's code as
+released. id published their game source in 1998 (`xatrixsrc320`,
+`roguesrc320`) under its Limited Program Source Code License, which does not
+allow distributing modified copies and is not the GPL. Yamagi Quake II's
+versions of both are distributed under GPLv2, are already 64-bit clean, and
+keep id's game API (version 3), so they are carried here unmodified:
+`src/`, `LICENSE`, `README.md` and `CHANGELOG` as upstream has them, and
+`UPSTREAM` naming the repository and commit.
+
+Checked against this engine before they went in:
+
+- `game_import_t` and `game_export_t` differ from `game/game.h` only in
+  `const` qualifiers, which change nothing in the calling convention.
+- Every struct the engine and a game library share has the same size and
+  member offsets, except `cvar_t`: Yamagi appended `default_string` to the
+  end, which the game code never reads, so the engine's shorter struct is
+  read correctly.
+- `GetGameAPI` is the only symbol they export (`-fvisibility=hidden`).
+
+`linux/Makefile` builds them with Yamagi's own flags rather than the 1997
+code's, plus the two names their savegames carry, `YQ2OSTYPE` "Linux" and
+`YQ2ARCH` from `uname -m` -- the same as Yamagi's own builds, so a save
+moves between the two. The smoke test loads its map under each and saves
+and loads a game.
+
 ## Input
 
 - **`linux/in_pad.c`** (new): game controllers, from the browser over a

@@ -28,18 +28,23 @@ make -C "$here/linux" B=$b SOUND=alsa strip >/dev/null
 
 root="$stage/$name"
 lib="$root/lib/quake2"
-install -d "$root/bin" "$lib/baseq2" "$lib/ctf" "$root/share/applications" \
+install -d "$root/bin" "$lib/baseq2" "$lib/ctf" "$lib/xatrix" "$lib/rogue" \
+           "$root/share/applications" \
            "$root/share/icons/hicolor/48x48/apps"
 install -m 755 "$here/linux/$b/quake2" "$lib/quake2"
 install -m 755 "$here/linux/$b/ref_softx.so" "$lib/ref_softx.so"
 install -m 755 "$here/linux/$b/baseq2/gamex86_64.so" "$lib/baseq2/gamex86_64.so"
 install -m 755 "$here/linux/$b/ctf/gamex86_64.so" "$lib/ctf/gamex86_64.so"
+install -m 755 "$here/linux/$b/xatrix/gamex86_64.so" "$lib/xatrix/gamex86_64.so"
+install -m 755 "$here/linux/$b/rogue/gamex86_64.so" "$lib/rogue/gamex86_64.so"
 install -m 755 "$here/desktop/quake2" "$root/bin/quake2"
 install -m 644 "$here/desktop/quake2.desktop" "$root/share/applications/"
 install -m 644 "$here/desktop/quake2.png" "$root/share/icons/hicolor/48x48/apps/"
 install -m 755 "$here/desktop/install.sh" "$root/install.sh"
 install -m 644 "$here/desktop/README.txt" "$root/README.txt"
 install -m 644 "$here/gnu.txt" "$root/COPYING"
+install -m 644 "$here/xatrix/README.md" "$root/README-xatrix.md"
+install -m 644 "$here/rogue/README.md" "$root/README-rogue.md"
 
 mkdir -p "$out"
 tar -C "$stage" -czf "$out/$name.tar.gz" "$name"

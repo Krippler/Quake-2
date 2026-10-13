@@ -17,7 +17,8 @@
 #   2  the map: the game library loads, a server spawns, a client connects,
 #      the room is drawn through the 3D renderer, and a game is saved and
 #      loaded again -- which is the game library's own 64-bit pointer
-#      juggling (g_save.c) round trip.
+#      juggling (g_save.c) round trip. Then the same under each mission
+#      pack's library.
 #   3  a three-second stall, after which the mixer must still reach the pipe.
 #   4  which music directory the engine picks.
 #   5  depth 8: the renderer's PseudoColor path, with its colormap.
@@ -242,42 +243,56 @@ set -- $(tone "$work/console.raw" -1 0.5)
 say "$3 s of audio, the tone at $1 Hz (the fixture's is 440)"
 
 # ------------------------------------------------------------------- 2: map
-say "phase 2: a map, the game library, and a save and a load"
+# The map, under one game library: it loads, draws, saves and loads again.
+# baseq2 is the single-player game; the mission packs run the same test map
+# on their own libraries, which is enough to show each loads, spawns a
+# player and round-trips a savegame through its own g_save code.
+play_map() {
+    game="$1"
+    name="map-$game"
+    set --
+    [ "$game" = baseq2 ] || set -- +set game "$game"
 
-rm -f "$work/baseq2/config.cfg"
-run_engine map +set sw_mode 3 +map smoke
-wait_for_log map "LoadLibrary (.*gamex86_64.so)" \
-    || die "the game library did not load; see $work/map.log"
-wait_for_log map "client_connect\|entered the game" \
-    || die "no client connected to the map; see $work/map.log"
-sleep 2
-alive map
+    rm -f "$work/baseq2/config.cfg" "$work/$game/config.cfg"
+    run_engine "$name" +set sw_mode 3 "$@" +map smoke
+    wait_for_log "$name" "LoadLibrary (.*/$game/gamex86_64.so)" \
+        || die "the $game game library did not load; see $work/$name.log"
+    wait_for_log "$name" "client_connect\|entered the game" \
+        || die "no client connected to the map under $game; see $work/$name.log"
+    sleep 2
+    alive "$name"
 
-n=$(colours map)
-[ "$n" -ge 3 ] || die "the room holds $n colour(s); the 3D renderer drew nothing"
-say "the game library loaded and the room drew in $n colours"
+    n=$(colours "$name")
+    [ "$n" -ge 3 ] || die "under $game the room holds $n colour(s); the 3D renderer drew nothing"
+    say "$game: the game library loaded and the room drew in $n colours"
 
-console "save smoke"
-i=0
-while [ ! -f "$work/baseq2/save/smoke/game.ssv" ] && [ "$i" -lt 50 ]; do
-    i=$((i + 1))
-    sleep 0.2
+    console "save smoke"
+    i=0
+    while [ ! -f "$work/$game/save/smoke/game.ssv" ] && [ "$i" -lt 50 ]; do
+        i=$((i + 1))
+        sleep 0.2
+    done
+    [ -f "$work/$game/save/smoke/game.ssv" ] || die "$game did not save the game; see $work/$name.log"
+    alive "$name"
+
+    console "load smoke"
+    wait_for_log "$name" "Loading game" || die "$game did not start loading; see $work/$name.log"
+    sleep 3
+    alive "$name"
+    grep -q "ERROR\|Error:\|failed to load" "$work/$name.log" \
+        && die "the load under $game reported an error; see $work/$name.log"
+    n=$(colours "$name-loaded")
+    [ "$n" -ge 3 ] || die "after the load under $game the room holds $n colour(s)"
+    say "$game: saved, loaded again, and the room is back"
+
+    stop_engine
+}
+
+say "phase 2: a map, the game libraries, and a save and a load in each"
+for game in baseq2 xatrix rogue; do
+    [ -x "$build/$game/gamex86_64.so" ] || die "no $build/$game/gamex86_64.so"
+    play_map "$game"
 done
-[ -f "$work/baseq2/save/smoke/game.ssv" ] || die "the game was not saved; see $work/map.log"
-alive map
-say "saved the game"
-
-console "load smoke"
-wait_for_log map "Loading game" || die "the game did not start loading; see $work/map.log"
-sleep 3
-alive map
-grep -q "ERROR\|Error:\|failed to load" "$work/map.log" \
-    && die "the load reported an error; see $work/map.log"
-n=$(colours map-loaded)
-[ "$n" -ge 3 ] || die "after the load the room holds $n colour(s)"
-say "loaded it again and the room is back"
-
-stop_engine
 
 # ----------------------------------------------------------------- 3: stall
 #

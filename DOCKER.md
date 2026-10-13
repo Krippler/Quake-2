@@ -33,9 +33,9 @@ directory: that is the 2023 re-release's own data, which this 2001 engine
 cannot read; the original game's `baseq2` sits beside it.
 
 Each other directory with pak files, a `maps` directory or a
-`gamex86_64.so` in it is a game: `ctf`, a mod, a mission pack. Start on one
-with `-e QUAKE2_GAME=ctf`, or switch from the console with
-`game ctf` followed by a `map`.
+`gamex86_64.so` in it is a game: `ctf`, a mission pack, a mod. Start on one
+with `-e QUAKE2_GAME=xatrix`; New Game in the menu then starts that game's
+campaign. From the console, `game rogue` followed by a `map` switches too.
 
 | What you have | What happens |
 | --- | --- |
@@ -44,7 +44,8 @@ with `-e QUAKE2_GAME=ctf`, or switch from the console with
 | `ctf/` | Threewave CTF, with its own game code from this image |
 | a mod with a `gamex86_64.so` | that mod's code |
 | a mod without one | the single-player game's code, with the mod's data |
-| `xatrix/`, `rogue/` | the mission packs' data, on the single-player game's code: their new monsters and weapons are missing. The log says so |
+| `xatrix/` | The Reckoning, with its own game code from this image |
+| `rogue/` | Ground Zero, with its own game code from this image |
 
 The container's log lists what it found every time it starts the engine, and
 it looks again before each restart, so a mod copied in while it is running is

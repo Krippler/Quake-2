@@ -45,6 +45,11 @@ built. Getting from there to a playable game took:
   writable game directory in its state volume and links the read-only data
   into it; the desktop launcher does the same in `~/.local/share/quake2`.
 
+- **The mission packs,** The Reckoning and Ground Zero, whose game code id
+  released separately in 1998 under a licence that does not allow modified
+  copies. This repository carries Yamagi Quake II's GPLv2 versions instead,
+  kept as they come from upstream; their game API is id's.
+
 - **A game controller,** in the browser or through SDL2 on a desktop, bound
   like any other key in the game's own menu.
 
@@ -63,6 +68,3 @@ or id's demo.
 - **The OpenGL renderer.** Its Linux glue (GLX) was never in the source
   release, only the 3Dfx and SVGAlib paths. The software renderer is the one
   this builds.
-- **The mission packs' game code.** The Reckoning and Ground Zero need game
-  libraries of their own, which id released separately. Their data runs on the
-  single-player game's code, without their new monsters and weapons.

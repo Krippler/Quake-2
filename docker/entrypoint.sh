@@ -336,25 +336,18 @@ fi
 
 #
 # Which games can actually run. The game code is a library, and this image
-# carries the two whose source id released with the engine: the single-player
-# game and Threewave CTF. A mission pack or mod that brings its own
-# gamex86_64.so -- built for this engine or for Yamagi Quake II, whose game API
-# is the same -- runs that. Anything else falls back to the single-player
-# game's code, which runs data-only mods perfectly well and the mission packs
-# badly: their new monsters and weapons are code, not data.
+# carries four: the single-player game, Threewave CTF, and the two mission
+# packs, The Reckoning (xatrix) and Ground Zero (rogue). A mod that brings its
+# own gamex86_64.so -- built for this engine or for Yamagi Quake II, whose game
+# API is the same -- runs that. Anything else falls back to the single-player
+# game's code, which runs data-only mods perfectly well.
 #
 for g in $FOUND_GAMES; do
     case "$g" in
-        baseq2|ctf) continue ;;
+        baseq2|ctf|xatrix|rogue) continue ;;
     esac
     if [ ! -e "$BASEDIR/$g/gamex86_64.so" ]; then
-        case "$g" in
-            xatrix|rogue)
-                log "  $g: a mission pack; its game code is not in this image, so its"
-                log "      new monsters and weapons will be missing. See README.md." ;;
-            *)
-                log "  $g: no gamex86_64.so of its own; runs on the single-player game" ;;
-        esac
+        log "  $g: no gamex86_64.so of its own; runs on the single-player game"
     fi
 done
 

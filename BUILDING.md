@@ -32,6 +32,8 @@ What comes out sits together and is found by the engine beside itself:
 | `linux/build/ref_softx.so` | the software renderer, drawing to X11 |
 | `linux/build/baseq2/gamex86_64.so` | the single-player game |
 | `linux/build/ctf/gamex86_64.so` | Threewave CTF |
+| `linux/build/xatrix/gamex86_64.so` | The Reckoning, from `xatrix/` |
+| `linux/build/rogue/gamex86_64.so` | Ground Zero, from `rogue/` |
 
 ```
 linux/build/quake2 +set basedir /path/to/quake2
@@ -41,6 +43,11 @@ linux/build/quake2 +set basedir /path/to/quake2
 the defaults are what the image uses. `DEBUG=1` builds without optimisation
 and with symbols, and `B=dir` puts the build somewhere other than
 `linux/build`, which is how two configurations live side by side.
+
+`xatrix/` and `rogue/` are Yamagi Quake II's mission packs, unmodified;
+`UPSTREAM` in each names the repository and commit. To update one, replace
+its `src/`, `LICENSE`, `README.md` and `CHANGELOG` with a newer upstream
+checkout's and change `UPSTREAM` to match.
 
 The top-level `makefile` is id's, for NeXTSTEP/Rhapsody, and is left as it
 was. So are `linux/Makefile.i386` and `Makefile.AXP`, Zoid's originals, and
@@ -78,8 +85,9 @@ test then starts the engine on a throwaway Xvfb and checks that it
 1. draws the console, resizes the X screen to the mode it is in, changes mode
    at runtime and back, quits cleanly on SIGTERM writing `config.cfg`, and
    puts a 440 Hz tone on its audio pipe at the right pitch;
-2. loads the map through the game library, draws it, and saves and loads a
-   game -- the game library's 64-bit pointer handling, round trip;
+2. loads the map through each game library -- the single-player game and
+   both mission packs -- draws it, and saves and loads a game in each, which
+   is each library's 64-bit pointer handling, round trip;
 3. still gets sound to the pipe after a three-second stall;
 4. plays the game's own music directory in preference to `$QUAKE2_MUSICDIR`;
 5. draws at depth 8, through a colormap.
