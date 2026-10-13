@@ -4,8 +4,9 @@ name: Smoke test
 # its own: tools/make-test-data.py writes a pak holding the palette, the
 # colormap, the console font, a few tones and a one-room map. The engine then
 # starts on a throwaway Xvfb and has to draw the console, change video mode,
-# put the tone on its audio pipe at the right pitch, load the map through the
-# game library, save and load a game, survive a stall with its sound intact,
+# put the tone on its audio pipe at the right pitch, load the map through each
+# game library -- the single-player game and both mission packs -- and save and
+# load a game in each, survive a stall with its sound intact,
 # pick the right music directory, and draw at depth 8 as well as 24.
 #
 # Locally, QUAKE2_SMOKE_DATA=/path/to/quake2 adds a last phase that loads a

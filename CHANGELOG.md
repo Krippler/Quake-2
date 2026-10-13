@@ -5,6 +5,16 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Changed
+
+- **Documentation brought up to date with the mission packs:** the Unraid
+  template's overview and Game setting, the `QUAKE2_GAME` entries in the
+  README, DOCKER.md and the Compose file, the build list in PORTING-NOTES.md,
+  and the smoke-test workflow's description name The Reckoning and Ground
+  Zero alongside the base game and CTF.
+
 ## [1.1.0] — 2026-10-13
 
 ### Added

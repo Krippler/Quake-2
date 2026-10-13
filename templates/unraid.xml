@@ -27,6 +27,10 @@
     install, the directory holding baseq2/pak0.pak (id's free demo works too).
     Without it the container stops and says so.
 
+    The mission packs, The Reckoning and Ground Zero, play with their own game
+    code, which the image carries: put xatrix/ or rogue/ beside baseq2 and set
+    Game to xatrix or rogue.
+
     Music is optional and separate: Quake II's soundtrack was audio tracks on
     the CD, so put a rip in baseq2/music as track02.ogg and friends. The GOG
     release's music folder is found by itself.
@@ -62,7 +66,7 @@
           Type="Variable" Display="always" Required="false" Mask="false">480</Config>
 
   <Config Name="Game" Target="QUAKE2_GAME" Default=""
-          Description="Which game to start on. Leave empty for the base game; ctf for Threewave CTF, or a mod directory name. The directory has to be in the game data mount."
+          Description="Which game to start on. Leave empty for the base game; xatrix for The Reckoning, rogue for Ground Zero, ctf for Threewave CTF, or a mod directory name. The directory has to be in the game data mount."
           Type="Variable" Display="always" Required="false" Mask="false"></Config>
 
   <Config Name="VNC password" Target="QUAKE2_VNC_PASSWORD" Default=""

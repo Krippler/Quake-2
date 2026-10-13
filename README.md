@@ -90,7 +90,7 @@ which is fine for data-only mods.
 | | |
 | --- | --- |
 | `-e QUAKE2_WIDTH=1280 -e QUAKE2_HEIGHT=720` | starting resolution; later, **Options → Video** |
-| `-e QUAKE2_GAME=ctf` | the game or mod to start on |
+| `-e QUAKE2_GAME=xatrix` | the game to start on: `xatrix`, `rogue`, `ctf` or a mod |
 | `-e PUID=1000 -e PGID=1000` | who owns the saved files (default 1001) |
 
 Everything else, including controls, game controllers, sound, Compose and

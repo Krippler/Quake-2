@@ -65,7 +65,7 @@ which directory it is using.
 | Variable | Default | |
 | --- | --- | --- |
 | `QUAKE2_WIDTH`, `QUAKE2_HEIGHT` | 640, 480 | The resolution a fresh state volume starts at, up to 1920x1200. After that the Video menu's choice is in `config.cfg` and wins |
-| `QUAKE2_GAME` | | The game directory to start on |
+| `QUAKE2_GAME` | | The game directory to start on: `xatrix` (The Reckoning), `rogue` (Ground Zero), `ctf`, or a mod. Empty is the base game |
 | `QUAKE2_MODERN_CONTROLS` | 1 | 0 starts a fresh volume on id's 1997 controls instead (below) |
 | `QUAKE2_VNC_PASSWORD` | | A password for the picture. Without it there is none |
 | `PUID`, `PGID` | 1001 | Who the container runs as, and so who owns the state volume's files. 99 and 100 on Unraid |
