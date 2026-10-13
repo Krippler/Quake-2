@@ -34,6 +34,7 @@ Each check is of the header and of the sizes the loader will trust; the
 loaders still make their own.
 */
 
+#include <math.h>
 #include "../game/q_shared.h"
 #include "qfiles.h"
 
@@ -56,8 +57,11 @@ static float LF (const byte *p)
 A map the collision code, the renderer and the 1997 network protocol can all
 take: IBSP 38, every lump inside the file and within the limits the loaders
 enforce, and a world no more than 4096 units from the origin, which is as
-far as a coordinate on the wire reaches. BSPX lumps, the re-release's extra
-lighting, sit after the 19 that are read and are passed over.
+far as a coordinate on the wire reaches. MAX_MAP_LIGHTING is the 1997
+compiler's limit, not the loaders' -- the renderer sizes the lighting from
+the lump -- and the re-release's lighting lumps are past it, so it is not
+checked. BSPX lumps follow the 19 that are read; the renderer reads
+DECOUPLED_LM, the re-release's lighting, from them (r_model.c).
 */
 qboolean BSP_Usable (const byte *buf, int len, char *why, int whysize)
 {
@@ -68,7 +72,6 @@ qboolean BSP_Usable (const byte *buf, int len, char *why, int whysize)
 		{ LUMP_NODES,		sizeof(dnode_t),		MAX_MAP_NODES },
 		{ LUMP_TEXINFO,		sizeof(texinfo_t),		MAX_MAP_TEXINFO },
 		{ LUMP_FACES,		sizeof(dface_t),		MAX_MAP_FACES },
-		{ LUMP_LIGHTING,	1,						MAX_MAP_LIGHTING },
 		{ LUMP_LEAFS,		sizeof(dleaf_t),		MAX_MAP_LEAFS },
 		{ LUMP_LEAFFACES,	sizeof(short),			MAX_MAP_LEAFFACES },
 		{ LUMP_LEAFBRUSHES,	sizeof(short),			MAX_MAP_LEAFBRUSHES },
@@ -138,6 +141,81 @@ qboolean BSP_Usable (const byte *buf, int len, char *why, int whysize)
 			Com_sprintf (why, whysize, "reaches %g units from the origin, past the "
 				"4096 a coordinate carries on the network", v);
 			return false;
+		}
+	}
+
+	// The software renderer's surface cache takes a face no more than 256
+	// units across its texture (CalcSurfaceExtents in ref_soft): the 1997
+	// compiler split faces to that, and some of the re-release's maps --
+	// the N64 campaign's, a few others -- have wider ones. Measured as the
+	// renderer measures them.
+	{
+		const byte	*faces = buf + LL (buf + 8 + LUMP_FACES * 8);
+		const byte	*texinfo = buf + LL (buf + 8 + LUMP_TEXINFO * 8);
+		const byte	*verts = buf + LL (buf + 8 + LUMP_VERTEXES * 8);
+		const byte	*edges = buf + LL (buf + 8 + LUMP_EDGES * 8);
+		const byte	*surfedges = buf + LL (buf + 8 + LUMP_SURFEDGES * 8);
+		int		numfaces = LL (buf + 12 + LUMP_FACES * 8) / sizeof(dface_t);
+		int		numtexinfo = LL (buf + 12 + LUMP_TEXINFO * 8) / sizeof(texinfo_t);
+		int		numverts = LL (buf + 12 + LUMP_VERTEXES * 8) / sizeof(dvertex_t);
+		int		numedges = LL (buf + 12 + LUMP_EDGES * 8) / sizeof(dedge_t);
+		int		numsurfedges = LL (buf + 12 + LUMP_SURFEDGES * 8) / sizeof(int);
+		int		f, e, j, first, n, ti, se, vi, ext;
+		const byte	*face, *tex, *vert;
+		float	mins[2], maxs[2], val;
+
+		for (f = 0 ; f < numfaces ; f++)
+		{
+			face = faces + f * sizeof(dface_t);
+			first = LL (face + 4);
+			n = (short)(face[8] | (face[9] << 8));
+			ti = (short)(face[10] | (face[11] << 8));
+			if (ti < 0 || ti >= numtexinfo || n < 0 || first < 0 || first > numsurfedges - n)
+			{
+				Com_sprintf (why, whysize, "has a face out of range");
+				return false;
+			}
+			tex = texinfo + ti * sizeof(texinfo_t);
+			if (LL (tex + 32) & (SURF_WARP|SURF_SKY))
+				continue;
+			mins[0] = mins[1] = 999999;
+			maxs[0] = maxs[1] = -99999;
+			for (e = 0 ; e < n ; e++)
+			{
+				se = LL (surfedges + (first + e) * 4);
+				if (se <= -numedges || se >= numedges)
+				{
+					Com_sprintf (why, whysize, "has an edge out of range");
+					return false;
+				}
+				vert = edges + (se >= 0 ? se : -se) * sizeof(dedge_t) + (se >= 0 ? 0 : 2);
+				vi = vert[0] | (vert[1] << 8);
+				if (vi >= numverts)
+				{
+					Com_sprintf (why, whysize, "has a vertex out of range");
+					return false;
+				}
+				vert = verts + vi * sizeof(dvertex_t);
+				for (j = 0 ; j < 2 ; j++)
+				{
+					val = LF (vert) * LF (tex + j*16) + LF (vert + 4) * LF (tex + j*16 + 4)
+						+ LF (vert + 8) * LF (tex + j*16 + 8) + LF (tex + j*16 + 12);
+					if (val < mins[j])
+						mins[j] = val;
+					if (val > maxs[j])
+						maxs[j] = val;
+				}
+			}
+			for (j = 0 ; j < 2 ; j++)
+			{
+				ext = ((int)ceil (maxs[j] / 16) - (int)floor (mins[j] / 16)) * 16;
+				if (ext > 256)
+				{
+					Com_sprintf (why, whysize, "has faces wider than the 256 units the "
+						"software renderer draws");
+					return false;
+				}
+			}
 		}
 	}
 	return true;

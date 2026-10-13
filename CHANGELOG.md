@@ -2,17 +2,26 @@
 
 All notable changes are here. The format follows Keep a Changelog, and the
 top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
-on the default branch publishes that version, `## [Unreleased]` publishes only
-`edge`.
+on the default branch publishes that version, `## [Unreleased]
 
-## [Unreleased]
+### Added
+
+- **The 2023 re-release's pak plays on top of the original game's**, with
+  `QUAKE2_RERELEASE=1` (the container, the desktop launcher and the Unraid
+  template). For each file the engine takes the first copy it can read: the
+  re-release's remade maps -- the base campaign, The Reckoning, deathmatch --
+  with their new lighting, its models and textures; and wherever its copy is
+  missing or past what a 1997 engine reads, the original's, so the console
+  font, the menus and the status bar look as they did. Its lighting is
+  resampled from the BSPX `DECOUPLED_LM` lump onto the grid the software
+  renderer lights from. Call of the Machine (QBSP maps), the N64 campaign
+  and the re-release's demos do not play. See DOCKER.md.
 
 ### Fixed
 
-- **The 2023 re-release's pak files crashed the engine** in `Draw_Char` once
-  their maps overflowed the network protocol. They are not data this engine
-  can play, and it now stops at once saying so, and where the original
-  game's `baseq2` is in the same install.
+- **The re-release's pak alone crashed the engine** in `Draw_Char`, having
+  no console font. It now stops at once, saying the original game's paks
+  are needed with it.
 
 ## [1.2.0] — 2026-10-13
 

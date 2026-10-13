@@ -142,6 +142,47 @@ built for Yamagi Quake II, whose game API is id's, drops in.
   made the `dedicated` cvar; `Master_Shutdown` read it through a null
   pointer, and the error's message was lost to a crash.
 
+## The 2023 re-release's data
+
+The re-release's `rerelease/baseq2/pak0.pak` holds the same paths as the
+original game's -- 4466 `.wal` textures, 370 `.md2` models, 163 `.pcx`
+pictures, 222 maps -- beside PNG, TGA and MD5 versions for its own engine,
+and lacks `pics/conchars.pcx`. With it on top of the original's paks
+(`QUAKE2_RERELEASE=1`, as `baseq2/pak9.pak`):
+
+- **`qcommon/usable.c`** (new, built into the engine and the renderer):
+  whether a copy of a file is one this engine reads -- a map in IBSP 38
+  within the loaders' limits, inside the 4096 units a coordinate carries on
+  the network, and with no face wider than the 256 units the software
+  renderer's surface cache takes; an MD2 within the 1997 limits; an 8-bit
+  PCX; a WAL with its mip levels inside it. `MAX_MAP_LIGHTING` is not
+  checked: nothing loading a map enforces it, and the re-release's lighting
+  lumps are past it.
+- **`qcommon/files.c`**: `FS_LoadFileSkip` and `FS_FOpenFileSkip` open the
+  copy of a file a given number of copies down the search path;
+  `FS_LoadUsableFile` walks down until `usable.c` accepts one, and says why
+  it passed over each. `CM_LoadMap` uses it, the renderer the same through a
+  new `refimport_t` field (`client/ref.h`, at the end), for maps, models,
+  pictures and textures: so the console font and the 12 Call of the Machine
+  maps in QBSP format, the soldier with 575 frames, `q2dm3` with its wide
+  faces each come from the original's paks. Server, client and renderer
+  settle on the same copy of a map, and its checksum agrees.
+- **`server/sv_user.c`**: a demo whose first message is not protocol 34 is
+  passed over the same way; the re-release's are in 2022. With none left the
+  demo loop ends at the console.
+- **`ref_soft/r_model.c`**: the re-release's maps leave every face's
+  `lightofs` at -1 and keep their lighting in a BSPX lump, `DECOUPLED_LM`:
+  per face, a lightmap of its own size (8 units a texel) and a matrix from
+  world space to it. `Mod_LoadDecoupledLightmaps` resamples each onto the
+  16-unit grid at the face's `texturemins` that the surface cache and
+  `R_LightPoint` index: each grid point is taken back onto the face's plane
+  and read bilinearly from the re-release's lightmap. Its real-time
+  `dynamic_light` entities and see-through grates are not drawn, so the few
+  surfaces lit only by those stay dark.
+- **`docker/entrypoint.sh`**, **`desktop/quake2`**: `QUAKE2_RERELEASE=1`
+  links `rerelease/baseq2/pak0.pak` as `baseq2/pak9.pak`, and takes the link
+  away again when it is unset.
+
 ## The system layer
 
 **`linux/sys_linux.c`**:

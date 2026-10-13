@@ -7,6 +7,9 @@
 #   quake2 [engine options]    anything else goes to the engine: +map base1,
 #                              +set game xatrix, +set vid_fullscreen 1, ...
 #
+#   QUAKE2_RERELEASE=1 quake2  the 2023 re-release's pak on top of the
+#                              original game's (see README.txt)
+#
 # What this does is what the container's entrypoint does, for one person on
 # one machine. Quake II writes its settings, saves and screenshots into the
 # same directory as the pak files, and a Steam or GOG install is not somewhere
@@ -124,6 +127,23 @@ link_data() {
         esac
         link_game_dir "$d" "$name" || rmdir "$base/$name" 2>/dev/null
     done
+
+    # QUAKE2_RERELEASE=1: the 2023 re-release's pak on top of the original
+    # game's, as baseq2/pak9.pak. As link_rerelease in docker/entrypoint.sh,
+    # which explains it.
+    slot="$base/baseq2/pak9.pak"
+    rr=""
+    for f in "$data"/rerelease/baseq2/pak0.pak "$data"/[Rr][Ee][Rr][Ee][Ll][Ee][Aa][Ss][Ee]/[Bb][Aa][Ss][Ee][Qq]2/[Pp][Aa][Kk]0.[Pp][Aa][Kk]; do
+        [ -f "$f" ] && rr="$f" && break
+    done
+    if [ "${QUAKE2_RERELEASE:-0}" = "1" ] && [ -n "$rr" ] && [ -d "$base/baseq2" ] \
+       && { [ ! -e "$slot" ] || [ -L "$slot" ]; }; then
+        ln -sfn "$rr" "$slot"
+    elif [ -L "$slot" ]; then
+        case "$(readlink "$slot")" in
+            */[Rr][Ee][Rr][Ee][Ll][Ee][Aa][Ss][Ee]/*) rm -f "$slot" ;;
+        esac
+    fi
     return 0
 }
 

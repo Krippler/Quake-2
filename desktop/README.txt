@@ -40,6 +40,16 @@ Steam, .../steamapps/common/Quake 2). It is remembered after that. Your game
 files are only read; settings, saves and screenshots go in
 ~/.local/share/quake2.
 
+A Steam copy of the 2023 re-release has the original game's baseq2 beside its
+rerelease folder, and that is what plays. Started as
+
+    QUAKE2_RERELEASE=1 quake2
+
+the re-release's own pak goes on top of it: its remade maps, models and
+textures, with the original's files standing in for whatever of it this
+engine cannot read -- the console font, the maps of the N64 and Call of the
+Machine campaigns, its demos.
+
 The music was audio tracks on the CD. A rip as track02.ogg, track03.ogg and
 so on in baseq2/music is played; the GOG release's music folder is found by
 itself.
