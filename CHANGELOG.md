@@ -2,7 +2,10 @@
 
 All notable changes are here. The format follows Keep a Changelog, and the
 top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
-on the default branch publishes that version, `## [Unreleased]
+on the default branch publishes that version, `## [Unreleased]` publishes only
+`edge`.
+
+## [1.3.0] — 2026-10-13
 
 ### Added
 
