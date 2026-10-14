@@ -5,6 +5,23 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.4] — 2026-10-14
+
+### Added
+
+- **"coloured light" in Options → Video**: off, half or full, taking effect
+  at once (`sw_colorlight` 0, 0.5 or 1).
+
+### Fixed
+
+- **The help computer still showed `$map_establish_communication`.** The
+  words were only taken out of `Q2Game.kpf` when `QUAKE2_RERELEASE=1` had
+  found the re-release's pak in `rerelease/baseq2`; a pak put into the game
+  any other way left them behind. They are now taken out whenever a
+  `Q2Game.kpf` is anywhere in the mount, and the log says where from or why
+  not. Without one, a map's message is worded from its name -- "Establish
+  communication" -- which is what the re-release names it after.
+
 ## [1.3.3] — 2026-10-14
 
 ### Added

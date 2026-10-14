@@ -199,11 +199,14 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   for their messages; the words are in `localization/loc_*.txt` in its
   `Q2Game.kpf`. `CL_Localize` replaces each key in centre prints, console
   prints and the help computer's layout; UTF-8 punctuation is folded to the
-  1997 font's ASCII.
+  1997 font's ASCII. A `$map_` key with no words, or every one when there
+  is no file, is worded from the key itself, which the re-release made from
+  the message's first words.
 - **`docker/entrypoint.sh`**, **`desktop/quake2`**: `QUAKE2_RERELEASE=1`
-  links `rerelease/baseq2/pak0.pak` as `baseq2/pak9.pak`, takes the
-  localization files out of `rerelease/Q2Game.kpf`, and takes both away
-  again when it is unset.
+  links `rerelease/baseq2/pak0.pak` as `baseq2/pak9.pak`, and takes it away
+  again when it is unset. Whenever a `Q2Game.kpf` is in the mount, however
+  the re-release's pak got into the game, its localization files are taken
+  out into `baseq2/localization`.
 
 ## The system layer
 

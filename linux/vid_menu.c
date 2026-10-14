@@ -26,6 +26,7 @@ int VID_NumModes (void);
 
 static cvar_t *sw_mode;
 static cvar_t *sw_stipplealpha;
+static cvar_t *sw_colorlight;
 static cvar_t *_windowed_mouse;
 static cvar_t *vid_resizescreen;
 
@@ -48,6 +49,7 @@ static menuslider_s		s_screensize_slider;
 static menuslider_s		s_brightness_slider;
 static menulist_s  		s_fs_box;
 static menulist_s  		s_stipple_box;
+static menulist_s		s_colorlight_box;
 static menulist_s  		s_windowed_mouse;
 static menuaction_s		s_apply_action;
 static menuaction_s		s_defaults_action;
@@ -58,6 +60,16 @@ static char				s_mode_names[MAX_MENU_MODES + 1][24];
 static const char		*s_mode_items[MAX_MENU_MODES + 2];
 static int				s_mode_for_item[MAX_MENU_MODES + 1];
 static int				s_mode_count;
+
+// sw_colorlight for each row of "coloured light"
+static const float	s_colorlight_values[] = { 0, 0.5, 1 };
+
+static void ColorLightCallback( void *s )
+{
+	menulist_s *list = ( menulist_s * ) s;
+
+	Cvar_SetValue( "sw_colorlight", s_colorlight_values[list->curvalue] );
+}
 
 static void ScreenSizeCallback( void *s )
 {
@@ -91,6 +103,7 @@ static void ApplyChanges( void *unused )
 
 	Cvar_SetValue( "vid_gamma", gamma );
 	Cvar_SetValue( "sw_stipplealpha", s_stipple_box.curvalue );
+	Cvar_SetValue( "sw_colorlight", s_colorlight_values[s_colorlight_box.curvalue] );
 
 	mode = s_mode_for_item[s_mode_list.curvalue];
 	if ( mode != (int)sw_mode->value )
@@ -171,8 +184,17 @@ void VID_MenuInit( void )
 		"yes",
 		0
 	};
+	static const char *colorlight_names[] =
+	{
+		"off",
+		"half",
+		"full",
+		0
+	};
 	int i, y;
 
+	if ( !sw_colorlight )
+		sw_colorlight = Cvar_Get( "sw_colorlight", "1", CVAR_ARCHIVE );
 	if ( !sw_mode )
 		sw_mode = Cvar_Get( "sw_mode", "0", 0 );
 	if ( !sw_stipplealpha )
@@ -231,6 +253,17 @@ void VID_MenuInit( void )
 	s_stipple_box.itemnames = yesno_names;
 	y += 10;
 
+	// the maps' coloured light: none, as in 1997; half; all of it
+	s_colorlight_box.generic.type = MTYPE_SPINCONTROL;
+	s_colorlight_box.generic.x	= 0;
+	s_colorlight_box.generic.y	= y;
+	s_colorlight_box.generic.name	= "coloured light";
+	s_colorlight_box.generic.callback = ColorLightCallback;
+	s_colorlight_box.itemnames = colorlight_names;
+	s_colorlight_box.curvalue = sw_colorlight->value <= 0 ? 0
+		: sw_colorlight->value < 1 ? 1 : 2;
+	y += 10;
+
 	s_fs_box.generic.type = MTYPE_SPINCONTROL;
 	s_fs_box.generic.x	= 0;
 	s_fs_box.generic.y	= y;
@@ -264,6 +297,7 @@ void VID_MenuInit( void )
 	Menu_AddItem( &s_software_menu, ( void * ) &s_screensize_slider );
 	Menu_AddItem( &s_software_menu, ( void * ) &s_brightness_slider );
 	Menu_AddItem( &s_software_menu, ( void * ) &s_stipple_box );
+	Menu_AddItem( &s_software_menu, ( void * ) &s_colorlight_box );
 	if ( !vid_resizescreen->value )
 	{
 		Menu_AddItem( &s_software_menu, ( void * ) &s_fs_box );
