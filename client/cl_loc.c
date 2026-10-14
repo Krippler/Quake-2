@@ -31,7 +31,10 @@ in the file read
 
 	map_establish_communication = "Establish communication\nlink to command ship." // 1 hits
 
-loc_language picks the file. Without one, the keys are shown as they come.
+loc_language picks the file. A map's message the file does not have, or
+every one when there is no file, is worded from its name:
+"$map_establish_communication" as "Establish communication", as the
+re-release names them after their first words.
 */
 
 #include "client.h"
@@ -106,7 +109,11 @@ static void Loc_Load (void)
 	Com_sprintf (path, sizeof(path), "localization/loc_%s.txt", loc_language->string);
 	len = FS_LoadFile (path, (void **)&buf);
 	if (!buf)
+	{
+		Com_DPrintf ("No %s (it is in the re-release's Q2Game.kpf):\n"
+			"its maps' messages are worded from their names\n", path);
 		return;
+	}
 
 	// as many entries as lines, at most
 	max = 1;
@@ -201,14 +208,12 @@ char *CL_Localize (char *s)
 	static int	which;
 	char		*out, *end;
 	const char	*p, *k, *value;
-	int			n;
+	int			n, i;
 
 	if (!s || !strchr (s, '$'))
 		return s;
 	if (!loc_tried)
 		Loc_Load ();
-	if (!loc_numentries)
-		return s;
 
 	which ^= 1;
 	out = bufs[which];
@@ -223,6 +228,21 @@ char *CL_Localize (char *s)
 			{
 				while (*value && out < end)
 					*out++ = *value++;
+				p = k + n;
+				continue;
+			}
+			// map_establish_communication: "Establish communication"
+			if (n > 4 && !strncmp (k, "map_", 4))
+			{
+				for (i = 4 ; i < n && out < end ; i++)
+				{
+					if (k[i] == '_')
+						*out++ = ' ';
+					else if (i == 4)
+						*out++ = toupper ((unsigned char)k[i]);
+					else
+						*out++ = k[i];
+				}
 				p = k + n;
 				continue;
 			}

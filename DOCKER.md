@@ -58,8 +58,9 @@ maps name their messages -- the help computer's objectives, "You found a
 secret area!" -- and keep the words in `Q2Game.kpf` beside its `baseq2`;
 the container takes them out of it and the game shows them in the original
 font. Mount the re-release's whole folder, or copy `Q2Game.kpf` anywhere
-into the mount beside its pak; without it the log says so, and the messages
-are shown by their names (`$map_establish_communication`). Two things the re-release draws are not here: its real-time shadowed
+into the mount; without it the log says so, and each message is worded from
+its name instead ("Establish communication"), which is close but not always
+all of it. Two things the re-release draws are not here: its real-time shadowed
 lights (`dynamic_light`) and see-through grates, so a few surfaces lit only
 by those are darker than in the re-release.
 
@@ -186,8 +187,9 @@ sets the multiple yourself; `scr_scale 1` is id's, pixel for pixel.
 
 The maps' coloured light -- the orange of fires, the red of alarms, the
 blue and green of the re-release's -- is drawn in the palette's colours, as
-are coloured flashes from weapons. `sw_colorlight 0` at the console lights
-everything in white as in 1997; `sw_colorlight 0.5` keeps half the colour.
+are coloured flashes from weapons. **coloured light** in Options → Video
+turns it off, as in 1997, or to half; `sw_colorlight` at the console is the
+same setting.
 
 The renderer is in software, so every pixel costs CPU. The log says how many
 cores the container was given.

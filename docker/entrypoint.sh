@@ -299,6 +299,7 @@ discover_games() {
     FOUND_GAMES=$(printf '%s' "$FOUND_GAMES" | sed 's/^ *//')
 
     link_rerelease
+    extract_messages
 }
 
 #
@@ -318,8 +319,6 @@ link_rerelease() {
         case "$(readlink "$slot" 2>/dev/null)" in
             */[Rr][Ee][Rr][Ee][Ll][Ee][Aa][Ss][Ee]/*) rm -f "$slot" ;;
         esac
-        # and the messages taken out of the re-release's Q2Game.kpf
-        rm -rf "$BASEDIR/baseq2/localization"
         return 0
     fi
 
@@ -350,20 +349,39 @@ link_rerelease() {
         log "  original's copy stands in for"
     fi
 
-    # Its maps name their messages ("$map_establish_communication") and keep
-    # the words in localization/loc_*.txt inside Q2Game.kpf, a zip beside the
-    # pak; the engine reads them from baseq2/localization (client/cl_loc.c).
-    # Beside rerelease/ in a Steam or GOG install; anywhere in the mount
-    # otherwise, for a pak and a .kpf copied in on their own.
-    kpf=$(find "$(dirname "$(dirname "$rr")")" -maxdepth 1 -iname 'q2game.kpf' 2>/dev/null | head -n 1)
-    [ -n "$kpf" ] || kpf=$(find "$DATADIR" -maxdepth 5 -iname 'q2game.kpf' 2>/dev/null | head -n 1)
-    if [ -z "$kpf" ] && [ ! -d "$BASEDIR/baseq2/localization" ]; then
-        log "  no Q2Game.kpf in the mount, so the re-release's maps will show"
-        log "  the names of their messages (\$map_...) instead of the words: it"
-        log "  is in the re-release's folder, beside its baseq2"
+}
+
+#
+# The 2023 re-release's maps name their messages ("$map_establish_communication")
+# and keep the words in localization/loc_*.txt inside Q2Game.kpf, a zip in the
+# re-release's folder beside its baseq2; the engine reads them from
+# baseq2/localization (client/cl_loc.c). Taken out whenever a Q2Game.kpf is
+# anywhere in the mount, however the re-release's pak got into the game --
+# QUAKE2_RERELEASE or copied into baseq2 by hand -- since the words are only
+# ever looked up for a message that names one.
+#
+extract_messages() {
+    dest="$BASEDIR/baseq2"
+    [ -d "$dest" ] || return 0
+    kpf=$(find "$DATADIR" -maxdepth 5 -iname 'q2game.kpf' -printf '%d %p\n' 2>/dev/null \
+          | sort -n | head -n 1 | cut -d' ' -f2-)
+    if [ -z "$kpf" ]; then
+        if [ -d "$dest/localization" ]; then
+            rm -rf "$dest/localization"
+        fi
+        if [ "${QUAKE2_RERELEASE:-0}" = "1" ]; then
+            log "no Q2Game.kpf in the mount: the re-release's maps' messages will be"
+            log "  worded from their names. It is in the re-release's folder, beside"
+            log "  its baseq2; mount that folder whole, or copy it in"
+        fi
+        return 0
     fi
-    if [ -n "$kpf" ] && [ ! "$BASEDIR/baseq2/localization" -nt "$kpf" ]; then
-        if python3 -c '
+    if [ -f "$dest/localization/loc_english.txt" ] && [ "$dest/localization" -nt "$kpf" ]; then
+        log "the re-release's messages are from $kpf"
+        return 0
+    fi
+    rm -rf "$dest/localization"
+    if out=$(python3 -c '
 import sys, zipfile, os
 z = zipfile.ZipFile(sys.argv[1])
 names = [n for n in z.namelist()
@@ -373,14 +391,16 @@ os.makedirs(d, exist_ok=True)
 for n in names:
     with open(os.path.join(d, os.path.basename(n).lower()), "wb") as f:
         f.write(z.read(n))
+print(len(names))
 sys.exit(0 if names else 1)
-' "$kpf" "$BASEDIR/baseq2" 2>/dev/null; then
-            touch "$BASEDIR/baseq2/localization"
-            log "  its maps' messages are from $(basename "$kpf")"
-        else
-            log "  could not read the messages in $kpf; its maps will show"
-            log "  the names of their messages instead"
-        fi
+' "$kpf" "$dest" 2>&1); then
+        touch "$dest/localization"
+        log "the re-release's messages are from $kpf ($out languages)"
+    else
+        rm -rf "$dest/localization"
+        log "could not take the messages out of $kpf:"
+        log "  $(printf '%s' "$out" | tail -n 1)"
+        log "  the re-release's maps' messages will be worded from their names"
     fi
 }
 
