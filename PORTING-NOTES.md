@@ -185,9 +185,25 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   and read bilinearly from the re-release's lightmap. Its real-time
   `dynamic_light` entities and see-through grates are not drawn, so the few
   surfaces lit only by those stay dark.
+- **`ref_soft/r_model.c`**: the renderer caches an edge once a frame for
+  the two faces that share it, one winding each way; id's compiler never
+  shared one more widely. The re-release's maps do (1712 uses in base1, 0 in
+  the original), and a face handed another's cached edge was drawn on to
+  the right edge of the screen, black. `Mod_CountSharedEdges` and
+  `Mod_LoadSurfedges` give every use past the first each way an edge of its
+  own.
+- **`ref_soft/r_scan.c`, `r_poly.c`, `r_edge.c`**: the warping surfaces'
+  `& 63` and `<< 6` took every liquid to be 64x64; the re-release's lava and
+  crystals are 128 and 256. Masks and row length now come from the texture.
+- **`client/cl_loc.c`** (new): the re-release's maps give `$map_...` keys
+  for their messages; the words are in `localization/loc_*.txt` in its
+  `Q2Game.kpf`. `CL_Localize` replaces each key in centre prints, console
+  prints and the help computer's layout; UTF-8 punctuation is folded to the
+  1997 font's ASCII.
 - **`docker/entrypoint.sh`**, **`desktop/quake2`**: `QUAKE2_RERELEASE=1`
-  links `rerelease/baseq2/pak0.pak` as `baseq2/pak9.pak`, and takes the link
-  away again when it is unset.
+  links `rerelease/baseq2/pak0.pak` as `baseq2/pak9.pak`, takes the
+  localization files out of `rerelease/Q2Game.kpf`, and takes both away
+  again when it is unset.
 
 ## The system layer
 
@@ -276,6 +292,14 @@ crash in `R_EmitEdge` or scanlines of garbage. Distances are taken through
 one non-inlined function, the points are reset each call, and a face that
 crosses once is left without the closing edge. Found by rendering every map
 from thousands of random viewpoints in an optimised build.
+
+**`ref_soft/r_poly.c`**: `R_ClipAndDrawPoly` projected the translucent
+surfaces' vertices without keeping them inside the view as `R_EmitEdge`
+does; a vertex a fraction past the bottom gave a span row past the end of
+the frame, with the camera on a water surface.
+
+**`game/q_shared.c`, `ctf/q_shared.c`**: `Com_sprintf` cut an over-long
+string short with `strncpy`, which does not terminate it.
 
 **`ref_soft/r_rast.c`**: `R_RenderBmodelFace` checked there was room for the
 face's edges, not the fragment's, which the splitting above makes longer.

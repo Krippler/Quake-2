@@ -1233,6 +1233,7 @@ void Com_sprintf (char *dest, int size, char *fmt, ...)
 	if (len >= size)
 		Com_Printf ("Com_sprintf: overflow of %i in %i\n", len, size);
 	strncpy (dest, bigbuffer, size-1);
+	dest[size-1] = 0;	// strncpy leaves a string it cut short unterminated
 }
 
 /*

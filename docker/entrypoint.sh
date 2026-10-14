@@ -318,6 +318,8 @@ link_rerelease() {
         case "$(readlink "$slot" 2>/dev/null)" in
             */[Rr][Ee][Rr][Ee][Ll][Ee][Aa][Ss][Ee]/*) rm -f "$slot" ;;
         esac
+        # and the messages taken out of the re-release's Q2Game.kpf
+        rm -rf "$BASEDIR/baseq2/localization"
         return 0
     fi
 
@@ -346,6 +348,31 @@ link_rerelease() {
         log "the 2023 re-release's pak ($rr) is on top of the original game's"
         log "  as baseq2/pak9.pak; whatever of it this engine cannot read, the"
         log "  original's copy stands in for"
+    fi
+
+    # Its maps name their messages ("$map_establish_communication") and keep
+    # the words in localization/loc_*.txt inside Q2Game.kpf, a zip beside the
+    # pak; the engine reads them from baseq2/localization (client/cl_loc.c).
+    kpf=$(find "$(dirname "$(dirname "$rr")")" -maxdepth 1 -iname 'q2game.kpf' 2>/dev/null | head -n 1)
+    if [ -n "$kpf" ] && [ ! "$BASEDIR/baseq2/localization" -nt "$kpf" ]; then
+        if python3 -c '
+import sys, zipfile, os
+z = zipfile.ZipFile(sys.argv[1])
+names = [n for n in z.namelist()
+         if n.lower().startswith("localization/") and n.lower().endswith(".txt")]
+d = os.path.join(sys.argv[2], "localization")
+os.makedirs(d, exist_ok=True)
+for n in names:
+    with open(os.path.join(d, os.path.basename(n).lower()), "wb") as f:
+        f.write(z.read(n))
+sys.exit(0 if names else 1)
+' "$kpf" "$BASEDIR/baseq2" 2>/dev/null; then
+            touch "$BASEDIR/baseq2/localization"
+            log "  its maps' messages are from $(basename "$kpf")"
+        else
+            log "  could not read the messages in $kpf; its maps will show"
+            log "  the names of their messages instead"
+        fi
     fi
 }
 

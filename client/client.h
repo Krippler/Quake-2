@@ -507,6 +507,9 @@ void CL_Record_f (void);
 extern	char *svc_strings[256];
 
 void CL_ParseServerMessage (void);
+
+// cl_loc.c
+char *CL_Localize (char *s);
 void CL_LoadClientinfo (clientinfo_t *ci, char *s);
 void SHOWNET(char *s);
 void CL_ParseClientinfo (int player);

@@ -123,6 +123,7 @@ CLIENT_SRCS = \
 	client/cl_cin.c client/cl_ents.c client/cl_fx.c client/cl_input.c \
 	client/cl_inv.c client/cl_main.c client/cl_parse.c client/cl_pred.c \
 	client/cl_tent.c client/cl_scrn.c client/cl_view.c client/cl_newfx.c \
+	client/cl_loc.c \
 	client/console.c client/keys.c client/menu.c client/snd_dma.c \
 	client/snd_mem.c client/snd_mix.c client/qmenu.c \
 	game/m_flash.c \
