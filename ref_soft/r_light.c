@@ -281,7 +281,22 @@ unsigned		blocklights[1024];	// allow some very large lightmaps
 R_AddDynamicLights
 ===============
 */
+/*
+With rgb, into blockrgb, each light in its colour; otherwise into the
+brightness of blocklights, as id wrote it.
+*/
+static void R_AddDynamicLightsTo (qboolean rgb);
+
 void R_AddDynamicLights (void)
+{
+	R_AddDynamicLightsTo (false);
+}
+
+int		blockrgb[1024*3];	// sw_colorlight's lighting, before blocktint
+int		blocktint[1024*3];	// and each sample's colour, 8.8 of its brightest
+qboolean	r_surfcolored;	// blocktint is to be drawn (r_surf.c)
+
+static void R_AddDynamicLightsTo (qboolean rgb)
 {
 	msurface_t *surf;
 	int			lnum;
@@ -294,6 +309,7 @@ void R_AddDynamicLights (void)
 	mtexinfo_t	*tex;
 	dlight_t	*dl;
 	int			negativeLight;	//PGM
+	int			c, add, *p;
 
 	surf = r_drawsurf.surf;
 	smax = (surf->extents[0]>>4)+1;
@@ -353,6 +369,21 @@ void R_AddDynamicLights (void)
 					dist = sd + (td>>1);
 				else
 					dist = td + (sd>>1);
+				if (rgb)
+				{
+					if (dist >= minlight)
+						continue;
+					add = (rad - dist)*256;
+					p = &blockrgb[(t*smax + s)*3];
+					for (c=0 ; c<3 ; c++)
+					{
+						if (!negativeLight)
+							p[c] += add * dl->color[c];
+						else if ((p[c] -= add * dl->color[c]) < 0)
+							p[c] = 0;
+					}
+					continue;
+				}
 //====
 //PGM
 				if(!negativeLight)
@@ -371,6 +402,88 @@ void R_AddDynamicLights (void)
 //====
 			}
 		}
+	}
+}
+
+/*
+===============
+R_BuildColorLight
+
+sw_colorlight: the lighting of a surface whose lightmap has colour in it, or
+that a coloured dynamic light falls on, in red, green and blue. The palette
+has 256 colours and the colormap darkens and brightens each of them, but has
+no tints; so the brightness of each sample stays in blocklights, the
+brightest of its three channels, for the colormap, and its colour goes into
+blocktint as each channel's share of that, for R_DrawSurface to tint the lit
+texel by and to find the nearest colour of the palette to. A surface that
+turns out white throughout is left to the colormap alone, as in 1997.
+sw_colorlight between 0 and 1 is how much of the colour to keep.
+===============
+*/
+static void R_BuildColorLight (int size)
+{
+	msurface_t	*surf = r_drawsurf.surf;
+	byte		*lightmap;
+	int			i, c, maps, hi, *p, *q;
+	float		scale[3], keep;
+	dlight_t	*dl;
+	qboolean	dlit = false;
+
+	r_surfcolored = false;
+	keep = sw_colorlight->value;
+	if (keep <= 0 || !surf->samplesrgb)
+		return;
+	if (keep > 1)
+		keep = 1;
+
+	// a dynamic light of a colour, one of a muzzle flash's or a blaster's
+	if (surf->dlightframe == r_framecount)
+		for (i=0 ; i<r_newrefdef.num_dlights ; i++)
+		{
+			dl = &r_newrefdef.dlights[i];
+			if ((surf->dlightbits & (1<<i)) && (dl->color[0] != dl->color[1]
+				|| dl->color[1] != dl->color[2]))
+				dlit = true;
+		}
+	if (!surf->colored && !dlit)
+		return;
+
+	for (i=0 ; i<size*3 ; i++)
+		blockrgb[i] = 0;
+	lightmap = surf->samplesrgb;
+	for (maps = 0 ; maps < MAXLIGHTMAPS && surf->styles[maps] != 255 ; maps++)
+	{
+		// as r_drawsurf.lightadj, white*128, the white being r+g+b
+		for (c=0 ; c<3 ; c++)
+			scale[c] = r_newrefdef.lightstyles[surf->styles[maps]].rgb[c]*3*128;
+		for (i=0, p = blockrgb ; i<size*3 ; i+=3, p+=3)
+			for (c=0 ; c<3 ; c++)
+				p[c] += lightmap[i+c] * scale[c];
+		lightmap += size*3;
+	}
+	if (surf->dlightframe == r_framecount)
+		R_AddDynamicLightsTo (true);
+
+	for (i=0, p = blockrgb, q = blocktint ; i<size ; i++, p+=3, q+=3)
+	{
+		hi = p[0] > p[1] ? p[0] : p[1];
+		if (p[2] > hi)
+			hi = p[2];
+		for (c=0 ; c<3 ; c++)
+		{
+			q[c] = hi > 0 ? (int)(((long long)p[c] << 16) / hi) : 1 << 16;
+			q[c] = (1 << 16) - (int)(((1 << 16) - q[c]) * keep);
+			if (q[c] < 0xF000)
+				r_surfcolored = true;
+		}
+	}
+	if (!r_surfcolored)
+		return;
+	for (i=0 ; i<size ; i++)
+	{
+		p = &blockrgb[i*3];
+		hi = p[0] > p[1] ? p[0] : p[1];
+		blocklights[i] = p[2] > hi ? p[2] : hi;
 	}
 }
 
@@ -397,6 +510,7 @@ void R_BuildLightMap (void)
 	tmax = (surf->extents[1]>>4)+1;
 	size = smax*tmax;
 
+	r_surfcolored = false;
 	if (r_fullbright->value || !r_worldmodel->lightdata)
 	{
 		for (i=0 ; i<size ; i++)
@@ -424,6 +538,8 @@ void R_BuildLightMap (void)
 // add all the dynamic lights
 	if (surf->dlightframe == r_framecount)
 		R_AddDynamicLights ();
+
+	R_BuildColorLight (size);
 
 // bound, invert, and shift
 	for (i=0 ; i<size ; i++)

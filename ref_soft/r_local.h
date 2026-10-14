@@ -813,6 +813,8 @@ void	 R_BeginFrame( float camera_separation );
 void	R_CinematicSetPalette( const unsigned char *palette );
 
 extern unsigned d_8to24table[256]; // base
+extern cvar_t	*sw_colorlight;
+void	R_InitColorLight (void);
 
 void    Sys_MakeCodeWriteable (unsigned long startaddr, unsigned long length);
 void    Sys_SetFPCW (void);

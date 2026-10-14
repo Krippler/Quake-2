@@ -57,7 +57,9 @@ Each copy passed over is named in the log with the reason. The re-release's
 maps name their messages -- the help computer's objectives, "You found a
 secret area!" -- and keep the words in `Q2Game.kpf` beside its `baseq2`;
 the container takes them out of it and the game shows them in the original
-font. Two things the re-release draws are not here: its real-time shadowed
+font. Mount the re-release's whole folder, or copy `Q2Game.kpf` anywhere
+into the mount beside its pak; without it the log says so, and the messages
+are shown by their names (`$map_establish_communication`). Two things the re-release draws are not here: its real-time shadowed
 lights (`dynamic_light`) and see-through grates, so a few surfaces lit only
 by those are darker than in the re-release.
 
@@ -181,6 +183,11 @@ The menus, the console and the status bar are drawn larger as the resolution
 goes up, at a whole multiple of their size (three times at 1920x1200), so
 they stay about the size they were at 640x480. `scr_scale` at the console
 sets the multiple yourself; `scr_scale 1` is id's, pixel for pixel.
+
+The maps' coloured light -- the orange of fires, the red of alarms, the
+blue and green of the re-release's -- is drawn in the palette's colours, as
+are coloured flashes from weapons. `sw_colorlight 0` at the console lights
+everything in white as in 1997; `sw_colorlight 0.5` keeps half the colour.
 
 The renderer is in software, so every pixel costs CPU. The log says how many
 cores the container was given.

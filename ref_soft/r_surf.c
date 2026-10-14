@@ -50,6 +50,10 @@ static void	(*surfmiptable[4])(void) = {
 
 void R_BuildLightMap (void);
 extern	unsigned		blocklights[1024];	// allow some very large lightmaps
+extern	int				blocktint[1024*3];	// r_light.c
+extern	qboolean		r_surfcolored;
+static	int				*r_tintptr;
+static	void R_DrawSurfaceBlock8_color (void);
 
 float           surfscale;
 qboolean        r_cache_thrash;         // set if surface cache is thrashing
@@ -121,6 +125,8 @@ void R_DrawSurface (void)
 //==============================
 
 	pblockdrawer = surfmiptable[r_drawsurf.surfmip];
+	if (r_surfcolored)
+		pblockdrawer = R_DrawSurfaceBlock8_color;
 // TODO: only needs to be set when there is a display settings change
 	horzblockstep = blocksize;
 
@@ -145,6 +151,7 @@ void R_DrawSurface (void)
 	for (u=0 ; u<r_numhblocks; u++)
 	{
 		r_lightptr = blocklights + u;
+		r_tintptr = blocktint + u*3;
 
 		prowdestbase = pcolumndest;
 
@@ -162,6 +169,140 @@ void R_DrawSurface (void)
 
 
 //=============================================================================
+
+/*
+sw_colorlight's colours: for each of 64 levels of red, green and blue, the
+nearest of the palette's, by a distance that weighs green over red over
+blue as the eye does. The colours the colormap leaves alone at every level
+of light, the fullbrights and 255 the see-through, are never chosen and
+never tinted.
+*/
+static byte		r_rgbtopal[64*64*64];
+static qboolean	r_untinted[256];
+
+void R_InitColorLight (void)
+{
+	int		i, r, g, b, d, best, bestd, dr, dg, db, row;
+	byte	*pal = (byte *)d_8to24table, *cm = (byte *)vid.colormap;
+
+	for (i=0 ; i<256 ; i++)
+	{
+		r_untinted[i] = (i == 255);
+		for (row=0 ; row<VID_GRADES && cm[row*256 + i] == i ; row++)
+			;
+		if (row == VID_GRADES)
+			r_untinted[i] = true;
+	}
+
+	for (r=0 ; r<64 ; r++)
+		for (g=0 ; g<64 ; g++)
+			for (b=0 ; b<64 ; b++)
+			{
+				best = 0;
+				bestd = 0x7fffffff;
+				for (i=0 ; i<256 ; i++)
+				{
+					if (r_untinted[i])
+						continue;
+					dr = r*4+2 - pal[i*4+0];
+					dg = g*4+2 - pal[i*4+1];
+					db = b*4+2 - pal[i*4+2];
+					d = 3*dr*dr + 4*dg*dg + 2*db*db;
+					if (d < bestd)
+					{
+						bestd = d;
+						best = i;
+					}
+				}
+				r_rgbtopal[(r<<12) | (g<<6) | b] = best;
+			}
+}
+
+/*
+================
+R_DrawSurfaceBlock8_color
+
+R_DrawSurfaceBlock8_mip0 to 3 in one, with blocktint across each block as
+the light is: the texel lit through the colormap, then tinted and taken back
+to the palette.
+================
+*/
+static void R_DrawSurfaceBlock8_color (void)
+{
+	int				v, i, b, c, bs, sh, light, lightstep;
+	int				lleft, lright, lleftstep, lrightstep;
+	int				tl[3], tr[3], tlstep[3], trstep[3], t[3], tstep[3];
+	int				*tint;
+	unsigned char	pix, *psource, *prowdest, *rgb;
+	byte			*pal = (byte *)d_8to24table;
+
+	psource = pbasesource;
+	prowdest = prowdestbase;
+	tint = r_tintptr;
+	bs = blocksize;
+	sh = blockdivshift;
+
+	for (v=0 ; v<r_numvblocks ; v++)
+	{
+		lleft = r_lightptr[0];
+		lright = r_lightptr[1];
+		for (c=0 ; c<3 ; c++)
+		{
+			tl[c] = tint[c];
+			tr[c] = tint[3+c];
+		}
+		r_lightptr += r_lightwidth;
+		tint += r_lightwidth*3;
+		lleftstep = ((int)r_lightptr[0] - lleft) >> sh;
+		lrightstep = ((int)r_lightptr[1] - lright) >> sh;
+		for (c=0 ; c<3 ; c++)
+		{
+			tlstep[c] = (tint[c] - tl[c]) >> sh;
+			trstep[c] = (tint[3+c] - tr[c]) >> sh;
+		}
+
+		for (i=0 ; i<bs ; i++)
+		{
+			lightstep = (lleft - lright) >> sh;
+			light = lright;
+			for (c=0 ; c<3 ; c++)
+			{
+				tstep[c] = (tl[c] - tr[c]) >> sh;
+				t[c] = tr[c];
+			}
+
+			for (b=bs-1 ; b>=0 ; b--)
+			{
+				pix = ((unsigned char *)vid.colormap)[(light & 0xFF00) + psource[b]];
+				if (!r_untinted[pix] && (t[0] < 0xFF00 || t[1] < 0xFF00 || t[2] < 0xFF00))
+				{
+					// the steps' rounding can take a share a little under 0
+					rgb = pal + pix*4;
+					pix = r_rgbtopal[((rgb[0] * (t[0] > 0 ? t[0] >> 8 : 0)) >> 10 << 12)
+						| ((rgb[1] * (t[1] > 0 ? t[1] >> 8 : 0)) >> 10 << 6)
+						| ((rgb[2] * (t[2] > 0 ? t[2] >> 8 : 0)) >> 10)];
+				}
+				prowdest[b] = pix;
+				light += lightstep;
+				for (c=0 ; c<3 ; c++)
+					t[c] += tstep[c];
+			}
+
+			psource += sourcetstep;
+			lright += lrightstep;
+			lleft += lleftstep;
+			for (c=0 ; c<3 ; c++)
+			{
+				tl[c] += tlstep[c];
+				tr[c] += trstep[c];
+			}
+			prowdest += surfrowbytes;
+		}
+
+		if (psource >= r_sourcemax)
+			psource -= r_stepback;
+	}
+}
 
 #if	!id386
 

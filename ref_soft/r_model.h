@@ -114,6 +114,8 @@ typedef struct msurface_s
 // lighting info
 	byte		styles[MAXLIGHTMAPS];
 	byte		*samples;		// [numstyles*surfsize]
+	byte		*samplesrgb;	// the same, in colour: [numstyles*surfsize*3]
+	qboolean	colored;		// some of it is lit other than white
 
 	struct msurface_s *nextalphasurface;
 } msurface_t;
@@ -229,6 +231,7 @@ typedef struct model_s
 	dvis_t		*vis;
 
 	byte		*lightdata;
+	byte		*lightdatargb;	// the lighting lump as it is on disk
 
 	// for alias models and sprites
 	image_t		*skins[MAX_MD2SKINS];

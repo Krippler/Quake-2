@@ -179,7 +179,9 @@ model_t *Mod_ForName (char *name, qboolean crash)
 		break;
 	
 	case IDBSPHEADER:
-		loadmodel->extradata = Hunk_Begin (0x1000000);
+		// reserved, not committed: the 2023 re-release's maps, their
+		// lighting kept in colour as well, take more than the 16 MB of 1997
+		loadmodel->extradata = Hunk_Begin (0x4000000);
 		Mod_LoadBrushModel (mod, buf);
 		break;
 
@@ -316,11 +318,15 @@ void Mod_LoadLighting (lump_t *l)
 	if (!l->filelen)
 	{
 		loadmodel->lightdata = NULL;
+		loadmodel->lightdatargb = NULL;
 		return;
 	}
 	size = l->filelen/3;
 	loadmodel->lightdata = Hunk_Alloc (size);
 	in = (void *)(mod_base + l->fileofs);
+	// and kept as it is, for sw_colorlight (r_light.c)
+	loadmodel->lightdatargb = Hunk_Alloc (size*3);
+	memcpy (loadmodel->lightdatargb, in, size*3);
 	for (i=0 ; i<size ; i++, in+=3)
 	{
 		if (in[0] > in[1] && in[0] > in[2])
@@ -696,9 +702,15 @@ void Mod_LoadFaces (lump_t *l)
 			out->styles[i] = in->styles[i];
 		i = LittleLong(in->lightofs);
 		if (i == -1)
+		{
 			out->samples = NULL;
+			out->samplesrgb = NULL;
+		}
 		else
+		{
 			out->samples = loadmodel->lightdata + i/3;
+			out->samplesrgb = loadmodel->lightdatargb + i/3*3;
+		}
 		
 	// set the drawing flags flag
 		
@@ -972,7 +984,8 @@ wrote and what r_light.c and the surface cache index. So the re-release's
 lightmaps are resampled onto that grid here, once, as the map loads: each
 grid point is taken back to the face's plane in world space, then into the
 re-release lightmap, and read bilinearly. Each RGB sample becomes one
-brightness as Mod_LoadLighting makes it, the brightest of the three.
+brightness as Mod_LoadLighting makes it, the brightest of the three, and is
+kept in colour as well, for sw_colorlight.
 =================
 */
 typedef struct
@@ -986,7 +999,7 @@ static void Mod_LoadDecoupledLightmaps (dheader_t *header, int filelen)
 {
 	int			i, j, k, n, ofs, end, numlumps, lofs = 0, llen = 0;
 	int			smax, tmax, styles, total, w, h, style;
-	byte		*e, *light, *rgb, *out;
+	byte		*e, *light, *rgb, *out, *outrgb;
 	dlmface_t	*lm;
 	msurface_t	*surf;
 	float		*a, *b, *c, det, bc[3], ca[3], ab[3], r0, r1, r2;
@@ -1035,6 +1048,7 @@ static void Mod_LoadDecoupledLightmaps (dheader_t *header, int filelen)
 	if (!total)
 		return;
 	out = Hunk_Alloc (total);
+	outrgb = Hunk_Alloc (total*3);
 
 	for (i=0, surf = loadmodel->surfaces ; i<loadmodel->numsurfaces ; i++, surf++)
 	{
@@ -1072,6 +1086,7 @@ static void Mod_LoadDecoupledLightmaps (dheader_t *header, int filelen)
 		smax = (surf->extents[0]>>4)+1;
 		tmax = (surf->extents[1]>>4)+1;
 		surf->samples = out;
+		surf->samplesrgb = outrgb;
 		for (style=0 ; style<styles ; style++)
 		{
 			rgb = light + ofs + style*w*h*3;
@@ -1098,10 +1113,57 @@ static void Mod_LoadDecoupledLightmaps (dheader_t *header, int filelen)
 						+ LUM(iu,iv1)*(1-fu)*fv + LUM(iu1,iv1)*fu*fv + 0.5f);
 #undef LUM
 					*out++ = x > 255 ? 255 : x;
+#define CH(x,y) rgb[((y)*w+(x))*3+k]
+					for (k=0 ; k<3 ; k++)
+					{
+						x = (int)(CH(iu,iv)*(1-fu)*(1-fv) + CH(iu1,iv)*fu*(1-fv)
+							+ CH(iu,iv1)*(1-fu)*fv + CH(iu1,iv1)*fu*fv + 0.5f);
+						*outrgb++ = x > 255 ? 255 : x;
+					}
+#undef CH
 				}
 		}
 	}
 	ri.Con_Printf (PRINT_DEVELOPER, "%s: lighting resampled from DECOUPLED_LM\n", loadmodel->name);
+}
+
+/*
+=================
+Mod_MarkColoredSurfaces
+
+Which surfaces' lightmaps have colour in them, for r_light.c to light those
+in colour and to leave the others to the colormap alone, as they were. A
+sample is coloured when its dimmest channel is under seven-eighths of its
+brightest; the faint casts of the 1997 compiler's bounced light are not.
+=================
+*/
+static void Mod_MarkColoredSurfaces (void)
+{
+	int			i, j, n, lo, hi;
+	msurface_t	*surf;
+	byte		*p;
+
+	for (i=0, surf = loadmodel->surfaces ; i<loadmodel->numsurfaces ; i++, surf++)
+	{
+		surf->colored = false;
+		if (!surf->samplesrgb)
+			continue;
+		for (n=0 ; n<MAXLIGHTMAPS && surf->styles[n] != 255 ; n++)
+			;
+		n *= ((surf->extents[0]>>4)+1) * ((surf->extents[1]>>4)+1);
+		for (j=0, p = surf->samplesrgb ; j<n ; j++, p+=3)
+		{
+			hi = p[0] > p[1] ? p[0] : p[1];
+			if (p[2] > hi) hi = p[2];
+			lo = p[0] < p[1] ? p[0] : p[1];
+			if (p[2] < lo) lo = p[2];
+			if (hi >= 8 && lo*8 < hi*7)
+			{
+				surf->colored = true;
+				break;
+			}
+		}
+	}
 }
 
 /*
@@ -1142,6 +1204,7 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer)
 	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]);
 	Mod_LoadFaces (&header->lumps[LUMP_FACES]);
 	Mod_LoadDecoupledLightmaps (header, modfilelen);
+	Mod_MarkColoredSurfaces ();
 	Mod_LoadMarksurfaces (&header->lumps[LUMP_LEAFFACES]);
 	Mod_LoadVisibility (&header->lumps[LUMP_VISIBILITY]);
 	Mod_LoadLeafs (&header->lumps[LUMP_LEAFS]);

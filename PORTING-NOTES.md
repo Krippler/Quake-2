@@ -310,6 +310,18 @@ which is the string `"x"`, so 0, so `MINEDGES`' 2000; `sw_maxsurfs` to the
 left over were not drawn. 32000 and 16000 now, on the heap, and the last
 map's freed rather than leaked.
 
+**`ref_soft/r_light.c`, `r_surf.c`, `r_model.c`**: coloured lighting,
+`sw_colorlight`. id's software renderer kept the brightest channel of each
+lightmap sample and lit through the colormap, which has 64 levels of light
+for each of the 256 colours but no tints. The lightmaps are kept in colour
+too now, and a surface with colour in its lightmap, or under a coloured
+dynamic light, is lit in red, green and blue: the brightest channel still
+picks the colormap's level, then the lit texel is multiplied by each
+channel's share of that and taken back to the palette through a 64x64x64
+table of nearest colours, made once at start-up. The colours the colormap
+never changes -- the fullbrights -- are left alone. Surfaces lit white take
+the old path and come out byte for byte as before.
+
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,
 rather than the top and bottom cropped.
