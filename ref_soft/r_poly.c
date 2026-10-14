@@ -122,10 +122,10 @@ void R_DrawSpanletTurbulentStipple33( void )
 
 		while ( s_spanletvars.spancount > 0 )
 		{
-			sturb = ((s_spanletvars.s + r_turb_turb[(s_spanletvars.t>>16)&(CYCLE-1)])>>16)&63;
-			tturb = ((s_spanletvars.t + r_turb_turb[(s_spanletvars.s>>16)&(CYCLE-1)])>>16)&63;
+			sturb = ((s_spanletvars.s + r_turb_turb[(s_spanletvars.t>>16)&(CYCLE-1)])>>16)&r_turb_smask;
+			tturb = ((s_spanletvars.t + r_turb_turb[(s_spanletvars.s>>16)&(CYCLE-1)])>>16)&r_turb_tmask;
 			
-			btemp = *( s_spanletvars.pbase + ( sturb ) + ( tturb << 6 ) );
+			btemp = *( s_spanletvars.pbase + ( sturb ) + tturb*r_turb_width );
 			
 			if ( *pz <= ( izi >> 16 ) )
 				*pdest = btemp;
@@ -179,10 +179,10 @@ void R_DrawSpanletTurbulentStipple66( void )
 
 		while ( s_spanletvars.spancount > 0 )
 		{
-			sturb = ((s_spanletvars.s + r_turb_turb[(s_spanletvars.t>>16)&(CYCLE-1)])>>16)&63;
-			tturb = ((s_spanletvars.t + r_turb_turb[(s_spanletvars.s>>16)&(CYCLE-1)])>>16)&63;
+			sturb = ((s_spanletvars.s + r_turb_turb[(s_spanletvars.t>>16)&(CYCLE-1)])>>16)&r_turb_smask;
+			tturb = ((s_spanletvars.t + r_turb_turb[(s_spanletvars.s>>16)&(CYCLE-1)])>>16)&r_turb_tmask;
 			
-			btemp = *( s_spanletvars.pbase + ( sturb ) + ( tturb << 6 ) );
+			btemp = *( s_spanletvars.pbase + ( sturb ) + tturb*r_turb_width );
 			
 			if ( *pz <= ( izi >> 16 ) )
 				*pdest = btemp;
@@ -209,10 +209,10 @@ void R_DrawSpanletTurbulentStipple66( void )
 		
 		while ( s_spanletvars.spancount > 0 )
 		{
-			sturb = ((s_spanletvars.s + r_turb_turb[(s_spanletvars.t>>16)&(CYCLE-1)])>>16)&63;
-			tturb = ((s_spanletvars.t + r_turb_turb[(s_spanletvars.s>>16)&(CYCLE-1)])>>16)&63;
+			sturb = ((s_spanletvars.s + r_turb_turb[(s_spanletvars.t>>16)&(CYCLE-1)])>>16)&r_turb_smask;
+			tturb = ((s_spanletvars.t + r_turb_turb[(s_spanletvars.s>>16)&(CYCLE-1)])>>16)&r_turb_tmask;
 			
-			btemp = *( s_spanletvars.pbase + ( sturb ) + ( tturb << 6 ) );
+			btemp = *( s_spanletvars.pbase + ( sturb ) + tturb*r_turb_width );
 			
 			if ( *pz <= ( izi >> 16 ) )
 				*pdest = btemp;
@@ -239,10 +239,10 @@ void R_DrawSpanletTurbulentBlended66( void )
 
 	do
 	{
-		sturb = ((s_spanletvars.s + r_turb_turb[(s_spanletvars.t>>16)&(CYCLE-1)])>>16)&63;
-		tturb = ((s_spanletvars.t + r_turb_turb[(s_spanletvars.s>>16)&(CYCLE-1)])>>16)&63;
+		sturb = ((s_spanletvars.s + r_turb_turb[(s_spanletvars.t>>16)&(CYCLE-1)])>>16)&r_turb_smask;
+		tturb = ((s_spanletvars.t + r_turb_turb[(s_spanletvars.s>>16)&(CYCLE-1)])>>16)&r_turb_tmask;
 
-		btemp = *( s_spanletvars.pbase + ( sturb ) + ( tturb << 6 ) );
+		btemp = *( s_spanletvars.pbase + ( sturb ) + tturb*r_turb_width );
 
 		if ( *s_spanletvars.pz <= ( s_spanletvars.izi >> 16 ) )
 			*s_spanletvars.pdest = vid.alphamap[btemp*256+*s_spanletvars.pdest];
@@ -263,10 +263,10 @@ void R_DrawSpanletTurbulentBlended33( void )
 
 	do
 	{
-		sturb = ((s_spanletvars.s + r_turb_turb[(s_spanletvars.t>>16)&(CYCLE-1)])>>16)&63;
-		tturb = ((s_spanletvars.t + r_turb_turb[(s_spanletvars.s>>16)&(CYCLE-1)])>>16)&63;
+		sturb = ((s_spanletvars.s + r_turb_turb[(s_spanletvars.t>>16)&(CYCLE-1)])>>16)&r_turb_smask;
+		tturb = ((s_spanletvars.t + r_turb_turb[(s_spanletvars.s>>16)&(CYCLE-1)])>>16)&r_turb_tmask;
 
-		btemp = *( s_spanletvars.pbase + ( sturb ) + ( tturb << 6 ) );
+		btemp = *( s_spanletvars.pbase + ( sturb ) + tturb*r_turb_width );
 
 		if ( *s_spanletvars.pz <= ( s_spanletvars.izi >> 16 ) )
 			*s_spanletvars.pdest = vid.alphamap[btemp+*s_spanletvars.pdest*256];
@@ -988,6 +988,19 @@ void R_ClipAndDrawPoly( float alpha, qboolean isturbulent, qboolean textured )
 		scale = yscale * pout->zi;
 		pout->v = (ycenter - scale * transformed[1]);
 
+		// kept inside the view as R_EmitEdge keeps its vertices: clipped
+		// to the frustum, a vertex can still land a fraction past an edge,
+		// and a span row past the bottom is past the end of the frame --
+		// with the camera on a water surface, which swimming puts it on
+		if (pout->u < r_refdef.fvrectx_adj)
+			pout->u = r_refdef.fvrectx_adj;
+		if (pout->u > r_refdef.fvrectright_adj)
+			pout->u = r_refdef.fvrectright_adj;
+		if (pout->v < r_refdef.fvrecty_adj)
+			pout->v = r_refdef.fvrecty_adj;
+		if (pout->v > r_refdef.fvrectbottom_adj)
+			pout->v = r_refdef.fvrectbottom_adj;
+
 		// sizeof (*pv), a float. It was sizeof (pv), the pointer: four bytes
 		// in 1997, so a step of five floats, one vertex. Eight here, so a
 		// step of two, and every translucent surface -- water, glass, the
@@ -1168,6 +1181,8 @@ static void R_DrawPoly( qboolean iswater )
 
 	cachewidth = r_polydesc.pixel_width;
 	cacheblock = r_polydesc.pixels;
+	if (iswater)
+		R_SetTurbSize (r_polydesc.pixel_width, r_polydesc.pixel_height);
 
 // copy the first vertex to the last vertex, so we don't have to deal with
 // wrapping

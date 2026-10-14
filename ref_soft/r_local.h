@@ -567,6 +567,9 @@ extern cvar_t   *scr_scale;
 extern int      r_scale, r_vw, r_vh;
 void R_NewWindow (void);
 
+extern int r_turb_smask, r_turb_tmask, r_turb_width;
+void R_SetTurbSize (int width, int height);
+
 int R_LoadUsable (char *name, void **buf,
 	qboolean (*usable) (const byte *buf, int len, char *why, int whysize), qboolean loud);
 // qcommon/usable.c

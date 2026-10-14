@@ -887,7 +887,8 @@ void D_TurbulentSurf (surf_t *s)
 	pface = s->msurf;
 	miplevel = 0;
 	cacheblock = pface->texinfo->image->pixels[0];
-	cachewidth = 64;
+	cachewidth = pface->texinfo->image->width;
+	R_SetTurbSize (pface->texinfo->image->width, pface->texinfo->image->height);
 
 	if (s->insubmodel)
 	{

@@ -452,6 +452,49 @@ void Mod_LoadSubmodels (lump_t *l)
 Mod_LoadEdges
 =================
 */
+/*
+=================
+Mod_CountSharedEdges
+
+The software renderer caches each edge once a frame and hands it to the two
+faces that share it, one winding each way (R_RenderFace, cachededgeoffset):
+the rule id's compiler kept, every edge in at most two faces and in opposite
+directions. The 2023 re-release's compiler does not -- base1 has edges in
+three and four faces, and in the same direction twice -- and a face given
+another face's cached edge loses its own, and is drawn from there to the
+right edge of the screen: black bars, level whatever the view's angle.
+Every use of an edge past the first each way gets an edge of its own,
+copied (Mod_LoadSurfedges); this counts how many, so Mod_LoadEdges can make
+room. The 1997 maps have none.
+=================
+*/
+static int	mod_extraedges;
+
+static int Mod_CountSharedEdges (lump_t *edges, lump_t *surfedges)
+{
+	int		i, e, numedges, count, extra;
+	int		*in;
+	byte	*used;
+
+	numedges = edges->filelen / sizeof(dedge_t);
+	count = surfedges->filelen / sizeof(int);
+	in = (void *)(mod_base + surfedges->fileofs);
+	used = calloc (numedges ? numedges : 1, 1);
+	extra = 0;
+	for (i=0 ; i<count ; i++)
+	{
+		e = LittleLong (in[i]);
+		if (e >= numedges || -e >= numedges)
+			continue;		// Mod_LoadFaces and the loaders say so
+		if (used[e < 0 ? -e : e] & (e < 0 ? 2 : 1))
+			extra++;
+		else
+			used[e < 0 ? -e : e] |= (e < 0 ? 2 : 1);
+	}
+	free (used);
+	return extra;
+}
+
 void Mod_LoadEdges (lump_t *l)
 {
 	dedge_t *in;
@@ -462,7 +505,7 @@ void Mod_LoadEdges (lump_t *l)
 	if (l->filelen % sizeof(*in))
 		ri.Sys_Error (ERR_DROP,"MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
 	count = l->filelen / sizeof(*in);
-	out = Hunk_Alloc ( (count + 13) * sizeof(*out));	// extra for skybox
+	out = Hunk_Alloc ( (count + mod_extraedges + 13) * sizeof(*out));	// extra for skybox
 
 	loadmodel->edges = out;
 	loadmodel->numedges = count;
@@ -848,6 +891,33 @@ void Mod_LoadSurfedges (lump_t *l)
 
 	for ( i=0 ; i<count ; i++)
 		out[i] = LittleLong (in[i]);
+
+	// see Mod_CountSharedEdges
+	if (mod_extraedges)
+	{
+		int		e, n, original = loadmodel->numedges;
+		byte	*used = calloc (original ? original : 1, 1);
+
+		for (i=0 ; i<count ; i++)
+		{
+			e = out[i];
+			if (e >= original || -e >= original)
+				continue;
+			n = e < 0 ? -e : e;
+			if (!(used[n] & (e < 0 ? 2 : 1)))
+			{
+				used[n] |= (e < 0 ? 2 : 1);
+				continue;
+			}
+			loadmodel->edges[loadmodel->numedges] = loadmodel->edges[n];
+			loadmodel->edges[loadmodel->numedges].cachededgeoffset = 0;
+			out[i] = e < 0 ? -loadmodel->numedges : loadmodel->numedges;
+			loadmodel->numedges++;
+		}
+		free (used);
+		ri.Con_Printf (PRINT_DEVELOPER, "%s: %i edges shared past two faces, copied\n",
+			loadmodel->name, mod_extraedges);
+	}
 }
 
 /*
@@ -1064,6 +1134,7 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer)
 // load into heap
 	
 	Mod_LoadVertexes (&header->lumps[LUMP_VERTEXES]);
+	mod_extraedges = Mod_CountSharedEdges (&header->lumps[LUMP_EDGES], &header->lumps[LUMP_SURFEDGES]);
 	Mod_LoadEdges (&header->lumps[LUMP_EDGES]);
 	Mod_LoadSurfedges (&header->lumps[LUMP_SURFEDGES]);
 	Mod_LoadLighting (&header->lumps[LUMP_LIGHTING]);

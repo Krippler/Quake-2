@@ -53,10 +53,13 @@ What plays from it, by the re-release's own maps:
 | Call of the Machine (`mgu*`) | no: maps in the re-release's extended QBSP format |
 | its demos | no: recorded in the re-release's network protocol; the original game's play instead |
 
-Each copy passed over is named in the log with the reason. Two things the
-re-release draws are not here: its real-time shadowed lights
-(`dynamic_light`) and see-through grates, so a few surfaces lit only by
-those are darker than in the re-release.
+Each copy passed over is named in the log with the reason. The re-release's
+maps name their messages -- the help computer's objectives, "You found a
+secret area!" -- and keep the words in `Q2Game.kpf` beside its `baseq2`;
+the container takes them out of it and the game shows them in the original
+font. Two things the re-release draws are not here: its real-time shadowed
+lights (`dynamic_light`) and see-through grates, so a few surfaces lit only
+by those are darker than in the re-release.
 
 Each other directory with pak files, a `maps` directory or a
 `gamex86_64.so` in it is a game: `ctf`, a mission pack, a mod. Start on one

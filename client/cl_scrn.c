@@ -1181,28 +1181,28 @@ void SCR_ExecuteLayoutString (char *s)
 
 		if (!strcmp(token, "cstring"))
 		{
-			token = COM_Parse (&s);
+			token = CL_Localize (COM_Parse (&s));
 			DrawHUDString (token, x, y, 320, 0);
 			continue;
 		}
 
 		if (!strcmp(token, "string"))
 		{
-			token = COM_Parse (&s);
+			token = CL_Localize (COM_Parse (&s));
 			DrawString (x, y, token);
 			continue;
 		}
 
 		if (!strcmp(token, "cstring2"))
 		{
-			token = COM_Parse (&s);
+			token = CL_Localize (COM_Parse (&s));
 			DrawHUDString (token, x, y, 320,0x80);
 			continue;
 		}
 
 		if (!strcmp(token, "string2"))
 		{
-			token = COM_Parse (&s);
+			token = CL_Localize (COM_Parse (&s));
 			DrawAltString (x, y, token);
 			continue;
 		}

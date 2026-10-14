@@ -24,6 +24,28 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "r_local.h"
 
 unsigned char	*r_turb_pbase, *r_turb_pdest;
+
+/*
+The size of the texture a warping surface draws from. id's code took 64x64
+as given (& 63, << 6) -- true of every liquid in the 1997 game, not of the
+2023 re-release's lava, crystals and windows at 128 and 256, which came out
+streaked, read from past the end of the texture. Masks to the largest power
+of two that fits, and the real row length.
+*/
+int		r_turb_smask = 63, r_turb_tmask = 63, r_turb_width = 64;
+
+void R_SetTurbSize (int width, int height)
+{
+	int		p;
+
+	for (p = 1 ; p * 2 <= width ; p <<= 1)
+		;
+	r_turb_smask = p - 1;
+	for (p = 1 ; p * 2 <= height ; p <<= 1)
+		;
+	r_turb_tmask = p - 1;
+	r_turb_width = width;
+}
 fixed16_t		r_turb_s, r_turb_t, r_turb_sstep, r_turb_tstep;
 int				*r_turb_turb;
 int				r_turb_spancount;
@@ -105,9 +127,9 @@ void D_DrawTurbulent8Span (void)
 
 	do
 	{
-		sturb = ((r_turb_s + r_turb_turb[(r_turb_t>>16)&(CYCLE-1)])>>16)&63;
-		tturb = ((r_turb_t + r_turb_turb[(r_turb_s>>16)&(CYCLE-1)])>>16)&63;
-		*r_turb_pdest++ = *(r_turb_pbase + (tturb<<6) + sturb);
+		sturb = ((r_turb_s + r_turb_turb[(r_turb_t>>16)&(CYCLE-1)])>>16)&r_turb_smask;
+		tturb = ((r_turb_t + r_turb_turb[(r_turb_s>>16)&(CYCLE-1)])>>16)&r_turb_tmask;
+		*r_turb_pdest++ = *(r_turb_pbase + tturb*r_turb_width + sturb);
 		r_turb_s += r_turb_sstep;
 		r_turb_t += r_turb_tstep;
 	} while (--r_turb_spancount > 0);

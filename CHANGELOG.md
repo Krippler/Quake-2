@@ -5,6 +5,32 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **Black bars across the view in the re-release's maps**, level whatever
+  the angle and running to the right edge of the screen, and the streaked
+  floors that were the same bars with texture in them. The software
+  renderer caches each edge for the two faces that share it, one each way;
+  the re-release's maps share edges among three and four faces (1712 in
+  base1), and the face that lost its edge to the cache was drawn on to the
+  edge of the screen. Each such edge now gets a copy of its own as the map
+  loads.
+- **The help computer and messages showed `$map_establish_communication`**
+  and the like: the re-release's maps name their messages and keep the
+  words in `Q2Game.kpf`. With `QUAKE2_RERELEASE=1` the container and the
+  desktop launcher take `localization/loc_*.txt` out of it, and the game
+  shows the text, in the original font (`loc_language`, `english` by
+  default).
+- **Warping textures larger than 64x64** -- the re-release's lava, crystals
+  and windows -- were drawn streaked from past the end of the texture.
+- **A crash drawing water or glass with the camera on its surface**, as
+  swimming puts it: the translucent polygons' vertices were not kept inside
+  the view, and a span row could fall past the end of the frame.
+- **Over-long paths** read past their buffer: `Com_sprintf` left a string it
+  had cut short unterminated.
+
 ## [1.3.1] — 2026-10-13
 
 ### Fixed

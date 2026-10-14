@@ -724,12 +724,12 @@ void CL_ParseServerMessage (void)
 				S_StartLocalSound ("misc/talk.wav");
 				con.ormask = 128;
 			}
-			Com_Printf ("%s", MSG_ReadString (&net_message));
+			Com_Printf ("%s", CL_Localize (MSG_ReadString (&net_message)));
 			con.ormask = 0;
 			break;
 			
 		case svc_centerprint:
-			SCR_CenterPrint (MSG_ReadString (&net_message));
+			SCR_CenterPrint (CL_Localize (MSG_ReadString (&net_message)));
 			break;
 			
 		case svc_stufftext:
