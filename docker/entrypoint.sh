@@ -353,7 +353,15 @@ link_rerelease() {
     # Its maps name their messages ("$map_establish_communication") and keep
     # the words in localization/loc_*.txt inside Q2Game.kpf, a zip beside the
     # pak; the engine reads them from baseq2/localization (client/cl_loc.c).
+    # Beside rerelease/ in a Steam or GOG install; anywhere in the mount
+    # otherwise, for a pak and a .kpf copied in on their own.
     kpf=$(find "$(dirname "$(dirname "$rr")")" -maxdepth 1 -iname 'q2game.kpf' 2>/dev/null | head -n 1)
+    [ -n "$kpf" ] || kpf=$(find "$DATADIR" -maxdepth 5 -iname 'q2game.kpf' 2>/dev/null | head -n 1)
+    if [ -z "$kpf" ] && [ ! -d "$BASEDIR/baseq2/localization" ]; then
+        log "  no Q2Game.kpf in the mount, so the re-release's maps will show"
+        log "  the names of their messages (\$map_...) instead of the words: it"
+        log "  is in the re-release's folder, beside its baseq2"
+    fi
     if [ -n "$kpf" ] && [ ! "$BASEDIR/baseq2/localization" -nt "$kpf" ]; then
         if python3 -c '
 import sys, zipfile, os

@@ -5,6 +5,29 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.3] — 2026-10-14
+
+### Added
+
+- **Coloured lighting in the software renderer.** The maps' lightmaps have
+  always been in colour -- the orange of base1's fires, the red of alarm
+  lights, the blue of the re-release's -- and the GL renderer showed it; the
+  software renderer took only each sample's brightness. Now a surface lit in
+  colour is lit through the colormap as before, then tinted and taken back
+  to the nearest of the palette's 256 colours, and so are coloured dynamic
+  lights: muzzle flashes, blaster bolts, rockets. Surfaces lit white are
+  drawn exactly as they were. `sw_colorlight 0` turns it off, and a value
+  between 0 and 1 keeps that much of the colour.
+
+### Fixed
+
+- **The re-release's messages were still shown as their names**
+  (`$map_establish_communication`) when the re-release's pak was mounted
+  without the folder it came in: the container looked for `Q2Game.kpf` only
+  beside that folder's `baseq2`. It now looks anywhere in the mount, and says
+  in its log when there is none -- copy `Q2Game.kpf` from the re-release's
+  folder (beside its `baseq2`) into the mount.
+
 ## [1.3.2] — 2026-10-14
 
 ### Fixed

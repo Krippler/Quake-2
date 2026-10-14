@@ -112,6 +112,7 @@ cvar_t	*r_lefthand;
 cvar_t	*sw_aliasstats;
 cvar_t	*sw_allow_modex;
 cvar_t	*sw_clearcolor;
+cvar_t	*sw_colorlight;
 cvar_t	*sw_drawflat;
 cvar_t	*sw_draworder;
 cvar_t	*sw_maxedges;
@@ -248,6 +249,9 @@ void R_Register (void)
 	sw_aliasstats = ri.Cvar_Get ("sw_polymodelstats", "0", 0);
 	sw_allow_modex = ri.Cvar_Get( "sw_allow_modex", "1", CVAR_ARCHIVE );
 	sw_clearcolor = ri.Cvar_Get ("sw_clearcolor", "2", 0);
+	// the coloured light of the maps' lightmaps and of the dynamic lights,
+	// in the palette's colours (r_light.c, r_surf.c); 0 for 1997's white
+	sw_colorlight = ri.Cvar_Get ("sw_colorlight", "1", CVAR_ARCHIVE);
 	sw_drawflat = ri.Cvar_Get ("sw_drawflat", "0", 0);
 	sw_draworder = ri.Cvar_Get ("sw_draworder", "0", 0);
 	// How many edges and surfaces a frame may hold. Run out and faces are
@@ -336,6 +340,7 @@ qboolean R_Init( void *hInstance, void *wndProc )
 
 	R_Register ();
 	Draw_GetPalette ();
+	R_InitColorLight ();
 	SWimp_Init( hInstance, wndProc );
 
 	// create the window
@@ -1175,6 +1180,12 @@ void R_BeginFrame( float camera_separation )
 	}
 	// after the mode, which calls R_NewWindow itself, so the first frame
 	// does not tell the client about a screen that is not there yet
+	if ( sw_colorlight->modified )
+	{
+		sw_colorlight->modified = false;
+		D_FlushCaches ();
+	}
+
 	if ( scr_scale->modified )
 	{
 		scr_scale->modified = false;

@@ -63,6 +63,8 @@ scales the picture up to fill the monitor, as does resizing the window.
 The menus and the status bar grow with the resolution; scr_scale at the
 console overrides that (1 is the original, pixel for pixel). Options has a
 music volume slider beside the effects volume.
+The maps' coloured light is drawn in colour; sw_colorlight 0 at the console
+lights them in white as the original did, and 0.5 keeps half the colour.
 
 The mouse is held while you play, and let go in the menus and the console,
 and when another window has the focus. "hold mouse" in the Video menu turns
