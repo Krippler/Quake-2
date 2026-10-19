@@ -440,6 +440,9 @@ void CL_ParseMuzzleFlash2 (void)
 		Com_Error (ERR_DROP, "CL_ParseMuzzleFlash2: bad entity");
 
 	flash_number = MSG_ReadByte (&net_message);
+	// past the end of monster_flash_offset: numbers 1997 has not got
+	if (flash_number > MZ2_WIDOW2_BEAM_SWEEP_11)
+		return;
 
 	// locate the origin
 	AngleVectors (cl_entities[ent].current.angles, forward, right, NULL);

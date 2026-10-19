@@ -198,17 +198,74 @@ static const char *Loc_Find (const char *key, int len)
 }
 
 /*
+The words for the key k, n long, at out: the file's, or for a map's
+message its name made into words. NULL for neither.
+*/
+static char *Loc_Words (const char *k, int n, char *out, char *end)
+{
+	const char	*value;
+	int			i;
+
+	if ((value = Loc_Find (k, n)))
+	{
+		while (*value && out < end)
+			*out++ = *value++;
+		return out;
+	}
+	// map_establish_communication: "Establish communication"
+	if (n > 4 && !strncmp (k, "map_", 4))
+	{
+		for (i = 4 ; i < n && out < end ; i++)
+		{
+			if (k[i] == '_')
+				*out++ = ' ';
+			else if (i == 4)
+				*out++ = toupper ((unsigned char)k[i]);
+			else
+				*out++ = k[i];
+		}
+		return out;
+	}
+	return NULL;
+}
+
+/*
+An argument of a message: a key's words, or itself.
+*/
+static char *Loc_Argument (const char *a, int len, char *out, char *end)
+{
+	int		n;
+	char	*o;
+
+	if (a[0] == '$')
+	{
+		for (n = 0 ; n < len - 1 && (isalnum ((unsigned char)a[1+n]) || a[1+n] == '_') ; n++)
+			;
+		if (n == len - 1 && (o = Loc_Words (a + 1, n, out, end)))
+			return o;
+	}
+	while (len-- > 0 && out < end)
+		*out++ = *a++;
+	return out;
+}
+
+/*
 The string with each $key in it that the file has replaced by its text;
 the string itself when there is none. The result lasts until the next call
 but one.
+
+A key may be followed by its arguments, each after a 0x1f, to the end of
+the line: the re-release's prints with something to fill in, as its demos
+have them (server/sv_rrdemo.c). Its text then has a "{}" for each.
 */
 char *CL_Localize (char *s)
 {
 	static char	bufs[2][2048];
 	static int	which;
-	char		*out, *end;
-	const char	*p, *k, *value;
-	int			n, i;
+	char		*out, *end, *o, *value;
+	const char	*p, *k, *args[8], *a;
+	int			n, i, nargs, alen[8];
+	char		words[1024];
 
 	if (!s || !strchr (s, '$'))
 		return s;
@@ -224,30 +281,43 @@ char *CL_Localize (char *s)
 		{
 			for (k = p + 1, n = 0 ; isalnum ((unsigned char)k[n]) || k[n] == '_' ; n++)
 				;
-			if (n && (value = Loc_Find (k, n)))
+			o = n ? Loc_Words (k, n, words, words + sizeof(words) - 1) : NULL;
+			if (o)
 			{
-				while (*value && out < end)
-					*out++ = *value++;
+				*o = 0;
 				p = k + n;
-				continue;
-			}
-			// map_establish_communication: "Establish communication"
-			if (n > 4 && !strncmp (k, "map_", 4))
-			{
-				for (i = 4 ; i < n && out < end ; i++)
+
+				// its arguments
+				nargs = 0;
+				while (*p == 0x1f && nargs < 8)
 				{
-					if (k[i] == '_')
-						*out++ = ' ';
-					else if (i == 4)
-						*out++ = toupper ((unsigned char)k[i]);
-					else
-						*out++ = k[i];
+					a = ++p;
+					while (*p && *p != 0x1f && *p != '\n')
+						p++;
+					args[nargs] = a;
+					alen[nargs++] = p - a;
 				}
-				p = k + n;
+
+				for (value = words, i = 0 ; *value && out < end ; )
+				{
+					if (value[0] == '{' && value[1] == '}')
+					{
+						if (i < nargs)
+							out = Loc_Argument (args[i], alen[i], out, end);
+						i++;
+						value += 2;
+					}
+					else
+						*out++ = *value++;
+				}
 				continue;
 			}
 		}
-		*out++ = *p++;
+		if (*p == 0x1f)
+			*out++ = ' ';	// an argument for a key not known
+		else
+			*out++ = *p;
+		p++;
 	}
 	*out = 0;
 	return bufs[which];

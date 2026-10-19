@@ -1042,6 +1042,7 @@ void SV_Shutdown (char *finalmsg, qboolean reconnect)
 	// free current level
 	if (sv.demofile)
 		fclose (sv.demofile);
+	SV_RRDemo_Close ();
 	memset (&sv, 0, sizeof(sv));
 	Com_SetServerState (sv.state);
 

@@ -33,8 +33,46 @@ sv_client and sv_player will be valid.
 */
 
 /*
+A demo that cannot be played, of the loop of them. sv_demosmissed is
+how many in a row.
+*/
+static int	sv_demosmissed;
+
+static void SV_DemoMissing (char *name, char *why)
+{
+	char	*next;
+
+	next = Cvar_VariableString ("nextserver");
+	if (*next && ++sv_demosmissed < 12)
+	{
+		Com_Printf ("%s %s; on to the next\n", name, why);
+		Cbuf_AddText (next);
+		Cbuf_AddText ("\n");
+		Cvar_Set ("nextserver", "");
+		Com_Error (ERR_DROP, "%s %s", name, why);
+	}
+	sv_demosmissed = 0;
+	Cvar_Set ("nextserver", "");
+	Com_Error (ERR_DROP, "%s %s\n", name, why);
+}
+
+/*
 ==================
-SV_BeginDemoServer
+SV_BeginDemoserver
+
+The first message of a demo is svc_serverdata, which opens with the
+protocol it was recorded in. 1997's are played as they are: not only 34,
+the demos in the original game's pak0 were recorded by its first release,
+in 26, and the client plays those by design (the "BIG HACK" in
+CL_ParseServerData). The 2023 re-release's, in 2022, are written as 1997's
+as they play (sv_rrdemo.c). Anything else, a copy further down the search
+path is looked for.
+
+A demo that is not there, or not one of those, is passed over for the next
+in the loop of demos, as a cinematic that is not there is: the
+re-release's default.cfg names a demo3.dm2 it does not have. Should the
+loop come round with nothing in it to play, it stops at the console
+rather than go round at full speed.
 ==================
 */
 void SV_BeginDemoserver (void)
@@ -45,13 +83,6 @@ void SV_BeginDemoserver (void)
 
 	Com_sprintf (name, sizeof(name), "demos/%s", sv.name);
 
-	// The first message of a demo is svc_serverdata, which opens with the
-	// protocol it was recorded in. The 2023 re-release's demos are in its
-	// own, 2022, which this server cannot play back; a copy from 1997 is
-	// looked for further down the search path. That is not only 34: the
-	// demos in the original game's pak0 were recorded by its first release,
-	// in 26, and the client plays those by design (the "BIG HACK" in
-	// CL_ParseServerData).
 	for (skip = 0 ; ; skip++)
 	{
 		FS_FOpenFileSkip (name, &sv.demofile, skip);
@@ -59,26 +90,32 @@ void SV_BeginDemoserver (void)
 			break;
 		protocol = 0;
 		if (fread (&len, 4, 1, sv.demofile) == 1 && fread (&cmd, 1, 1, sv.demofile) == 1
-			&& cmd == svc_serverdata && fread (&protocol, 4, 1, sv.demofile) == 1
-			&& LittleLong (protocol) > 0 && LittleLong (protocol) <= PROTOCOL_VERSION)
+			&& cmd == svc_serverdata && fread (&protocol, 4, 1, sv.demofile) == 1)
 		{
-			fseek (sv.demofile, -9, SEEK_CUR);
-			return;
+			protocol = LittleLong (protocol);
+			if (protocol > 0 && protocol <= PROTOCOL_VERSION)
+			{
+				fseek (sv.demofile, -9, SEEK_CUR);
+				sv_demosmissed = 0;
+				return;
+			}
+			if (SV_RRDemo_IsOne (protocol))
+			{
+				fseek (sv.demofile, -9, SEEK_CUR);
+				Com_Printf ("%s is the 2023 re-release's, in its protocol %i: played as a 1997 demo\n",
+					name, protocol);
+				SV_RRDemo_Open ();
+				sv_demosmissed = 0;
+				return;
+			}
 		}
-		Com_Printf ("%s is in protocol %i, not one from 1997; looking further down the search path\n",
-			name, LittleLong (protocol));
+		Com_Printf ("%s is in protocol %i, which this cannot play; looking further down the search path\n",
+			name, protocol);
 		fclose (sv.demofile);
 		sv.demofile = NULL;
 	}
 
-	if (skip)
-	{
-		// every copy is a demo this cannot play: end the loop of demos
-		// here, at the console, rather than go round it at full speed
-		Cvar_Set ("nextserver", "");
-		Com_Error (ERR_DROP, "No demo %s in a 1997 protocol to play\n", name);
-	}
-	Com_Error (ERR_DROP, "Couldn't open %s\n", name);
+	SV_DemoMissing (name, skip ? "is in no protocol this can play" : "is not there");
 }
 
 /*

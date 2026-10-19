@@ -48,7 +48,8 @@ rerelease folder, and that is what plays. Started as
 the re-release's own pak goes on top of it: its remade maps, models and
 textures, with the original's files standing in for whatever of it this
 engine cannot read -- the console font, the maps of the N64 and Call of the
-Machine campaigns, its demos.
+Machine campaigns. Its demos, in its own network protocol, are translated to
+1997's as they play.
 
 The music was audio tracks on the CD. A rip as track02.ogg, track03.ogg and
 so on in baseq2/music is played; the GOG release's music folder is found by

@@ -432,6 +432,39 @@ def build_pak(files):
     return header + bytes(body) + bytes(directory)
 
 
+def rerelease_demo():
+    """
+    Two seconds of a demo in the 2023 re-release's protocol, 2022, as its
+    own are laid out (server/sv_rrdemo.c): its serverdata, the level's name
+    and map, then 80 frames at its 40 a second, the player standing in the
+    room with 100 health, and a print with its words to look up.
+    """
+    def string(s):
+        return s.encode() + b"\0"
+
+    def block(data):
+        return struct.pack("<i", len(data)) + data
+
+    first = (bytes([12]) + struct.pack("<ii", 2022, 1) + bytes([1, 40])
+             + string("") + struct.pack("<h", 0) + string("rr demo")
+             + bytes([13]) + struct.pack("<H", 0) + string("rr demo")
+             + bytes([13]) + struct.pack("<H", 62 + 1) + string("maps/rr_only.bsp")
+             + bytes([11]) + string("precache\n"))
+    out = block(first)
+    for n in range(80):
+        frame = (bytes([20]) + struct.pack("<ii", 100 + n, -1 if n == 0 else 99 + n)
+                 + bytes([0, 1, 0xff]))
+        # playerinfo: its origin, as floats, and stat 1, the health
+        frame += bytes([17]) + struct.pack("<H", 0x0002) + struct.pack("<fff", 0, 0, 40)
+        frame += struct.pack("<Ih", 1 << 1, 100) + struct.pack("<I", 0)
+        frame += bytes([18, 0, 0])      # no entities
+        if n == 40:
+            # svc_locprint: medium, the words of a key, no arguments
+            frame += bytes([26, 1]) + string("$smoke_rr_print") + bytes([0])
+        out += block(frame)
+    return out + struct.pack("<i", -1)
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit("usage: make-test-data.py <destdir>")
@@ -481,17 +514,20 @@ def main():
     # A stand-in for the 2023 re-release's pak, which goes on top of the
     # one above as baseq2/pak9.pak (docker/entrypoint.sh): the same paths in
     # forms this engine cannot read -- the map in the extended QBSP format, a
-    # 24-bit picture, a demo in protocol 2023 -- no console font, a
-    # default.cfg for its own engine, and one map of its own that is fine.
+    # 24-bit picture -- no console font, a default.cfg for its own engine,
+    # one map of its own that is fine, and a demo in its protocol, 2022, on
+    # that map, which the engine plays as 1997's (server/sv_rrdemo.c).
     bsp = make_bsp()
     rgb = bytearray(pcx(24, 24, bytes([0]) * 576, palette))
     rgb[65] = 3                     # three colour planes: 24-bit
-    demo = struct.pack("<iBi", 5, 12, 2023)     # svc_serverdata, protocol 2023
+    demo = rerelease_demo()
     rerelease = [
         ("maps/smoke.bsp", b"QBSP" + bsp[4:]),
         ("maps/rr_only.bsp", bsp),
         ("pics/i_health.pcx", bytes(rgb)),
-        ("demos/demo1.dm2", demo + struct.pack("<i", -1)),
+        ("demos/demo1.dm2", demo),
+        # and one in a protocol nothing has: passed over
+        ("demos/bad.dm2", struct.pack("<iBi", 5, 12, 9999) + struct.pack("<i", -1)),
         ("default.cfg", b"bind a_button +attack\n"),
     ]
     os.makedirs(os.path.join(dest, "rerelease", "baseq2"), exist_ok=True)
