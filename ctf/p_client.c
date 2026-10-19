@@ -935,6 +935,20 @@ void	SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles)
 			{	// there wasn't a spawnpoint without a target, so use any
 				spot = G_Find (spot, FOFS(classname), "info_player_start");
 			}
+			/* A map from elsewhere -- the 2023 re-release's bunk1 against the
+			   1997 train's "bunk1$start" -- may not have the spawn point the
+			   last map's exit names: its untargeted start, else any. */
+			if (!spot && game.spawnpoint[0])
+			{
+				while ((spot = G_Find(spot, FOFS(classname), "info_player_start")) != NULL)
+					if (!spot->targetname)
+						break;
+				if (!spot)
+					spot = G_Find(NULL, FOFS(classname), "info_player_start");
+				if (spot)
+					gi.dprintf("No spawn point %s; using another\n", game.spawnpoint);
+			}
+
 			if (!spot)
 				gi.error ("Couldn't find spawn point %s\n", game.spawnpoint);
 		}

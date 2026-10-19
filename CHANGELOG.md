@@ -5,6 +5,17 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **"Couldn't find spawn point start" going into the Ammo Depot (bunk1)**
+  with the re-release's maps. A level's exit names where the next level
+  starts you; the 1997 Outpost asks for bunk1's spawn point `start`, which
+  the re-release's bunk1 does not have. When the named spawn point is not
+  there, the game now starts you at the level's own start instead of
+  stopping. In the base game, The Reckoning, Ground Zero and CTF.
+
 ## [1.3.4] — 2026-10-14
 
 ### Added
