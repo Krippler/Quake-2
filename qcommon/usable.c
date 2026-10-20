@@ -55,9 +55,10 @@ static float LF (const byte *p)
 
 /*
 A map the collision code, the renderer and the 1997 network protocol can all
-take: IBSP 38, every lump inside the file and within the limits the loaders
-enforce, and a world no more than 4096 units from the origin, which is as
-far as a coordinate on the wire reaches. MAX_MAP_LIGHTING is the 1997
+take: IBSP 38, and every lump inside the file and within the limits the
+loaders enforce. How far the world reaches is not a limit: the 1997 game's
+own ware1 goes to 4408 units and fact3's bounds to 99999, past the 4096 a
+coordinate carries on the wire, and both play. MAX_MAP_LIGHTING is the 1997
 compiler's limit, not the loaders' -- the renderer sizes the lighting from
 the lump -- and the re-release's lighting lumps are past it, so it is not
 checked. BSPX lumps follow the 19 that are read; the renderer reads
@@ -85,7 +86,6 @@ qboolean BSP_Usable (const byte *buf, int len, char *why, int whysize)
 		{ LUMP_ENTITIES,	1,						MAX_MAP_ENTSTRING - 1 },
 	};
 	int		i, ofs, size, count, ident;
-	const byte	*world;
 
 	if (len < (int)sizeof(dheader_t))
 	{
@@ -131,17 +131,6 @@ qboolean BSP_Usable (const byte *buf, int len, char *why, int whysize)
 	{
 		Com_sprintf (why, whysize, "has no world model");
 		return false;
-	}
-	world = buf + LL (buf + 8 + LUMP_MODELS * 8);
-	for (i = 0 ; i < 6 ; i++)
-	{
-		float v = LF (world + i * 4);
-		if (v < -4096 || v > 4096)
-		{
-			Com_sprintf (why, whysize, "reaches %g units from the origin, past the "
-				"4096 a coordinate carries on the network", v);
-			return false;
-		}
 	}
 
 	// The software renderer's surface cache takes a face no more than 256

@@ -133,6 +133,7 @@ extern void Think_Boss3Stand (edict_t *);
 extern void Think_CalcMoveSpeed (edict_t *);
 extern void Think_Delay (edict_t *);
 extern void Think_SpawnDoorTrigger (edict_t *);
+extern void Think_DoorActivateAreaPortal (edict_t *);
 extern void WidowExplode (edict_t *);
 extern void barrel_explode (edict_t *);
 extern void barrel_start (edict_t *);
