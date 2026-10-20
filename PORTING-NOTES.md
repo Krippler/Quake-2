@@ -172,10 +172,30 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   point-sized triggers fired only by name (city2's `trigger_once`), which
   the 1997 game code passes on as a NULL model; this covers the base game,
   CTF and the vendored mission packs alike without touching their code.
-- **`server/sv_user.c`**: a demo whose first message is in a protocol later
-  than 34 is passed over the same way; the re-release's are in 2022. The
-  original game's are in 26, from its first release, and play, as the 3.21
-  client meant them to. With none left the demo loop ends at the console.
+- **`server/sv_user.c`**, **`server/sv_rrdemo.c`** (new): the re-release's
+  demos are in its own protocol, 2022, which it has not published; what
+  `sv_rrdemo.c` reads of it was worked out from the seven demos in its pak0,
+  every message of which it reads without a byte left over, and its header
+  sets out the format. The demo server sends the client a message every
+  100 ms; a re-release demo is 40 frames a second, deltas of each other, with
+  numbers past 1997's limits. So the state its messages build up is kept,
+  and each 100 ms a 1997 frame of it is written, delta compressed against the
+  last, through the server's own `MSG_WriteDeltaEntity` and
+  `SV_WritePlayerstateToClient`, with the sounds, effects and prints of the
+  frames in between. Its configstrings go to 1997's places, models, sounds
+  and pictures past 255 to numbers left free, its status bar (drawn with
+  commands a 1997 client has not got) is 1997's single-player one, and its
+  prints of words to look up go to `CL_Localize` with their arguments. The
+  original game's demos are in 26, from its first release, and play as they
+  are, as the 3.21 client meant them to. A demo in neither, or not there, is
+  passed over for the next in the loop of demos, as a missing cinematic is
+  (the re-release's `default.cfg` names a `demo3.dm2` it has not got); a
+  loop with nothing in it to play stops at the console.
+- **`client/cl_fx.c`**: a monster's muzzle flash numbered past the end of
+  `monster_flash_offset` is ignored rather than read from past it.
+- **`ref_soft/r_alias.c`**: a frame or skin a model has not got is said in
+  developer mode only. The re-release's monsters animate past the end of
+  the 1997 models that stand in for theirs, every frame of its demos.
 - **`ref_soft/r_model.c`**: the re-release's maps leave every face's
   `lightofs` at -1 and keep their lighting in a BSPX lump, `DECOUPLED_LM`:
   per face, a lightmap of its own size (8 units a texel) and a matrix from

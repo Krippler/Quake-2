@@ -22,6 +22,9 @@
 #   3  a three-second stall, after which the mixer must still reach the pipe.
 #   4  which music directory the engine picks.
 #   5  depth 8: the renderer's PseudoColor path, with its colormap.
+#   6  a stand-in for the 2023 re-release's pak on top: what of it this
+#      engine cannot read gives way to the original's, and a demo in its
+#      protocol plays.
 #
 # Given real game data it goes further: point QUAKE2_SMOKE_DATA at a directory
 # holding baseq2/pak0.pak and a last phase loads the demo's first map.
@@ -155,10 +158,17 @@ console() {
     DISPLAY="$disp" xdotool mousemove 100 100
     DISPLAY="$disp" xdotool key grave
     sleep 0.5
+    console_type "$1"
+    DISPLAY="$disp" xdotool key grave
+}
+
+# A command at a console that is already open, left open: during a demo any
+# key is taken for Escape, which ends it, so the console is not closed
+# behind a demomap.
+console_type() {
     DISPLAY="$disp" xdotool type --delay 25 "$1"
     DISPLAY="$disp" xdotool key Return
     sleep 0.3
-    DISPLAY="$disp" xdotool key grave
 }
 
 colours() {
@@ -368,8 +378,9 @@ stop_engine
 #
 # The 2023 re-release's pak on top of the original's, as QUAKE2_RERELEASE=1
 # links it: for each file the first copy the engine can read is used, and the
-# stand-in's QBSP map, 24-bit picture and protocol-2023 demo each give way to
-# the original's copy underneath; its own map loads from it.
+# stand-in's QBSP map and 24-bit picture each give way to the original's copy
+# underneath; its own map loads from it, and its demo, in its own protocol,
+# plays.
 say "phase 6: a re-release pak on top of the original's"
 start_x 24
 ln -sfn "$work/rerelease/baseq2/pak0.pak" "$work/baseq2/pak9.pak"
@@ -395,16 +406,30 @@ sleep 2
 alive rerelease
 say "a map only the re-release pak has loaded from it"
 
-console "demomap demo1.dm2"
-wait_for_log rerelease "No demo demos/demo1.dm2 in a 1997 protocol" \
-    || die "a protocol 2023 demo was not refused; see $work/rerelease.log"
+# The re-release's own demos are in its protocol, 2022, and are written
+# as 1997's as they play (server/sv_rrdemo.c): the stand-in's goes to its
+# map and brings a print with it.
+DISPLAY="$disp" xdotool key grave
+sleep 0.5
+console_type "demomap demo1.dm2"
+wait_for_log rerelease "demos/demo1.dm2 is the 2023 re-release's" \
+    || die "the protocol 2022 demo was not taken for the re-release's; see $work/rerelease.log"
+wait_for_log rerelease "smoke_rr_print" \
+    || die "the protocol 2022 demo did not play to its print; see $work/rerelease.log"
+sleep 3
+alive rerelease
+say "a demo in the re-release's protocol played, as far as its print, and ended"
+
+console_type "demomap bad.dm2"
+wait_for_log rerelease "demos/bad.dm2 is in no protocol this can play" \
+    || die "a demo in no known protocol was not passed over; see $work/rerelease.log"
 sleep 1
 alive rerelease
-say "a demo in protocol 2023 was refused, and the engine carried on"
+say "a demo in a protocol nothing has was passed over, and the engine carried on"
 
 # The original game's demos are in protocol 26, from its first release, and
-# play; only the re-release's are refused.
-console "demomap old.dm2"
+# play as they are.
+console_type "demomap old.dm2"
 sleep 2
 grep -q "demos/old.dm2 is in protocol" "$work/rerelease.log" \
     && die "a protocol 26 demo, as the original game's are, was refused; see $work/rerelease.log"

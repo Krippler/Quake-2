@@ -247,6 +247,15 @@ extern	char	sv_outputbuf[SV_OUTPUTBUF_LENGTH];
 void SV_FlushRedirect (int sv_redirected, char *outputbuf);
 
 void SV_DemoCompleted (void);
+
+//
+// sv_rrdemo.c
+//
+qboolean SV_RRDemo_IsOne (int protocol);
+void SV_RRDemo_Open (void);
+void SV_RRDemo_Close (void);
+qboolean SV_RRDemo_Active (void);
+int SV_RRDemo_Read (byte *buf, int size);
 void SV_SendClientMessages (void);
 
 void SV_Multicast (vec3_t origin, multicast_t to);
@@ -261,6 +270,7 @@ void SV_BroadcastCommand (char *fmt, ...);
 // sv_user.c
 //
 void SV_Nextserver (void);
+void SV_WritePlayerstateToClient (client_frame_t *from, client_frame_t *to, sizebuf_t *msg);
 void SV_ExecuteClientMessage (client_t *cl);
 
 //

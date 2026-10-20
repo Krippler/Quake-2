@@ -5,6 +5,35 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.5] — 2026-10-20
+
+### Added
+
+- **The re-release's demos play.** They are recorded in its own network
+  protocol, 2022, which it has not published and which 1997's engine
+  cannot read: the attract loop stopped at "No demo demos/xdemo1.dm2 in a
+  1997 protocol to play". The demo server now reads them and writes them to
+  the client as 1997 frames as they play -- its 40 frames a second as 1997's
+  10, its larger numbers fitted into 1997's limits, its status bar as the
+  original's, its messages in words. All seven in its pak play to the end:
+  demo1 and demo2, The Reckoning's three, Ground Zero's two. Its monsters'
+  newer animations, which the 1997 models standing in for them have not
+  got, show their first frame.
+
+### Fixed
+
+- **The attract loop stopped at a demo that is not there.** The
+  re-release's loop names a `demo3.dm2` it has not got; a demo that is
+  missing or in no protocol the engine plays is now passed over for the
+  next, as a missing cinematic always was.
+
+- **"Couldn't find spawn point start" going into the Ammo Depot (bunk1)**
+  with the re-release's maps. A level's exit names where the next level
+  starts you; the 1997 Outpost asks for bunk1's spawn point `start`, which
+  the re-release's bunk1 does not have. When the named spawn point is not
+  there, the game now starts you at the level's own start instead of
+  stopping. In the base game, The Reckoning, Ground Zero and CTF.
+
 ## [1.3.4] — 2026-10-14
 
 ### Added

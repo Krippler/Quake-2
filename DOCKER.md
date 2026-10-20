@@ -51,7 +51,7 @@ What plays from it, by the re-release's own maps:
 | `q2dm3` and four Ground Zero maps | from the original game's copies: the re-release's have faces wider than the software renderer draws |
 | the N64 campaign (`q64/`) | no: wider faces, and textures in a format of its own |
 | Call of the Machine (`mgu*`) | no: maps in the re-release's extended QBSP format |
-| its demos | no: recorded in the re-release's network protocol; the original game's play instead |
+| its demos | yes: recorded in its own network protocol, and translated to 1997's as they play |
 
 Each copy passed over is named in the log with the reason. The re-release's
 maps name their messages -- the help computer's objectives, "You found a

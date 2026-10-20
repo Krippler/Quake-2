@@ -854,7 +854,7 @@ static qboolean R_AliasSetupSkin (void)
 		skinnum = currententity->skinnum;
 		if ((skinnum >= s_pmdl->num_skins) || (skinnum < 0))
 		{
-			ri.Con_Printf (PRINT_ALL, "R_AliasSetupSkin %s: no such skin # %d\n", 
+			ri.Con_Printf (PRINT_DEVELOPER, "R_AliasSetupSkin %s: no such skin # %d\n", 
 				currentmodel->name, skinnum);
 			skinnum = 0;
 		}
@@ -972,6 +972,12 @@ R_AliasSetupFrames
 
 =================
 */
+/*
+A frame the model does not have is drawn as its first. The 2023
+re-release's monsters have animations past the end of the 1997 models
+that stand in for theirs, so its demos ask for them every frame: said in
+developer mode only, as is a skin the model has not got.
+*/
 void R_AliasSetupFrames( dmdl_t *pmdl )
 {
 	int thisframe = currententity->frame;
@@ -979,13 +985,13 @@ void R_AliasSetupFrames( dmdl_t *pmdl )
 
 	if ( ( thisframe >= pmdl->num_frames ) || ( thisframe < 0 ) )
 	{
-		ri.Con_Printf (PRINT_ALL, "R_AliasSetupFrames %s: no such thisframe %d\n", 
+		ri.Con_Printf (PRINT_DEVELOPER, "R_AliasSetupFrames %s: no such thisframe %d\n", 
 			currentmodel->name, thisframe);
 		thisframe = 0;
 	}
 	if ( ( lastframe >= pmdl->num_frames ) || ( lastframe < 0 ) )
 	{
-		ri.Con_Printf (PRINT_ALL, "R_AliasSetupFrames %s: no such lastframe %d\n", 
+		ri.Con_Printf (PRINT_DEVELOPER, "R_AliasSetupFrames %s: no such lastframe %d\n", 
 			currentmodel->name, lastframe);
 		lastframe = 0;
 	}

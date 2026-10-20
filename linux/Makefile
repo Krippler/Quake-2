@@ -131,7 +131,7 @@ CLIENT_SRCS = \
 	qcommon/cvar.c qcommon/files.c qcommon/md4.c qcommon/net_chan.c \
 	qcommon/pmove.c qcommon/usable.c \
 	server/sv_ccmds.c server/sv_ents.c server/sv_game.c server/sv_init.c \
-	server/sv_main.c server/sv_send.c server/sv_user.c server/sv_world.c \
+	server/sv_main.c server/sv_rrdemo.c server/sv_send.c server/sv_user.c server/sv_world.c \
 	linux/$(CD_SRC) linux/q_shlinux.c linux/vid_menu.c linux/vid_so.c \
 	linux/$(SND_SRC) linux/sys_linux.c linux/glob.c linux/net_udp.c \
 	linux/in_pad.c \

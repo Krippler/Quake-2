@@ -444,6 +444,7 @@ void SV_DemoCompleted (void)
 		fclose (sv.demofile);
 		sv.demofile = NULL;
 	}
+	SV_RRDemo_Close ();
 	SV_Nextserver ();
 }
 
@@ -502,6 +503,16 @@ void SV_SendClientMessages (void)
 	{
 		if (sv_paused->value)
 			msglen = 0;
+		else if (SV_RRDemo_Active ())
+		{
+			// the re-release's, written as 1997's as it goes
+			msglen = SV_RRDemo_Read (msgbuf, sizeof(msgbuf));
+			if (msglen < 0)
+			{
+				SV_DemoCompleted ();
+				return;
+			}
+		}
 		else
 		{
 			// get the next message

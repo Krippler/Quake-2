@@ -1175,7 +1175,7 @@ void SCR_ExecuteLayoutString (char *s)
 			index = cl.frame.playerstate.stats[index];
 			if (index < 0 || index >= MAX_CONFIGSTRINGS)
 				Com_Error (ERR_DROP, "Bad stat_string index");
-			DrawString (x, y, cl.configstrings[index]);
+			DrawString (x, y, CL_Localize (cl.configstrings[index]));
 			continue;
 		}
 
