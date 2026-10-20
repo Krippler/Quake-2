@@ -414,7 +414,9 @@ sleep 0.5
 console_type "demomap demo1.dm2"
 wait_for_log rerelease "demos/demo1.dm2 is the 2023 re-release's" \
     || die "the protocol 2022 demo was not taken for the re-release's; see $work/rerelease.log"
-wait_for_log rerelease "smoke_rr_print" \
+# its print is a key no localization file has, so it is worded from its
+# name: "$smoke_rr_print" as "Rr print" (client/cl_loc.c)
+wait_for_log rerelease "Rr print" \
     || die "the protocol 2022 demo did not play to its print; see $work/rerelease.log"
 sleep 3
 alive rerelease
