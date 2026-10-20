@@ -5,6 +5,24 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.6] — 2026-10-20
+
+### Fixed
+
+- **Doorways showing flat grey in the re-release's maps** (ware2, among
+  others), and grey on the far side too. Some of its doors start open, with
+  a name to close them by; the 1997 game code opened a door's area portal
+  only as the door moved, so the doorway stood open with its portal shut and
+  nothing past it was drawn -- the grey is the empty background. A door that
+  starts open now opens its portals as it spawns, and closes and reopens
+  them the right way round after, as the re-release's own game code
+  (id-Software/quake2-rerelease-dll) does. In the base game, The Reckoning,
+  Ground Zero and CTF.
+- **The original game's ware1 and fact3 would not load** without the
+  re-release's pak on top since 1.3.0: a check for maps the engine can use
+  turned away any whose bounds reach past 4096 units, and those two do
+  (4408, and 99999). It played them in 1997; the check is gone.
+
 ## [1.3.5] — 2026-10-20
 
 ### Added

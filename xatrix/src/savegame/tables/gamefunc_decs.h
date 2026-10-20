@@ -107,6 +107,7 @@ extern void button_return (edict_t *);
 extern void door_go_down (edict_t *);
 extern void Think_CalcMoveSpeed (edict_t *);
 extern void Think_SpawnDoorTrigger (edict_t *);
+extern void Think_DoorActivateAreaPortal (edict_t *);
 extern void train_next (edict_t *);
 extern void func_train_find (edict_t *);
 extern void trigger_elevator_init (edict_t *);

@@ -133,6 +133,7 @@ static const fnlist_entry_t fnentries_think[] =
 	{"door_go_down", (byte *)door_go_down},
 	{"Think_CalcMoveSpeed", (byte *)Think_CalcMoveSpeed},
 	{"Think_SpawnDoorTrigger", (byte *)Think_SpawnDoorTrigger},
+	{"Think_DoorActivateAreaPortal", (byte *)Think_DoorActivateAreaPortal},
 	{"train_next", (byte *)train_next},
 	{"func_train_find", (byte *)func_train_find},
 	{"trigger_elevator_init", (byte *)trigger_elevator_init},

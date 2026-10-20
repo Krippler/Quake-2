@@ -158,6 +158,7 @@ static const fnlist_entry_t fnentries_think[] =
 	{"Think_CalcMoveSpeed", (byte *)Think_CalcMoveSpeed},
 	{"Think_Delay", (byte *)Think_Delay},
 	{"Think_SpawnDoorTrigger", (byte *)Think_SpawnDoorTrigger},
+	{"Think_DoorActivateAreaPortal", (byte *)Think_DoorActivateAreaPortal},
 	{"WidowExplode", (byte *)WidowExplode},
 	{"barrel_explode", (byte *)barrel_explode},
 	{"barrel_start", (byte *)barrel_start},

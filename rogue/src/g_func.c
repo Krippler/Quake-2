@@ -2053,6 +2053,13 @@ door_hit_top(edict_t *self)
 		self->think = door_go_down;
 		self->nextthink = level.time + self->moveinfo.wait;
 	}
+
+	/* a door that starts open is closed at its top: its area
+	   portals close with it (the 2023 re-release's g_func.cpp) */
+	if (self->spawnflags & DOOR_START_OPEN)
+	{
+		door_use_areaportals(self, false);
+	}
 }
 
 /* ->moveinfo.endfunc = door_hit_bottom; */
@@ -2077,7 +2084,10 @@ door_hit_bottom(edict_t *self)
 	}
 
 	self->moveinfo.state = STATE_BOTTOM;
-	door_use_areaportals(self, false);
+	if (!(self->spawnflags & DOOR_START_OPEN))
+	{
+		door_use_areaportals(self, false);
+	}
 }
 
 void
@@ -2115,6 +2125,11 @@ door_go_down(edict_t *self)
 	else if (strcmp(self->classname, "func_door_rotating") == 0)
 	{
 		AngleMove_Calc(self, door_hit_bottom);
+	}
+
+	if (self->spawnflags & DOOR_START_OPEN)
+	{
+		door_use_areaportals(self, true);
 	}
 }
 
@@ -2166,7 +2181,10 @@ door_go_up(edict_t *self, edict_t *activator)
 	}
 
 	G_UseTargets(self, activator);
-	door_use_areaportals(self, true);
+	if (!(self->spawnflags & DOOR_START_OPEN))
+	{
+		door_use_areaportals(self, true);
+	}
 }
 
 void
@@ -2481,6 +2499,32 @@ Think_SpawnDoorTrigger(edict_t *ent)
 	Think_CalcMoveSpeed(ent);
 }
 
+/*
+ * A door that starts open opens its area portals as it spawns, whatever
+ * will open and close it after: the 2023 re-release's maps have doors that
+ * start open with a name to close them by (ware2's), and a 1997 game left
+ * the doorway's portal shut, nothing drawn through it.
+ */
+void
+Think_DoorActivateAreaPortal(edict_t *ent)
+{
+	if (!ent)
+	{
+		return;
+	}
+
+	door_use_areaportals(ent, true);
+
+	if (ent->health || ent->targetname)
+	{
+		Think_CalcMoveSpeed(ent);
+	}
+	else
+	{
+		Think_SpawnDoorTrigger(ent);
+	}
+}
+
 void
 door_blocked(edict_t *self, edict_t *other)
 {
@@ -2706,7 +2750,11 @@ SP_func_door(edict_t *ent)
 
 	ent->nextthink = level.time + FRAMETIME;
 
-	if (ent->health || ent->targetname)
+	if (ent->spawnflags & DOOR_START_OPEN)
+	{
+		ent->think = Think_DoorActivateAreaPortal;
+	}
+	else if (ent->health || ent->targetname)
 	{
 		ent->think = Think_CalcMoveSpeed;
 	}
@@ -2906,7 +2954,11 @@ SP_func_door_rotating(edict_t *ent)
 
 	ent->nextthink = level.time + FRAMETIME;
 
-	if (ent->health || ent->targetname)
+	if (ent->spawnflags & DOOR_START_OPEN)
+	{
+		ent->think = Think_DoorActivateAreaPortal;
+	}
+	else if (ent->health || ent->targetname)
 	{
 		ent->think = Think_CalcMoveSpeed;
 	}
