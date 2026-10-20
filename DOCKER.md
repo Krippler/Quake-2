@@ -50,7 +50,7 @@ What plays from it, by the re-release's own maps:
 | the base campaign, The Reckoning, the deathmatch maps | yes, from the re-release's copies |
 | `q2dm3` and four Ground Zero maps | from the original game's copies: the re-release's have faces wider than the software renderer draws |
 | the N64 campaign (`q64/`) | no: wider faces, and textures in a format of its own |
-| Call of the Machine (`mgu*`) | no: maps in the re-release's extended QBSP format |
+| Call of the Machine (`mgu*`) | no: 12 of its maps are in the re-release's extended QBSP format, and the rest have more texture entries than a 1997 engine loads |
 | its demos | yes: recorded in its own network protocol, and translated to 1997's as they play |
 
 Each copy passed over is named in the log with the reason. The re-release's
@@ -59,8 +59,8 @@ secret area!" -- and keep the words in `Q2Game.kpf` beside its `baseq2`;
 the container takes them out of it and the game shows them in the original
 font. Mount the re-release's whole folder, or copy `Q2Game.kpf` anywhere
 into the mount; without it the log says so, and each message is worded from
-its name instead ("Establish communication"), which is close but not always
-all of it. Two things the re-release draws are not here: its real-time shadowed
+its name instead ("Establish communication", "Secondary mission
+objective"), which is close but not always all of it. Two things the re-release draws are not here: its real-time shadowed
 lights (`dynamic_light`) and see-through grates, so a few surfaces lit only
 by those are darker than in the re-release.
 

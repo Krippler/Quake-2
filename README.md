@@ -29,6 +29,10 @@ In the browser `Esc` releases the mouse, so **Backspace** is the menu key, in
 the game and in the menus. `F1` shows the mission's objectives and `` ` ``
 opens the console.
 
+The picture is id's software renderer, at any resolution up to 1920x1200,
+with the maps' coloured light drawn in the palette's colours (**Options →
+Video → coloured light** turns it off, as in 1997).
+
 ## On a Linux desktop
 
 Each [release](https://github.com/Krippler/Quake-2/releases) has a
@@ -60,8 +64,10 @@ redistribute. Any of these works:
   `baseq2` beside its `rerelease` folder, and that is the one this engine
   plays; mounting the whole install directory finds it. With
   `-e QUAKE2_RERELEASE=1` the re-release's own pak goes on top, for its
-  remade maps, with the original game's files standing in for whatever of
-  it a 1997 engine cannot read ([DOCKER.md](DOCKER.md#the-2023-re-releases-pak)).
+  remade maps and its demos, with the original game's files standing in for
+  whatever of it a 1997 engine cannot read; its maps' messages come from its
+  `Q2Game.kpf`, so mount the whole install or copy that file in too
+  ([DOCKER.md](DOCKER.md#the-2023-re-releases-pak)).
 - id's free demo (`q2-314-demo-x86.exe`, a zip archive): its
   `Install/Data/baseq2` holds `pak0.pak` and the three demo maps.
 

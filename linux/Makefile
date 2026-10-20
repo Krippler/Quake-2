@@ -167,7 +167,8 @@ CTF_SRCS  = $(patsubst $(TOP)/%,%,$(wildcard $(TOP)/ctf/g_*.c $(TOP)/ctf/m_*.c \
               $(TOP)/ctf/p_*.c)) ctf/q_shared.c
 
 # The mission packs are Yamagi Quake II's GPLv2 versions, kept as they come
-# from upstream (see xatrix/UPSTREAM and rogue/UPSTREAM): id's own 1998 source
+# from upstream but for two fixes the 2023 re-release's maps need (listed in
+# xatrix/UPSTREAM and rogue/UPSTREAM): id's own 1998 source
 # for them is under a licence that does not allow modified copies. Built
 # with Yamagi's own flags, not the 1997 code's, since they are already
 # 64-bit clean. YQ2OSTYPE and YQ2ARCH go into their savegames, and match

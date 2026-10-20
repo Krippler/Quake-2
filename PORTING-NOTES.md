@@ -152,12 +152,13 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
 
 - **`qcommon/usable.c`** (new, built into the engine and the renderer):
   whether a copy of a file is one this engine reads -- a map in IBSP 38
-  within the loaders' limits, inside the 4096 units a coordinate carries on
-  the network, and with no face wider than the 256 units the software
-  renderer's surface cache takes; an MD2 within the 1997 limits; an 8-bit
-  PCX; a WAL with its mip levels inside it. `MAX_MAP_LIGHTING` is not
+  within the loaders' limits and with no face wider than the 256 units the
+  software renderer's surface cache takes; an MD2 within the 1997 limits; an
+  8-bit PCX; a WAL with its mip levels inside it. `MAX_MAP_LIGHTING` is not
   checked: nothing loading a map enforces it, and the re-release's lighting
-  lumps are past it.
+  lumps are past it. Nor is how far a map reaches: the 1997 game's own ware1
+  goes to 4408 units and fact3's bounds to 99999, and both play. (1.3.0 to
+  1.3.5 did check it, against 4096, and turned those two away.)
 - **`qcommon/files.c`**: `FS_LoadFileSkip` and `FS_FOpenFileSkip` open the
   copy of a file a given number of copies down the search path;
   `FS_LoadUsableFile` walks down until `usable.c` accepts one, and says why
@@ -219,9 +220,28 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   for their messages; the words are in `localization/loc_*.txt` in its
   `Q2Game.kpf`. `CL_Localize` replaces each key in centre prints, console
   prints and the help computer's layout; UTF-8 punctuation is folded to the
-  1997 font's ASCII. A `$map_` key with no words, or every one when there
-  is no file, is worded from the key itself, which the re-release made from
-  the message's first words.
+  1997 font's ASCII. A key the file has not got, or every one when there is
+  no file, is worded from the key itself, which the re-release made from the
+  message's first words: `$map_establish_communication` as "Establish
+  communication", `$g_secondary_mission_objective` as "Secondary mission
+  objective". A key's arguments, as its demos' prints carry them, go into
+  the text's `{}`, or after the words made from a key.
+- **`game/g_func.c`**, **`ctf/g_func.c`**, **`xatrix/src/g_func.c`**,
+  **`rogue/src/g_func.c`**: some of the re-release's doors start open, with
+  a name to close them by (ware2's tank door). The 1997 game opened a door's
+  area portals only as it moved -- at spawn only for a door with neither a
+  name nor health -- so the doorway stood open with its portal shut and
+  nothing past it was drawn: flat grey, the empty background. As the
+  re-release's own `g_func.cpp` does, a door that starts open opens its
+  portals as it spawns (`Think_DoorActivateAreaPortal`), closes them on
+  reaching its closed end and opens them as it goes back. The mission packs'
+  savegame tables list the new think.
+- **`game/p_client.c`**, **`ctf/p_client.c`**, **`xatrix/src/player/client.c`**,
+  **`rogue/src/player/client.c`**: a level's exit names where the next
+  starts the player; the 1997 Outpost asks for bunk1's `start`, which the
+  re-release's bunk1 has not got, and `SelectSpawnPoint` stopped with
+  "Couldn't find spawn point start". Without the named one it takes the
+  level's untargeted start, or any.
 - **`docker/entrypoint.sh`**, **`desktop/quake2`**: `QUAKE2_RERELEASE=1`
   links `rerelease/baseq2/pak0.pak` as `baseq2/pak9.pak`, and takes it away
   again when it is unset. Whenever a `Q2Game.kpf` is in the mount, however
@@ -356,9 +376,13 @@ released. id published their game source in 1998 (`xatrixsrc320`,
 `roguesrc320`) under its Limited Program Source Code License, which does not
 allow distributing modified copies and is not the GPL. Yamagi Quake II's
 versions of both are distributed under GPLv2, are already 64-bit clean, and
-keep id's game API (version 3), so they are carried here unmodified:
-`src/`, `LICENSE`, `README.md` and `CHANGELOG` as upstream has them, and
-`UPSTREAM` naming the repository and commit.
+keep id's game API (version 3), so they are carried here as upstream has
+them -- `src/`, `LICENSE`, `README.md` and `CHANGELOG`, with `UPSTREAM`
+naming the repository and commit -- but for the two changes the 2023
+re-release's maps need, which the base game has too and which are set out
+above: a door that starts open opens its area portals
+(`src/g_func.c`), and a spawn point a level's exit names that is not there
+gives way to another (`src/player/client.c`).
 
 Checked against this engine before they went in:
 

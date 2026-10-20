@@ -48,7 +48,22 @@ built. Getting from there to a playable game took:
 - **The mission packs,** The Reckoning and Ground Zero, whose game code id
   released separately in 1998 under a licence that does not allow modified
   copies. This repository carries Yamagi Quake II's GPLv2 versions instead,
-  kept as they come from upstream; their game API is id's.
+  kept as they come from upstream but for two fixes the re-release's maps
+  need; their game API is id's.
+
+- **The 2023 re-release's data,** on top of the original's. Its pak has
+  more files than id's pak reader took, maps whose lighting is in a lump a
+  1997 engine never heard of, edges shared more widely than the renderer
+  could cache, messages kept as keys to look up in `Q2Game.kpf`, doors that
+  start open, and demos in an unpublished network protocol. Each is read or
+  translated here, and for every file the first copy the engine can use is
+  the one it takes, the original's standing in for the rest -- so the game
+  looks as it did in 1997, with the re-release's maps.
+
+- **Coloured light.** The maps' lightmaps were always in colour and the
+  software renderer took only their brightness; it now lights a coloured
+  surface in the palette's nearest colours, and leaves white ones exactly
+  as they were.
 
 - **A game controller,** in the browser or through SDL2 on a desktop, bound
   like any other key in the game's own menu.
