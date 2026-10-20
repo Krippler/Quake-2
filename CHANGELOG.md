@@ -5,6 +5,16 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.7] — 2026-10-20
+
+### Fixed
+
+- **"$g_secondary_mission_objective" and the like** when `Q2Game.kpf` is
+  not in the mount: only a map's messages were worded from their names.
+  The game's own are now too ("Secondary mission objective: Use sewer
+  tunnels to gain"). The words themselves are in `Q2Game.kpf`, in the
+  re-release's folder; copy it into the mount for them.
+
 ## [1.3.6] — 2026-10-20
 
 ### Fixed

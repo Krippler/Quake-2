@@ -31,10 +31,11 @@ in the file read
 
 	map_establish_communication = "Establish communication\nlink to command ship." // 1 hits
 
-loc_language picks the file. A map's message the file does not have, or
-every one when there is no file, is worded from its name:
-"$map_establish_communication" as "Establish communication", as the
-re-release names them after their first words.
+loc_language picks the file. A message the file does not have, or every
+one when there is no file, is worded from its name, which the re-release
+makes from its first words: "$map_establish_communication" as "Establish
+communication", "$g_secondary_mission_objective" as "Secondary mission
+objective", its arguments after it.
 */
 
 #include "client.h"
@@ -204,7 +205,7 @@ message its name made into words. NULL for neither.
 static char *Loc_Words (const char *k, int n, char *out, char *end)
 {
 	const char	*value;
-	int			i;
+	int			i, p;
 
 	if ((value = Loc_Find (k, n)))
 	{
@@ -212,14 +213,18 @@ static char *Loc_Words (const char *k, int n, char *out, char *end)
 			*out++ = *value++;
 		return out;
 	}
-	// map_establish_communication: "Establish communication"
-	if (n > 4 && !strncmp (k, "map_", 4))
+	// map_establish_communication: "Establish communication", and the
+	// game's own the same way, g_secondary_mission_objective: "Secondary
+	// mission objective" -- the key less the word before its first _
+	for (p = 0 ; p < n && islower ((unsigned char)k[p]) ; p++)
+		;
+	if (p > 0 && p < n - 1 && k[p] == '_')
 	{
-		for (i = 4 ; i < n && out < end ; i++)
+		for (i = p + 1 ; i < n && out < end ; i++)
 		{
 			if (k[i] == '_')
 				*out++ = ' ';
-			else if (i == 4)
+			else if (i == p + 1)
 				*out++ = toupper ((unsigned char)k[i]);
 			else
 				*out++ = k[i];
@@ -309,6 +314,14 @@ char *CL_Localize (char *s)
 					}
 					else
 						*out++ = *value++;
+				}
+				// arguments its words had no {} for, the words made from
+				// a key the file has not got: after them
+				for ( ; i < nargs && out < end - 2 ; i++)
+				{
+					*out++ = i ? ',' : ':';
+					*out++ = ' ';
+					out = Loc_Argument (args[i], alen[i], out, end);
 				}
 				continue;
 			}
