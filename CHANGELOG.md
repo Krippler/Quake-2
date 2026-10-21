@@ -22,6 +22,12 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   re-release adds to tell names apart; a count ("Airstrike incoming in 5")
   keeps it.
 
+### Changed
+
+- The smoke test measures the tone's pitch only where it sounds. A CI
+  runner stalling as the engine started had the mixer skip past most of
+  the short test tone, and the silence after it read as a low pitch.
+
 ## [1.3.8] — 2026-10-21
 
 ### Fixed

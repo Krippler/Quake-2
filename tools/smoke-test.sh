@@ -178,7 +178,8 @@ colours() {
     convert "$work/$1.png" -format %k info:
 }
 
-# The pitch of a stretch of the left channel, by zero crossings.
+# The pitch of a stretch of the left channel, by zero crossings; then its
+# peak, the length of the whole recording and how much of the stretch sounds.
 tone() {
     python3 - "$@" <<'PY'
 import struct, sys
@@ -200,9 +201,16 @@ else:
     a = int(start * RATE)
 seg = left[a:a + int(length * RATE)]
 peak = max([abs(v) for v in seg] or [0])
-crossings = sum(1 for i in range(1, len(seg)) if (seg[i-1] < 0) != (seg[i] < 0))
-hz = crossings / 2 / (len(seg) / float(RATE)) if seg else 0
-print("%.0f %d %.2f" % (hz, peak, frames / float(RATE)))
+# Only over the stretches that sound, in 10 ms blocks: a runner that stalls
+# as the engine starts has the mixer skip ahead past most of a short tone,
+# and the silence after it is no evidence about its pitch.
+BLOCK = RATE // 100
+loud = [max([abs(v) for v in seg[i:i + BLOCK]]) > 500 for i in range(0, len(seg), BLOCK)]
+crossings = sum(1 for i in range(1, len(seg))
+                if loud[i // BLOCK] and loud[(i - 1) // BLOCK] and (seg[i-1] < 0) != (seg[i] < 0))
+sounding = sum(len(seg[i * BLOCK:(i + 1) * BLOCK]) for i, b in enumerate(loud) if b)
+hz = crossings / 2 / (sounding / float(RATE)) if sounding else 0
+print("%.0f %d %.2f %.2f" % (hz, peak, frames / float(RATE), sounding / float(RATE)))
 PY
 }
 
@@ -247,6 +255,8 @@ say "SIGTERM quit cleanly and wrote config.cfg"
 set -- $(tone "$work/console.raw" -1 0.5)
 [ "${3%.*}" -ge 4 ] || die "only $3 s of audio came out of the pipe"
 [ "$2" -ge 500 ] || die "the pipe carried nothing but silence"
+# 50 ms is twenty-odd cycles, enough to tell 440 from 220 or 880.
+[ "$(echo "$4" | tr -d .)" -ge 5 ] || die "only $4 s of the tone came through; too little to measure"
 # Resampling 11025 to 22050 wrong shows up as the pitch out by a factor of
 # two, not by a few per cent.
 [ "$1" -ge 400 ] && [ "$1" -le 480 ] || die "the tone came out at $1 Hz, not 440"
