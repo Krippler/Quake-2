@@ -31,6 +31,11 @@
     code, which the image carries: put xatrix/ or rogue/ beside baseq2 and set
     Game to xatrix or rogue.
 
+    A Steam or GOG install of the 2023 re-release works too: it still has the
+    original game's baseq2, which plays, and with Re-release pak set to 1 its
+    remade maps go on top, with their demos and their messages (from
+    Q2Game.kpf, in the same folder).
+
     Music is optional and separate: Quake II's soundtrack was audio tracks on
     the CD, so put a rip in baseq2/music as track02.ogg and friends. The GOG
     release's music folder is found by itself.
@@ -70,7 +75,7 @@
           Type="Variable" Display="always" Required="false" Mask="false"></Config>
 
   <Config Name="Re-release pak" Target="QUAKE2_RERELEASE" Default="0"
-          Description="1 plays the 2023 re-release's pak (rerelease/baseq2/pak0.pak, in the game data mount) on top of the original game's: its remade maps, with the original's files standing in for whatever of it this engine cannot read."
+          Description="1 plays the 2023 re-release's pak (rerelease/baseq2/pak0.pak, in the game data mount) on top of the original game's: its remade maps and its demos, with the original's files standing in for whatever of it this engine cannot read. Its maps' messages come from its Q2Game.kpf, anywhere in the mount."
           Type="Variable" Display="advanced" Required="false" Mask="false">0</Config>
 
   <Config Name="VNC password" Target="QUAKE2_VNC_PASSWORD" Default=""
