@@ -38,6 +38,7 @@ void SP_info_player_coop (edict_t *ent);
 void SP_info_player_intermission (edict_t *ent);
 
 void SP_func_plat (edict_t *ent);
+void SP_func_plat2 (edict_t *ent);
 void SP_func_rotating (edict_t *ent);
 void SP_func_button (edict_t *ent);
 void SP_func_door (edict_t *ent);
@@ -58,6 +59,7 @@ void SP_trigger_always (edict_t *ent);
 void SP_trigger_once (edict_t *ent);
 void SP_trigger_multiple (edict_t *ent);
 void SP_trigger_relay (edict_t *ent);
+void SP_trigger_coop_relay (edict_t *ent);
 void SP_trigger_push (edict_t *ent);
 void SP_trigger_hurt (edict_t *ent);
 void SP_trigger_key (edict_t *ent);
@@ -157,6 +159,7 @@ spawn_t	spawns[] = {
 	{"info_player_intermission", SP_info_player_intermission},
 
 	{"func_plat", SP_func_plat},
+	{"func_plat2", SP_func_plat2},
 	{"func_button", SP_func_button},
 	{"func_door", SP_func_door},
 	{"func_door_secret", SP_func_door_secret},
@@ -177,6 +180,7 @@ spawn_t	spawns[] = {
 	{"trigger_once", SP_trigger_once},
 	{"trigger_multiple", SP_trigger_multiple},
 	{"trigger_relay", SP_trigger_relay},
+	{"trigger_coop_relay", SP_trigger_coop_relay},
 	{"trigger_push", SP_trigger_push},
 	{"trigger_hurt", SP_trigger_hurt},
 	{"trigger_key", SP_trigger_key},

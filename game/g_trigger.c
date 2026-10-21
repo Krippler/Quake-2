@@ -197,6 +197,126 @@ void SP_trigger_relay (edict_t *self)
 }
 
 
+/*QUAKED trigger_coop_relay (.5 .5 .5) ? AUTO_FIRE
+The 2023 re-release's: a trigger_relay that in coop fires only once every
+player still in the game is inside its brush, and otherwise tells them to
+gather. Out of coop it is a trigger_relay. Its maps open doors through it
+(ware2's first), so without it they stayed shut.
+
+AUTO_FIRE: no targetname; it fires by itself, once, when all are inside.
+
+"message"	to the one who set it off while others are missing
+"map"		to the others, the ones missing
+"wait"		how often AUTO_FIRE looks, 1 second by default
+*/
+#define COOP_RELAY_AUTO_FIRE	1
+
+static qboolean CoopRelay_Counts (edict_t *player)
+{
+	return player->inuse && player->client && player->health > 0
+		&& !player->deadflag && player->movetype != MOVETYPE_NOCLIP
+		&& !player->client->pers.spectator && player->s.modelindex == 255;
+}
+
+static qboolean CoopRelay_Inside (edict_t *self, edict_t *player)
+{
+	int		i;
+
+	for (i=0 ; i<3 ; i++)
+		if (player->absmin[i] > self->absmax[i] || player->absmax[i] < self->absmin[i])
+			return false;
+	return true;
+}
+
+// whether all are there; when not, says so, at most every 5 seconds
+static qboolean CoopRelay_AllInside (edict_t *self, edict_t *activator)
+{
+	edict_t	*player;
+	int		i, inside, outside;
+
+	if (!coop->value)
+		return true;
+
+	inside = outside = 0;
+	for (i=1 ; i<=game.maxclients ; i++)
+	{
+		player = &g_edicts[i];
+		if (!CoopRelay_Counts (player))
+			continue;
+		if (CoopRelay_Inside (self, player))
+			inside++;
+		else
+			outside++;
+	}
+	if (!outside)
+		return true;
+
+	if (self->timestamp < level.time && (inside || (activator && activator->client)))
+	{
+		for (i=1 ; i<=game.maxclients ; i++)
+		{
+			player = &g_edicts[i];
+			if (!CoopRelay_Counts (player))
+				continue;
+			if (CoopRelay_Inside (self, player) || player == activator)
+				gi.centerprintf (player, "%s", self->message);
+			else
+				gi.centerprintf (player, "%s", self->map);
+		}
+		self->timestamp = level.time + 5;
+	}
+	return false;
+}
+
+static void CoopRelay_Fire (edict_t *self, edict_t *activator)
+{
+	char	*message = self->message;
+
+	self->message = NULL;	// the gather message is not for G_UseTargets to print
+	G_UseTargets (self, activator);
+	self->message = message;
+}
+
+void trigger_coop_relay_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	if (CoopRelay_AllInside (self, activator))
+		CoopRelay_Fire (self, activator);
+}
+
+void trigger_coop_relay_think (edict_t *self)
+{
+	if (CoopRelay_AllInside (self, NULL))
+	{
+		CoopRelay_Fire (self, &g_edicts[1]);
+		G_FreeEdict (self);
+		return;
+	}
+	self->nextthink = level.time + self->wait;
+}
+
+void SP_trigger_coop_relay (edict_t *self)
+{
+	InitTrigger (self);
+	self->solid = SOLID_NOT;	// it is only looked at, never touched
+	gi.linkentity (self);
+
+	if (!self->message)
+		self->message = "$g_coop_wait_for_players";
+	if (!self->map)
+		self->map = "$g_coop_players_waiting_for_you";
+	if (!self->wait)
+		self->wait = 1;
+
+	if ((self->spawnflags & COOP_RELAY_AUTO_FIRE) && !self->targetname)
+	{
+		self->think = trigger_coop_relay_think;
+		self->nextthink = level.time + self->wait;
+	}
+	else
+		self->use = trigger_coop_relay_use;
+}
+
+
 /*
 ==============================================================================
 

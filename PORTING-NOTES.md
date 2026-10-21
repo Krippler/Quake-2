@@ -247,6 +247,19 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   portals as it spawns (`Think_DoorActivateAreaPortal`), closes them on
   reaching its closed end and opens them as it goes back. The mission packs'
   savegame tables list the new think.
+- **`game/g_trigger.c`**, **`game/g_func.c`**: two of the re-release's
+  entities hold its remade maps together. `trigger_coop_relay` -- a
+  `trigger_relay` that in coop waits for every player to stand in its brush
+  -- is how ware2 opens its first door, so that door stayed shut and the
+  level could not be finished. `func_plat2`, Rogue's lift, is hangar1's and
+  jail1's lifts, which were not there at all. Both are in the base game now,
+  `func_plat2` from `rogue/src/g_func.c` with the re-release's changes
+  (spawnflag 8 is `START_ACTIVE`; a trigger's call is not held back; a
+  blocker killed does not turn it round). What the 1997 game still passes
+  over is the re-release's decoration and bot hints (`dynamic_light`,
+  `target_poi`, `info_landmark`, `info_nav_lock`, `func_animation`,
+  `misc_model`, `misc_player_mannequin`) and jail1's
+  `turret_invisible_brain`, without which its big gun does not fire.
 - **`game/p_client.c`**, **`ctf/p_client.c`**, **`xatrix/src/player/client.c`**,
   **`rogue/src/player/client.c`**: a level's exit names where the next
   starts the player; the 1997 Outpost asks for bunk1's `start`, which the

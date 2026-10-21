@@ -218,6 +218,18 @@ static char *Loc_Words (const char *k, int n, char *out, char *end)
 	// mission objective" -- the key less the word before its first _
 	for (p = 0 ; p < n && islower ((unsigned char)k[p]) ; p++)
 		;
+	// and less a number it ends in: the re-release tells apart keys with
+	// the same first words that way, map_this_door_is_opened_elsewhere_1.
+	// Not a count, though: map_airstrike_incoming_in_5 is "in 5"
+	for (i = n ; i > p + 1 && isdigit ((unsigned char)k[i-1]) ; i--)
+		;
+	if (i < n && i > p + 2 && k[i-1] == '_')
+	{
+		for (i-- ; i > p + 1 && k[i-1] == '_' ; i--)
+			;
+		if (!(i >= p + 4 && !strncmp (k + i - 3, "_in", 3)))
+			n = i;
+	}
 	if (p > 0 && p < n - 1 && k[p] == '_')
 	{
 		for (i = p + 1 ; i < n && out < end ; i++)

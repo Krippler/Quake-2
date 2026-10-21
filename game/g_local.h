@@ -1106,6 +1106,7 @@ struct edict_s
 	int			light_level;
 
 	int			style;			// also used as areaportal number
+	int			plat2flags;		// func_plat2's state (g_func.c)
 
 	gitem_t		*item;			// for bonus items
 
