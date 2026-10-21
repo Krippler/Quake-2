@@ -448,7 +448,7 @@ void Touch_Plat_Center (edict_t *ent, edict_t *other, cplane_t *plane, csurface_
 		ent->nextthink = level.time + 1;	// the player is still on the plat, so delay going down
 }
 
-void plat_spawn_inside_trigger (edict_t *ent)
+edict_t *plat_spawn_inside_trigger (edict_t *ent)
 {
 	edict_t	*trigger;
 	vec3_t	tmin, tmax;
@@ -490,6 +490,7 @@ void plat_spawn_inside_trigger (edict_t *ent)
 	VectorCopy (tmax, trigger->maxs);
 
 	gi.linkentity (trigger);
+	return trigger;
 }
 
 
@@ -563,6 +564,330 @@ void SP_func_plat (edict_t *ent)
 		gi.linkentity (ent);
 		ent->moveinfo.state = STATE_BOTTOM;
 	}
+
+	ent->moveinfo.speed = ent->speed;
+	ent->moveinfo.accel = ent->accel;
+	ent->moveinfo.decel = ent->decel;
+	ent->moveinfo.wait = ent->wait;
+	VectorCopy (ent->pos1, ent->moveinfo.start_origin);
+	VectorCopy (ent->s.angles, ent->moveinfo.start_angles);
+	VectorCopy (ent->pos2, ent->moveinfo.end_origin);
+	VectorCopy (ent->s.angles, ent->moveinfo.end_angles);
+
+	ent->moveinfo.sound_start = gi.soundindex ("plats/pt1_strt.wav");
+	ent->moveinfo.sound_middle = gi.soundindex ("plats/pt1_mid.wav");
+	ent->moveinfo.sound_end = gi.soundindex ("plats/pt1_end.wav");
+}
+
+//====================================================================
+
+/*
+func_plat2: Rogue's lift, which the 2023 re-release has in its own game
+and uses in its remade maps -- hangar1's and jail1's lifts are func_plat2s
+there. Without it those lifts were not in the level at all. This is
+rogue/src/g_func.c's, less the "danger area" it marks for Rogue's monsters,
+with the re-release's changes: 8 is START_ACTIVE (a plat with a targetname
+working from the start; hangar1's has it), a call by a trigger is not held
+back two seconds after the last move, and a blocker killed does not turn
+the plat round.
+*/
+#define PLAT2_TOGGLE			2
+#define PLAT2_TOP				4
+#define PLAT2_START_ACTIVE		8
+#define PLAT2_BOX_LIFT			32
+
+#define PLAT2_CALLED			1
+#define PLAT2_MOVING			2
+#define PLAT2_WAITING			4
+
+void plat2_go_down (edict_t *ent);
+void plat2_go_up (edict_t *ent);
+
+static void plat2_end_sound (edict_t *ent)
+{
+	if (!(ent->flags & FL_TEAMSLAVE))
+	{
+		if (ent->moveinfo.sound_end)
+			gi.sound (ent, CHAN_NO_PHS_ADD+CHAN_VOICE, ent->moveinfo.sound_end, 1, ATTN_STATIC, 0);
+		ent->s.sound = 0;
+	}
+}
+
+static void plat2_start_sound (edict_t *ent)
+{
+	if (!(ent->flags & FL_TEAMSLAVE))
+	{
+		if (ent->moveinfo.sound_start)
+			gi.sound (ent, CHAN_NO_PHS_ADD+CHAN_VOICE, ent->moveinfo.sound_start, 1, ATTN_STATIC, 0);
+		ent->s.sound = ent->moveinfo.sound_middle;
+	}
+}
+
+void plat2_hit_top (edict_t *ent)
+{
+	plat2_end_sound (ent);
+	ent->moveinfo.state = STATE_TOP;
+
+	if (ent->plat2flags & PLAT2_CALLED)
+	{
+		ent->plat2flags = PLAT2_WAITING;
+		if (!(ent->spawnflags & PLAT2_TOGGLE))
+		{
+			ent->think = plat2_go_down;
+			ent->nextthink = level.time + 5.0;
+		}
+		ent->last_move_time = level.time - (deathmatch->value ? 1.0 : 2.0);
+	}
+	else if (!(ent->spawnflags & PLAT2_TOP) && !(ent->spawnflags & PLAT2_TOGGLE))
+	{
+		ent->plat2flags = 0;
+		ent->think = plat2_go_down;
+		ent->nextthink = level.time + 2.0;
+		ent->last_move_time = level.time;
+	}
+	else
+	{
+		ent->plat2flags = 0;
+		ent->last_move_time = level.time;
+	}
+
+	G_UseTargets (ent, ent);
+}
+
+void plat2_hit_bottom (edict_t *ent)
+{
+	plat2_end_sound (ent);
+	ent->moveinfo.state = STATE_BOTTOM;
+
+	if (ent->plat2flags & PLAT2_CALLED)
+	{
+		ent->plat2flags = PLAT2_WAITING;
+		if (!(ent->spawnflags & PLAT2_TOGGLE))
+		{
+			ent->think = plat2_go_up;
+			ent->nextthink = level.time + 5.0;
+		}
+		ent->last_move_time = level.time - (deathmatch->value ? 1.0 : 2.0);
+	}
+	else if ((ent->spawnflags & PLAT2_TOP) && !(ent->spawnflags & PLAT2_TOGGLE))
+	{
+		ent->plat2flags = 0;
+		ent->think = plat2_go_up;
+		ent->nextthink = level.time + 2.0;
+		ent->last_move_time = level.time;
+	}
+	else
+	{
+		ent->plat2flags = 0;
+		ent->last_move_time = level.time;
+	}
+
+	G_UseTargets (ent, ent);
+}
+
+void plat2_go_down (edict_t *ent)
+{
+	plat2_start_sound (ent);
+	ent->moveinfo.state = STATE_DOWN;
+	ent->plat2flags |= PLAT2_MOVING;
+	Move_Calc (ent, ent->moveinfo.end_origin, plat2_hit_bottom);
+}
+
+void plat2_go_up (edict_t *ent)
+{
+	plat2_start_sound (ent);
+	ent->moveinfo.state = STATE_UP;
+	ent->plat2flags |= PLAT2_MOVING;
+	Move_Calc (ent, ent->moveinfo.start_origin, plat2_hit_top);
+}
+
+static void plat2_operate (edict_t *trigger, edict_t *other)
+{
+	edict_t	*ent = trigger->enemy;	// the plat, not the trigger
+	int		otherState;
+	float	pauseTime, platCenter;
+
+	if (ent->plat2flags & PLAT2_MOVING)
+		return;
+	if (ent->last_move_time + 2 > level.time)
+		return;
+
+	platCenter = (trigger->absmin[2] + trigger->absmax[2]) / 2;
+
+	if (ent->moveinfo.state == STATE_TOP)
+	{
+		otherState = STATE_TOP;
+		if (ent->spawnflags & PLAT2_BOX_LIFT)
+		{
+			if (platCenter > other->s.origin[2])
+				otherState = STATE_BOTTOM;
+		}
+		else if (trigger->absmax[2] > other->s.origin[2])
+			otherState = STATE_BOTTOM;
+	}
+	else
+	{
+		otherState = STATE_BOTTOM;
+		if (other->s.origin[2] > platCenter)
+			otherState = STATE_TOP;
+	}
+
+	ent->plat2flags = PLAT2_MOVING;
+	pauseTime = deathmatch->value ? 0.3 : 0.5;
+	if (ent->moveinfo.state != otherState)
+	{
+		ent->plat2flags |= PLAT2_CALLED;
+		pauseTime = 0.1;
+	}
+
+	ent->last_move_time = level.time;
+	ent->think = ent->moveinfo.state == STATE_BOTTOM ? plat2_go_up : plat2_go_down;
+	ent->nextthink = level.time + pauseTime;
+}
+
+void Touch_Plat_Center2 (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+	// monsters have to mean it: standing on it is not enough
+	if (other->health <= 0)
+		return;
+	if (!(other->svflags & SVF_MONSTER) && !other->client)
+		return;
+	plat2_operate (ent, other);
+}
+
+void plat2_blocked (edict_t *self, edict_t *other)
+{
+	if (!(other->svflags & SVF_MONSTER) && !other->client)
+	{
+		// give it a chance to go away on its own terms (like gibs)
+		T_Damage (other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
+		// if it's still there, nuke it
+		if (other->inuse && other->solid)
+			BecomeExplosion1 (other);
+		return;
+	}
+
+	// gib dead things
+	if (other->health < 1)
+		T_Damage (other, self, self, vec3_origin, other->s.origin, vec3_origin, 100, 1, 0, MOD_CRUSH);
+	T_Damage (other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+
+	// killed, so carry on
+	if (!other->inuse || !other->solid)
+		return;
+
+	if (self->moveinfo.state == STATE_UP)
+		plat2_go_down (self);
+	else if (self->moveinfo.state == STATE_DOWN)
+		plat2_go_up (self);
+}
+
+void Use_Plat2 (edict_t *ent, edict_t *other, edict_t *activator)
+{
+	edict_t	*trigger;
+	int		i;
+
+	if (!activator)
+		return;
+	if (ent->moveinfo.state > STATE_BOTTOM)
+		return;
+
+	for (i = 1, trigger = g_edicts + 1 ; i < globals.num_edicts ; i++, trigger++)
+	{
+		if (trigger->inuse && trigger->touch == Touch_Plat_Center2 && trigger->enemy == ent)
+		{
+			plat2_operate (trigger, activator);
+			return;
+		}
+	}
+}
+
+static void plat2_spawn_trigger (edict_t *ent)
+{
+	edict_t	*trigger;
+
+	trigger = plat_spawn_inside_trigger (ent);	// the "start moving" trigger
+	trigger->maxs[0] += 10;
+	trigger->maxs[1] += 10;
+	trigger->mins[0] -= 10;
+	trigger->mins[1] -= 10;
+	trigger->touch = Touch_Plat_Center2;
+	gi.linkentity (trigger);
+}
+
+void plat2_activate (edict_t *ent, edict_t *other, edict_t *activator)
+{
+	ent->use = Use_Plat2;
+	plat2_spawn_trigger (ent);
+	plat2_go_down (ent);
+}
+
+/*QUAKED func_plat2 (0 .5 .8) ? PLAT_LOW_TRIGGER PLAT2_TOGGLE PLAT2_TOP PLAT2_TRIGGER_TOP PLAT2_TRIGGER_BOTTOM BOX_LIFT
+speed default 150
+
+PLAT_LOW_TRIGGER - creates a short trigger field at the bottom
+PLAT2_TOGGLE - plat will not return to default position.
+PLAT2_TOP - plat's default position will the the top.
+PLAT2_START_ACTIVE - works from the start though it has a targetname
+BOX_LIFT - this indicates that the lift is a box, rather than just a platform
+
+It triggers its targets each time it reaches the top or the bottom.
+
+If the plat is the target of another trigger or button, and not
+START_ACTIVE, it will start out disabled in the extended position until it is triggered, when it will lower
+and become a normal plat.
+
+"speed"	overrides default 200.
+"accel" overrides default 500
+"lip"	no default
+"height" how far it moves, instead of the model's height
+*/
+void SP_func_plat2 (edict_t *ent)
+{
+	VectorClear (ent->s.angles);
+	ent->solid = SOLID_BSP;
+	ent->movetype = MOVETYPE_PUSH;
+	gi.setmodel (ent, ent->model);
+	ent->blocked = plat2_blocked;
+
+	ent->speed = ent->speed ? ent->speed * 0.1 : 20;
+	ent->accel = ent->accel ? ent->accel * 0.1 : 5;
+	ent->decel = ent->decel ? ent->decel * 0.1 : 5;
+	if (deathmatch->value)
+	{
+		ent->speed *= 2;
+		ent->accel *= 2;
+		ent->decel *= 2;
+	}
+
+	// to kill things it's being blocked by
+	if (!ent->dmg)
+		ent->dmg = 2;
+
+	// pos1 is the top position, pos2 is the bottom
+	VectorCopy (ent->s.origin, ent->pos1);
+	VectorCopy (ent->s.origin, ent->pos2);
+	if (st.height)
+		ent->pos2[2] -= (st.height - st.lip);
+	else
+		ent->pos2[2] -= (ent->maxs[2] - ent->mins[2]) - st.lip;
+
+	ent->moveinfo.state = STATE_TOP;
+
+	if (ent->targetname && !(ent->spawnflags & PLAT2_START_ACTIVE))
+		ent->use = plat2_activate;
+	else
+	{
+		ent->use = Use_Plat2;
+		plat2_spawn_trigger (ent);
+		if (!(ent->spawnflags & PLAT2_TOP))
+		{
+			VectorCopy (ent->pos2, ent->s.origin);
+			ent->moveinfo.state = STATE_BOTTOM;
+		}
+	}
+
+	gi.linkentity (ent);
 
 	ent->moveinfo.speed = ent->speed;
 	ent->moveinfo.accel = ent->accel;

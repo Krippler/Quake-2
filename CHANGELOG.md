@@ -5,6 +5,29 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.9] — 2026-10-21
+
+### Fixed
+
+- **Stuck in the re-release's Warehouse** behind a door that "is opened
+  elsewhere": its first door opens through a `trigger_coop_relay`, one of
+  the re-release's own entities, which the game did not have. It does now
+  (in single player it simply passes the signal on; in coop it waits for
+  everyone to gather, as the re-release does).
+- **Lifts missing from the re-release's Hangar and Main Gate**: they are
+  `func_plat2`s, the Ground Zero mission pack's lift, which the base game
+  did not have either. It does now.
+- **"This door is opened elsewhere 1"** and the like, when `Q2Game.kpf` is
+  not in the mount: a message worded from its name lost the number the
+  re-release adds to tell names apart; a count ("Airstrike incoming in 5")
+  keeps it.
+
+### Changed
+
+- The smoke test measures the tone's pitch only where it sounds. A CI
+  runner stalling as the engine started had the mixer skip past most of
+  the short test tone, and the silence after it read as a low pitch.
+
 ## [1.3.8] — 2026-10-21
 
 ### Fixed
