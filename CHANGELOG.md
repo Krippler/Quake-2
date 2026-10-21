@@ -5,6 +5,27 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **A crash back to the demo on the way into a level visited before**, in
+  a game carried over from an earlier version. A savegame, and the copy of
+  each level left behind in `save/current`, keeps the game's functions as
+  places in the game library that wrote it; a new build moves them, and a
+  door read back from an old copy ran the wrong code. The check id made was
+  the build date, which builds made on the same day share. Saves are now
+  marked with the build that made them: a savegame from another is refused
+  with a message saying so, and a level kept by another starts again as
+  if it had not been visited. Saves made before this version are from
+  another build, so a game in progress has to be begun again from a unit's
+  start (or `map`).
+
+### Changed
+
+- The README and the rest of the documentation brought up to date with
+  the re-release support, the demos, coloured light and the mission packs.
+
 ## [1.3.7] — 2026-10-20
 
 ### Fixed

@@ -204,11 +204,11 @@ $(B)/ref_softx.so: $(REF_OBJS)
 
 $(B)/baseq2/gamex86_64.so: $(GAME_OBJS)
 	@mkdir -p $(dir $@)
-	$(CC) $(ALL_CFLAGS) -shared -Wl,-Bsymbolic -o $@ $^ -lm
+	$(CC) $(ALL_CFLAGS) -shared -Wl,-Bsymbolic -o $@ $^ -lm -ldl
 
 $(B)/ctf/gamex86_64.so: $(CTF_OBJS)
 	@mkdir -p $(dir $@)
-	$(CC) $(ALL_CFLAGS) -shared -Wl,-Bsymbolic -o $@ $^ -lm
+	$(CC) $(ALL_CFLAGS) -shared -Wl,-Bsymbolic -o $@ $^ -lm -ldl
 
 $(B)/obj/engine/%.o: %.c
 	@mkdir -p $(dir $@)

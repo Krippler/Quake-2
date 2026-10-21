@@ -141,6 +141,17 @@ built for Yamagi Quake II, whose game API is id's, drops in.
   that is not one for instance, shuts the server down before `SV_Init` has
   made the `dedicated` cvar; `Master_Shutdown` read it through a null
   pointer, and the error's message was lost to a crash.
+- **`game/g_save.c`, `ctf/g_save.c`**: a savegame keeps function pointers
+  as offsets from `InitGame`, which hold only for the library that wrote
+  them. id checked `__DATE__` in a savegame and nothing in a level file, so
+  a rebuild the same day loaded old offsets and a door's `think` jumped into
+  other code (`Think_CalcMoveSpeed`, coming back to a level). Both now carry
+  a hash of the game library's own file (found with `dladdr`) where the date
+  and the base pointer were: a savegame from another build is refused with
+  `gi.error`, and a level file from one is passed over -- the level stays as
+  `SpawnEntities` made it, its entities linked again after `SV_ClearWorld`.
+  The mission packs' code (Yamagi's) saves functions by name and needs none
+  of this.
 
 ## The 2023 re-release's data
 

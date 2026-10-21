@@ -19,6 +19,53 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "g_local.h"
+#include <dlfcn.h>
+
+/*
+Which build of this library wrote a savegame. A save keeps every function
+pointer as its offset from InitGame, so it means something only to the very
+library that wrote it: rebuilt with any change, the functions move, and a
+door's think read back from an older save jumps into the middle of some
+other code. id checked __DATE__, which a rebuild on the same day passes.
+This is a hash of the library file itself, 15 hex digits, written into the
+place the date had; a save another build wrote is turned away rather than
+crashed on.
+*/
+void InitGame (void);
+void G_RunFrame (void);
+void WriteLevel (char *filename);
+
+static const char *G_BuildPrint (void)
+{
+	static char		print[16];
+	unsigned long long	h = 1469598103934665603ULL;
+	Dl_info			info;
+	FILE			*f;
+	int				c;
+
+	if (print[0])
+		return print;
+	if (dladdr ((void *)InitGame, &info) && info.dli_fname
+		&& (f = fopen (info.dli_fname, "rb")) != NULL)
+	{
+		while ((c = getc (f)) != EOF)
+		{
+			h ^= (unsigned char)c;
+			h *= 1099511628211ULL;
+		}
+		fclose (f);
+	}
+	else
+	{
+		// no file to hash: where the functions are, which is what matters
+		h ^= (unsigned long long)((byte *)WriteLevel - (byte *)InitGame);
+		h *= 1099511628211ULL;
+		h ^= (unsigned long long)((byte *)G_RunFrame - (byte *)InitGame);
+		h *= 1099511628211ULL;
+	}
+	Com_sprintf (print, sizeof(print), "%015llx", h & 0xfffffffffffffffULL);
+	return print;
+}
 
 #define Function(f) {#f, f}
 
@@ -471,7 +518,7 @@ void WriteGame (char *filename, qboolean autosave)
 		gi.error ("Couldn't open %s", filename);
 
 	memset (str, 0, sizeof(str));
-	strcpy (str, __DATE__);
+	strcpy (str, G_BuildPrint ());
 	fwrite (str, sizeof(str), 1, f);
 
 	game.autosaved = autosave;
@@ -496,11 +543,14 @@ void ReadGame (char *filename)
 	if (!f)
 		gi.error ("Couldn't open %s", filename);
 
+	memset (str, 0, sizeof(str));
 	fread (str, sizeof(str), 1, f);
-	if (strcmp (str, __DATE__))
+	str[sizeof(str)-1] = 0;
+	if (strcmp (str, G_BuildPrint ()))
 	{
 		fclose (f);
-		gi.error ("Savegame from an older version.\n");
+		gi.error ("That savegame was made by another version of the game, and "
+			"cannot be loaded into this one.\n");
 	}
 
 	g_edicts =  gi.TagMalloc (game.maxentities * sizeof(g_edicts[0]), TAG_GAME);
@@ -630,7 +680,7 @@ void WriteLevel (char *filename)
 	int		i;
 	edict_t	*ent;
 	FILE	*f;
-	void	*base;
+	char	str[16];
 
 	f = fopen (filename, "wb");
 	if (!f)
@@ -640,9 +690,10 @@ void WriteLevel (char *filename)
 	i = sizeof(edict_t);
 	fwrite (&i, sizeof(i), 1, f);
 
-	// write out a function pointer for checking
-	base = (void *)InitGame;
-	fwrite (&base, sizeof(base), 1, f);
+	// and which build of the library wrote it (G_BuildPrint)
+	memset (str, 0, sizeof(str));
+	strcpy (str, G_BuildPrint ());
+	fwrite (str, sizeof(str), 1, f);
 
 	// write out level_locals_t
 	WriteLevelLocals (f);
@@ -684,20 +735,12 @@ void ReadLevel (char *filename)
 	int		entnum;
 	FILE	*f;
 	int		i;
-	void	*base;
+	char	str[16];
 	edict_t	*ent;
 
 	f = fopen (filename, "rb");
 	if (!f)
 		gi.error ("Couldn't open %s", filename);
-
-	// free any dynamic memory allocated by loading the level
-	// base state
-	gi.FreeTags (TAG_LEVEL);
-
-	// wipe all the entities
-	memset (g_edicts, 0, game.maxentities*sizeof(g_edicts[0]));
-	globals.num_edicts = maxclients->value+1;
 
 	// check edict size
 	fread (&i, sizeof(i), 1, f);
@@ -707,17 +750,36 @@ void ReadLevel (char *filename)
 		gi.error ("ReadLevel: mismatched edict size");
 	}
 
-	// check function pointer base address
-	fread (&base, sizeof(base), 1, f);
-#ifdef _WIN32
-	if (base != (void *)InitGame)
+	// check the build that wrote it. Coming back to a level kept by
+	// another, it starts again as it was spawned -- SpawnEntities has
+	// already set it up -- rather than run the other build's offsets as
+	// this one's functions
+	memset (str, 0, sizeof(str));
+	fread (str, sizeof(str), 1, f);
+	str[sizeof(str)-1] = 0;
+	if (strcmp (str, G_BuildPrint ()))
 	{
 		fclose (f);
-		gi.error ("ReadLevel: function pointers have moved");
+		gi.dprintf ("%s was kept by another version of the game; the level starts afresh\n",
+			filename);
+		for (i=0 ; i<globals.num_edicts ; i++)
+		{
+			ent = &g_edicts[i];
+			if (!ent->inuse)
+				continue;
+			memset (&ent->area, 0, sizeof(ent->area));
+			gi.linkentity (ent);
+		}
+		return;
 	}
-#else
-	gi.dprintf("Function offsets %d\n", ((byte *)base) - ((byte *)InitGame));
-#endif
+
+	// free any dynamic memory allocated by loading the level
+	// base state
+	gi.FreeTags (TAG_LEVEL);
+
+	// wipe all the entities
+	memset (g_edicts, 0, game.maxentities*sizeof(g_edicts[0]));
+	globals.num_edicts = maxclients->value+1;
 
 	// load the level locals
 	ReadLevelLocals (f);
