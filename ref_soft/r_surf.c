@@ -218,6 +218,12 @@ void R_InitColorLight (void)
 			}
 }
 
+// the nearest colour to r, g, b that the colormap shades (r_image.c)
+byte R_RGBToPalette (int r, int g, int b)
+{
+	return r_rgbtopal[((r>>2)<<12) | ((g>>2)<<6) | (b>>2)];
+}
+
 /*
 ================
 R_DrawSurfaceBlock8_color

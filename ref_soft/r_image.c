@@ -210,202 +210,262 @@ void LoadPCX (char *filename, byte **pic, byte **palette, int *width, int *heigh
 /*
 =========================================================
 
-TARGA LOADING
+TARGA LOADING, AND THE RE-RELEASE'S TRUE-COLOUR IMAGES
 
+The 2023 re-release keeps an image the original game has as an 8-bit .pcx
+or .wal in that form, but one of its own -- the mission packs' skies when
+their demos play from baseq2, every texture of the Quake 64 maps -- only
+as a 24- or 32-bit .tga. Asked for a .pcx or .wal that is not there, the
+renderer takes the .tga of the same name instead, in the palette's colours
+(R_RGBToPalette, the nearest of those the colormap shades), at a size the
+software renderer can draw: a sky at 256x256 as the originals are, a
+texture a multiple of 16 on each side and with its four mip levels.
+
+The re-release's .png images are left alone: none is one the 1997 game
+asks for -- they are its own menus, glow maps and the models of its own
+renderer.
 =========================================================
 */
-
-typedef struct _TargaHeader {
-	unsigned char 	id_length, colormap_type, image_type;
-	unsigned short	colormap_index, colormap_length;
-	unsigned char	colormap_size;
-	unsigned short	x_origin, y_origin, width, height;
-	unsigned char	pixel_size, attributes;
-} TargaHeader;
-
 
 /*
 =============
 LoadTGA
+
+An uncompressed or run-length 24- or 32-bit targa into RGBA, top row first.
+NULL for anything else, or for a file shorter than it says it is.
 =============
 */
 void LoadTGA (char *name, byte **pic, int *width, int *height)
 {
-	int		columns, rows, numPixels;
-	byte	*pixbuf;
-	int		row, column;
-	byte	*buf_p;
-	byte	*buffer;
-	int		length;
-	TargaHeader		targa_header;
-	byte			*targa_rgba;
+	byte	*buffer, *p, *end, *out;
+	int		length, type, bpp, w, h, flip, row, col, i, n, rle, count;
+	byte	c[4];
 
 	*pic = NULL;
-
-	//
-	// load the file
-	//
 	length = ri.FS_LoadFile (name, (void **)&buffer);
 	if (!buffer)
-	{
-		ri.Con_Printf (PRINT_DEVELOPER, "Bad tga file %s\n", name);
 		return;
-	}
+	end = buffer + length;
+	if (length < 18)
+		goto bad;
 
-	buf_p = buffer;
+	type = buffer[2];
+	w = buffer[12] | (buffer[13] << 8);
+	h = buffer[14] | (buffer[15] << 8);
+	bpp = buffer[16];
+	flip = !(buffer[17] & 0x20);	// rows bottom first, the usual way
+	if ((type != 2 && type != 10) || buffer[1] != 0 || (bpp != 24 && bpp != 32)
+		|| w <= 0 || h <= 0 || w > 4096 || h > 4096)
+		goto bad;
+	bpp >>= 3;
+	p = buffer + 18 + buffer[0];
 
-	targa_header.id_length = *buf_p++;
-	targa_header.colormap_type = *buf_p++;
-	targa_header.image_type = *buf_p++;
-	
-	targa_header.colormap_index = LittleShort ( *((short *)buf_p) );
-	buf_p+=2;
-	targa_header.colormap_length = LittleShort ( *((short *)buf_p) );
-	buf_p+=2;
-	targa_header.colormap_size = *buf_p++;
-	targa_header.x_origin = LittleShort ( *((short *)buf_p) );
-	buf_p+=2;
-	targa_header.y_origin = LittleShort ( *((short *)buf_p) );
-	buf_p+=2;
-	targa_header.width = LittleShort ( *((short *)buf_p) );
-	buf_p+=2;
-	targa_header.height = LittleShort ( *((short *)buf_p) );
-	buf_p+=2;
-	targa_header.pixel_size = *buf_p++;
-	targa_header.attributes = *buf_p++;
+	out = malloc (w*h*4);
+	if (!out)
+		goto bad;
+	rle = 0;
+	count = 0;
+	for (row=0 ; row<h ; row++)
+	{
+		byte	*dst = out + (flip ? h-1-row : row) * w * 4;
 
-	if (targa_header.image_type!=2 
-		&& targa_header.image_type!=10) 
-		ri.Sys_Error (ERR_DROP, "LoadTGA: Only type 2 and 10 targa RGB images supported\n");
-
-	if (targa_header.colormap_type !=0 
-		|| (targa_header.pixel_size!=32 && targa_header.pixel_size!=24))
-		ri.Sys_Error (ERR_DROP, "LoadTGA: Only 32 or 24 bit images supported (no colormaps)\n");
-
-	columns = targa_header.width;
-	rows = targa_header.height;
-	numPixels = columns * rows;
-
-	if (width)
-		*width = columns;
-	if (height)
-		*height = rows;
-
-	targa_rgba = malloc (numPixels*4);
-	*pic = targa_rgba;
-
-	if (targa_header.id_length != 0)
-		buf_p += targa_header.id_length;  // skip TARGA image comment
-	
-	if (targa_header.image_type==2) {  // Uncompressed, RGB images
-		for(row=rows-1; row>=0; row--) {
-			pixbuf = targa_rgba + row*columns*4;
-			for(column=0; column<columns; column++) {
-				unsigned char red,green,blue,alphabyte;
-				switch (targa_header.pixel_size) {
-					case 24:
-							
-							blue = *buf_p++;
-							green = *buf_p++;
-							red = *buf_p++;
-							*pixbuf++ = red;
-							*pixbuf++ = green;
-							*pixbuf++ = blue;
-							*pixbuf++ = 255;
-							break;
-					case 32:
-							blue = *buf_p++;
-							green = *buf_p++;
-							red = *buf_p++;
-							alphabyte = *buf_p++;
-							*pixbuf++ = red;
-							*pixbuf++ = green;
-							*pixbuf++ = blue;
-							*pixbuf++ = alphabyte;
-							break;
+		for (col=0 ; col<w ; col++)
+		{
+			if (type == 2 || (!rle && !count))
+			{
+				if (type == 10)
+				{
+					// a packet: a run of one colour, or raw colours
+					if (p >= end)
+						goto badout;
+					n = *p++;
+					rle = n & 0x80;
+					count = (n & 0x7f) + 1;
 				}
+				if (p + bpp > end)
+					goto badout;
+				c[2] = p[0]; c[1] = p[1]; c[0] = p[2];
+				c[3] = bpp == 4 ? p[3] : 255;
+				p += bpp;
 			}
-		}
-	}
-	else if (targa_header.image_type==10) {   // Runlength encoded RGB images
-		unsigned char red,green,blue,alphabyte,packetHeader,packetSize,j;
-		for(row=rows-1; row>=0; row--) {
-			pixbuf = targa_rgba + row*columns*4;
-			for(column=0; column<columns; ) {
-				packetHeader= *buf_p++;
-				packetSize = 1 + (packetHeader & 0x7f);
-				if (packetHeader & 0x80) {        // run-length packet
-					switch (targa_header.pixel_size) {
-						case 24:
-								blue = *buf_p++;
-								green = *buf_p++;
-								red = *buf_p++;
-								alphabyte = 255;
-								break;
-						case 32:
-								blue = *buf_p++;
-								green = *buf_p++;
-								red = *buf_p++;
-								alphabyte = *buf_p++;
-								break;
-					}
-	
-					for(j=0;j<packetSize;j++) {
-						*pixbuf++=red;
-						*pixbuf++=green;
-						*pixbuf++=blue;
-						*pixbuf++=alphabyte;
-						column++;
-						if (column==columns) { // run spans across rows
-							column=0;
-							if (row>0)
-								row--;
-							else
-								goto breakOut;
-							pixbuf = targa_rgba + row*columns*4;
-						}
-					}
-				}
-				else {                            // non run-length packet
-					for(j=0;j<packetSize;j++) {
-						switch (targa_header.pixel_size) {
-							case 24:
-									blue = *buf_p++;
-									green = *buf_p++;
-									red = *buf_p++;
-									*pixbuf++ = red;
-									*pixbuf++ = green;
-									*pixbuf++ = blue;
-									*pixbuf++ = 255;
-									break;
-							case 32:
-									blue = *buf_p++;
-									green = *buf_p++;
-									red = *buf_p++;
-									alphabyte = *buf_p++;
-									*pixbuf++ = red;
-									*pixbuf++ = green;
-									*pixbuf++ = blue;
-									*pixbuf++ = alphabyte;
-									break;
-						}
-						column++;
-						if (column==columns) { // pixel packet run spans across rows
-							column=0;
-							if (row>0)
-								row--;
-							else
-								goto breakOut;
-							pixbuf = targa_rgba + row*columns*4;
-						}						
-					}
-				}
+			else if (!rle)
+			{
+				if (p + bpp > end)
+					goto badout;
+				c[2] = p[0]; c[1] = p[1]; c[0] = p[2];
+				c[3] = bpp == 4 ? p[3] : 255;
+				p += bpp;
 			}
-			breakOut:;
+			for (i=0 ; i<4 ; i++)
+				dst[col*4+i] = c[i];
+			if (type == 10 && --count == 0)
+				rle = 0;
 		}
 	}
 
 	ri.FS_FreeFile (buffer);
+	*pic = out;
+	if (width)
+		*width = w;
+	if (height)
+		*height = h;
+	return;
+
+badout:
+	free (out);
+bad:
+	ri.Con_Printf (PRINT_DEVELOPER, "Bad tga file %s\n", name);
+	ri.FS_FreeFile (buffer);
+}
+
+/*
+=============
+R_ResampleRGBA
+
+RGBA at w x h to nw x nh: the average of the source pixels each covers.
+=============
+*/
+static byte *R_ResampleRGBA (byte *in, int w, int h, int nw, int nh)
+{
+	byte	*out = malloc (nw*nh*4);
+	int		x, y, sx, sy, x0, x1, y0, y1, c, n;
+	unsigned	sum[4];
+
+	if (!out)
+		return NULL;
+	for (y=0 ; y<nh ; y++)
+	{
+		y0 = y * h / nh;
+		y1 = (y+1) * h / nh;
+		if (y1 <= y0)
+			y1 = y0 + 1;
+		for (x=0 ; x<nw ; x++)
+		{
+			x0 = x * w / nw;
+			x1 = (x+1) * w / nw;
+			if (x1 <= x0)
+				x1 = x0 + 1;
+			sum[0] = sum[1] = sum[2] = sum[3] = 0;
+			n = 0;
+			for (sy=y0 ; sy<y1 ; sy++)
+				for (sx=x0 ; sx<x1 ; sx++, n++)
+					for (c=0 ; c<4 ; c++)
+						sum[c] += in[(sy*w + sx)*4 + c];
+			for (c=0 ; c<4 ; c++)
+				out[(y*nw + x)*4 + c] = sum[c] / n;
+		}
+	}
+	return out;
+}
+
+// RGBA to the palette; with alpha, a mostly clear pixel to 255, see-through
+static void R_QuantizeRGBA (byte *in, byte *out, int count, qboolean alpha)
+{
+	int		i;
+
+	for (i=0 ; i<count ; i++, in+=4)
+		out[i] = alpha && in[3] < 128 ? 255 : R_RGBToPalette (in[0], in[1], in[2]);
+}
+
+/*
+=============
+R_LoadTrueColor
+
+The re-release's .tga for name, a .pcx or .wal that is not there; NULL if
+it has none either.
+=============
+*/
+image_t *R_FindFreeImage (void);
+
+static image_t *R_LoadTrueColor (char *name, imagetype_t type)
+{
+	char	tganame[MAX_QPATH];
+	byte	*rgba, *sized, *level, *next;
+	int		w, h, nw, nh, len, i, size;
+	image_t	*image;
+
+	len = strlen (name);
+	if (len < 5 || len >= MAX_QPATH)
+		return NULL;
+	memcpy (tganame, name, len - 4);
+	strcpy (tganame + len - 4, ".tga");
+	LoadTGA (tganame, &rgba, &w, &h);
+	if (!rgba)
+		return NULL;
+
+	// a size the renderer can draw
+	nw = w;
+	nh = h;
+	if (type == it_sky)
+		nw = nh = 256;
+	else if (type == it_wall)
+	{
+		nw = (w + 8) & ~15;
+		nh = (h + 8) & ~15;
+		if (nw < 16)
+			nw = 16;
+		if (nh < 16)
+			nh = 16;
+	}
+	sized = rgba;
+	if (nw != w || nh != h)
+	{
+		sized = R_ResampleRGBA (rgba, w, h, nw, nh);
+		free (rgba);
+		if (!sized)
+			return NULL;
+	}
+
+	image = R_FindFreeImage ();
+	strcpy (image->name, name);
+	image->width = nw;
+	image->height = nh;
+	image->type = type;
+	image->registration_sequence = registration_sequence;
+	image->transparent = false;
+
+	if (type == it_wall)
+	{
+		// four mip levels, each the average of the last, as a .wal has
+		size = nw*nh * (256+64+16+4)/256;
+		image->pixels[0] = malloc (size);
+		image->pixels[1] = image->pixels[0] + nw*nh;
+		image->pixels[2] = image->pixels[1] + nw*nh/4;
+		image->pixels[3] = image->pixels[2] + nw*nh/16;
+		level = sized;
+		for (i=0 ; i<4 ; i++)
+		{
+			R_QuantizeRGBA (level, image->pixels[i], (nw>>i)*(nh>>i), false);
+			if (i == 3)
+				break;
+			next = R_ResampleRGBA (level, nw>>i, nh>>i, nw>>(i+1), nh>>(i+1));
+			if (level != sized)
+				free (level);
+			if (!next)
+			{
+				// what is left from the level above, rather than nothing
+				for (i++ ; i<4 ; i++)
+					memset (image->pixels[i], image->pixels[0][0], (nw>>i)*(nh>>i));
+				level = sized;
+				break;
+			}
+			level = next;
+		}
+		if (level != sized)
+			free (level);
+	}
+	else
+	{
+		image->pixels[0] = malloc (nw*nh);
+		R_QuantizeRGBA (sized, image->pixels[0], nw*nh, type != it_sky);
+		for (i=0 ; i<nw*nh ; i++)
+			if (image->pixels[0][i] == 255)
+				image->transparent = true;
+	}
+	free (sized);
+
+	ri.Con_Printf (PRINT_DEVELOPER, "%s: from %s, %dx%d\n", name, tganame, nw, nh);
+	return image;
 }
 
 
@@ -483,6 +543,8 @@ image_t *R_LoadWal (char *name)
 	R_LoadUsable (name, (void **)&mt, WAL_Usable, false);
 	if (!mt)
 	{
+		if ((image = R_LoadTrueColor (name, it_wall)) != NULL)
+			return image;
 		ri.Con_Printf (PRINT_ALL, "R_LoadWal: can't load %s\n", name);
 		return r_notexture_mip;
 	}
@@ -548,7 +610,7 @@ image_t	*R_FindImage (char *name, imagetype_t type)
 	{
 		LoadPCX (name, &pic, &palette, &width, &height);
 		if (!pic)
-			return NULL;	// ri.Sys_Error (ERR_DROP, "R_FindImage: can't load %s", name);
+			return R_LoadTrueColor (name, type);
 		image = GL_LoadPic (name, pic, width, height, type);
 	}
 	else if (!strcmp(name+len-4, ".wal"))

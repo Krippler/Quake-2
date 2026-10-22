@@ -23,7 +23,8 @@
 #   4  which music directory the engine picks.
 #   5  depth 8: the renderer's PseudoColor path, with its colormap.
 #   6  a stand-in for the 2023 re-release's pak on top: what of it this
-#      engine cannot read gives way to the original's, and a demo in its
+#      engine cannot read gives way to the original's, a sky and a texture
+#      it has only as 24-bit TGAs are drawn from them, and a demo in its
 #      protocol plays.
 #
 # Given real game data it goes further: point QUAKE2_SMOKE_DATA at a directory
@@ -415,6 +416,14 @@ wait_for_log rerelease "pak9.pak : maps/rr_only.bsp" \
 sleep 2
 alive rerelease
 say "a map only the re-release pak has loaded from it"
+# its sky is only there as 24-bit targas, as many of the re-release's are
+grep -q "env/rrskyrt.pcx: from env/rrskyrt.tga, 256x256" "$work/rerelease.log" \
+    || die "the re-release's targa sky was not taken for the .pcx; see $work/rerelease.log"
+grep -q "textures/rr/wall.wal: from textures/rr/wall.tga, 64x64" "$work/rerelease.log" \
+    || die "the re-release's targa texture was not taken for the .wal; see $work/rerelease.log"
+n=$(colours rerelease)
+[ "$n" -ge 3 ] || die "with its walls from a targa the room holds $n colour(s)"
+say "its sky and walls, there only as 24-bit targas, were loaded from them; $n colours"
 
 # The re-release's own demos are in its protocol, 2022, and are written
 # as 1997's as they play (server/sv_rrdemo.c): the stand-in's goes to its

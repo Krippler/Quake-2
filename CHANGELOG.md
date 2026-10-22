@@ -5,6 +5,17 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **The sky smeared in the Reckoning's demo on Outer Compound**, and in
+  every map whose sky the re-release has only as a 24-bit TGA -- the
+  mission packs', Call of the Machine's, most deathmatch maps'. The
+  software renderer read only 8-bit skies and drew nothing in their place.
+  It now takes the re-release's TGA wherever the 8-bit image is missing
+  -- skies, textures, pictures, skins -- in the palette's colours.
+
 ## [1.3.12] — 2026-10-22
 
 ### Fixed

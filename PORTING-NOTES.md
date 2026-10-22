@@ -170,6 +170,19 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   lumps are past it. Nor is how far a map reaches: the 1997 game's own ware1
   goes to 4408 units and fact3's bounds to 99999, and both play. (1.3.0 to
   1.3.5 did check it, against 4096, and turned those two away.)
+- **`ref_soft/r_image.c`**: some of the re-release's images are only there
+  as 24- or 32-bit TGA: 84 skies (the mission packs', Call of the
+  Machine's, the deathmatch maps') and the Quake 64 maps' textures. A sky
+  was asked for as a `.pcx` and not found, and the software renderer then
+  drew nothing where it was -- the last frames smeared across the top of
+  the view, in the Reckoning's demo on xcompnd1 for one. A `.pcx` or `.wal`
+  that is not there is now taken from the `.tga` of the same name: read by
+  a `LoadTGA` that checks its lengths (id's did not, and stopped the game
+  on a kind it did not read), each pixel the nearest of the palette's
+  colours that the colormap shades (the coloured light's table), a sky
+  averaged to 256x256 as the originals are, a texture to a multiple of 16
+  on each side with four mip levels made by averaging. Its PNGs are its
+  own engine's -- menus, glow maps, MD5 skins -- and none is asked for.
 - **`qcommon/files.c`**: `FS_LoadFileSkip` and `FS_FOpenFileSkip` open the
   copy of a file a given number of copies down the search path;
   `FS_LoadUsableFile` walks down until `usable.c` accepts one, and says why

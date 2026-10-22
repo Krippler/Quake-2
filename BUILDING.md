@@ -95,7 +95,7 @@ test then starts the engine on a throwaway Xvfb and checks that it
 5. draws at depth 8, through a colormap;
 6. with a stand-in for the 2023 re-release's pak on top, passes over the
    copies of its map and picture it cannot read for the original's, loads a
-   map only that pak has, plays a demo in the re-release's protocol as far
+   map only that pak has with its sky and walls from 24-bit TGAs, plays a demo in the re-release's protocol as far
    as a print it carries, and passes over a demo in no protocol it knows.
 
 Point it at real data and it also loads the demo's or the full game's first

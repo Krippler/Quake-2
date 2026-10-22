@@ -817,6 +817,7 @@ void	R_CinematicSetPalette( const unsigned char *palette );
 extern unsigned d_8to24table[256]; // base
 extern cvar_t	*sw_colorlight;
 void	R_InitColorLight (void);
+byte	R_RGBToPalette (int r, int g, int b);
 
 void    Sys_MakeCodeWriteable (unsigned long startaddr, unsigned long length);
 void    Sys_SetFPCW (void);

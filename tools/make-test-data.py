@@ -265,7 +265,23 @@ HEIGHT = 256
 THICK = 16
 
 
-def make_bsp():
+def tga(width, height, rgb):
+    """An uncompressed 24-bit targa of one colour, rows bottom first."""
+    return (struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0,
+                        width, height, 24, 0)
+            + bytes((rgb[2], rgb[1], rgb[0])) * (width * height))
+
+
+def tga_checks(width, height):
+    """A 24-bit targa of 8-pixel checks in two colours, for a wall."""
+    px = b"".join(bytes((220, 140, 60) if ((x // 8) ^ (y // 8)) & 1
+                        else (160, 40, 40))     # blue, green, red: blues
+                  for y in range(height) for x in range(width))
+    return (struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0,
+                        width, height, 24, 0) + px)
+
+
+def make_bsp(sky=None, texture=b"smoke/wall"):
     planes = []
 
     def plane(normal, dist):
@@ -324,7 +340,7 @@ def make_bsp():
                 edges.append((a, b))
                 surfedges.append(len(edges) - 1)
         texinfos.append(struct.pack("<4f4fii32si", *s, 0.0, *t, 0.0, 0, 0,
-                                    b"smoke/wall", -1))
+                                    texture, -1))
         faces.append(struct.pack("<HhihhBBBBi", planenum, side, first,
                                  len(corners), len(texinfos) - 1,
                                  0, 255, 255, 255, -1))
@@ -383,7 +399,8 @@ def make_bsp():
     # Area 0 is the outside, which no leaf is in; area 1 is the room.
     areas = struct.pack("<ii", 0, 0) * 2
 
-    entities = (b'{\n"classname" "worldspawn"\n"message" "Smoke Test"\n}\n'
+    entities = (b'{\n"classname" "worldspawn"\n"message" "Smoke Test"\n'
+                + (b'"sky" "%s"\n' % sky.encode() if sky else b'') + b'}\n'
                 b'{\n"classname" "info_player_start"\n"origin" "0 0 40"\n'
                 b'"angle" "45"\n}\n\0')
 
@@ -516,20 +533,27 @@ def main():
     # forms this engine cannot read -- the map in the extended QBSP format, a
     # 24-bit picture -- no console font, a default.cfg for its own engine,
     # one map of its own that is fine, and a demo in its protocol, 2022, on
-    # that map, which the engine plays as 1997's (server/sv_rrdemo.c).
+    # that map, which the engine plays as 1997's (server/sv_rrdemo.c). That
+    # map's sky and walls are ones only the re-release has, as 24-bit
+    # targas, which the software renderer takes in place of the .pcx and
+    # .wal it asks for (r_image.c).
     bsp = make_bsp()
+    rr_only = make_bsp(sky="rrsky", texture=b"rr/wall")
+    sky = [("env/rrsky%s.tga" % side, tga(64, 64, (200, 90, 30)))
+           for side in ("rt", "bk", "lf", "ft", "up", "dn")]
+    sky.append(("textures/rr/wall.tga", tga_checks(64, 64)))
     rgb = bytearray(pcx(24, 24, bytes([0]) * 576, palette))
     rgb[65] = 3                     # three colour planes: 24-bit
     demo = rerelease_demo()
     rerelease = [
         ("maps/smoke.bsp", b"QBSP" + bsp[4:]),
-        ("maps/rr_only.bsp", bsp),
+        ("maps/rr_only.bsp", rr_only),
         ("pics/i_health.pcx", bytes(rgb)),
         ("demos/demo1.dm2", demo),
         # and one in a protocol nothing has: passed over
         ("demos/bad.dm2", struct.pack("<iBi", 5, 12, 9999) + struct.pack("<i", -1)),
         ("default.cfg", b"bind a_button +attack\n"),
-    ]
+    ] + sky
     os.makedirs(os.path.join(dest, "rerelease", "baseq2"), exist_ok=True)
     with open(os.path.join(dest, "rerelease", "baseq2", "pak0.pak"), "wb") as f:
         f.write(build_pak(rerelease))
