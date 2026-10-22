@@ -87,9 +87,16 @@ void turret_breach_fire (edict_t *self)
 	VectorMA (start, self->move_origin[1], r, start);
 	VectorMA (start, self->move_origin[2], u, start);
 
-	damage = 100 + random() * 50;
+	// the re-release's: a "count" on the breach is its rockets' damage
+	// (jail1's big gun, 500), and an invisible brain's rockets are the
+	// player's who set it going
+	if (self->count)
+		damage = self->count;
+	else
+		damage = 100 + random() * 50;
 	speed = 550 + 50 * skill->value;
-	fire_rocket (self->teammaster->owner, start, f, damage, speed, 150, damage);
+	fire_rocket (self->teammaster->owner->activator ? self->teammaster->owner->activator : self->teammaster->owner,
+		start, f, damage, speed, 150, damage);
 	gi.positioned_sound (start, self, CHAN_WEAPON, gi.soundindex("weapons/rocklf1a.wav"), 1, ATTN_NORM, 0);
 }
 
@@ -428,5 +435,176 @@ void SP_turret_driver (edict_t *self)
 	self->think = turret_driver_link;
 	self->nextthink = level.time + FRAMETIME;
 
+	gi.linkentity (self);
+}
+
+
+/*
+turret_invisible_brain: Rogue's unmanned gunner, which the 2023 re-release
+has in its own game and uses in its jail1 -- the big gun over the main gate
+that blasts the gate open once the button is pressed. This is the
+re-release's (rogue/src/g_turret.c is older): its spawnflag 1 fires without
+a line of sight to what it aims at, which jail1's needs, aiming at a point
+behind the wall it is to break.
+
+It only ever aims at its killtarget, so where Rogue's looks for a new
+enemy once that one is gone, this one stops.
+*/
+#define TURRET_BRAIN_IGNORE_SIGHT	1
+
+void turret_brain_think (edict_t *self)
+{
+	vec3_t	dir, endpos;
+	float	reaction_time;
+	trace_t	trace;
+
+	self->nextthink = level.time + FRAMETIME;
+
+	if (self->enemy && (!self->enemy->inuse
+		|| (self->enemy->takedamage && self->enemy->health <= 0)))
+		self->enemy = NULL;
+	if (!self->enemy)
+		return;
+
+	// the centre of its box: it was made to shoot at func_trains and such
+	VectorAdd (self->enemy->absmax, self->enemy->absmin, endpos);
+	VectorScale (endpos, 0.5, endpos);
+
+	if (!(self->spawnflags & TURRET_BRAIN_IGNORE_SIGHT))
+	{
+		trace = gi.trace (self->target_ent->s.origin, vec3_origin, vec3_origin,
+			endpos, self->target_ent, MASK_SHOT);
+		if (trace.fraction == 1 || trace.ent == self->enemy)
+		{
+			if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
+			{
+				self->monsterinfo.trail_time = level.time;
+				self->monsterinfo.aiflags &= ~AI_LOST_SIGHT;
+			}
+		}
+		else
+		{
+			self->monsterinfo.aiflags |= AI_LOST_SIGHT;
+			return;
+		}
+	}
+
+	// let the turret know where we want it to aim
+	VectorSubtract (endpos, self->target_ent->s.origin, dir);
+	vectoangles (dir, self->target_ent->move_angles);
+
+	// decide if we should shoot
+	if (level.time < self->monsterinfo.attack_finished)
+		return;
+
+	if (self->delay)
+		reaction_time = self->delay;
+	else
+		reaction_time = 3 - skill->value;
+	if (level.time - self->monsterinfo.trail_time < reaction_time)
+		return;
+
+	self->monsterinfo.attack_finished = level.time + reaction_time + 1.0;
+	self->target_ent->spawnflags |= 65536;	// turret_breach_think fires
+}
+
+void turret_brain_link (edict_t *self)
+{
+	vec3_t	vec;
+	edict_t	*ent;
+
+	if (self->killtarget)
+		self->enemy = G_PickTarget (self->killtarget);
+
+	self->target_ent = G_PickTarget (self->target);
+	if (!self->target_ent || !self->target_ent->teammaster)
+	{
+		gi.dprintf ("turret_invisible_brain at %s: no turret_breach \"%s\"\n",
+			vtos (self->s.origin), self->target);
+		G_FreeEdict (self);
+		return;
+	}
+
+	self->think = turret_brain_think;
+	self->nextthink = level.time + FRAMETIME;
+	self->monsterinfo.trail_time = level.time;
+
+	self->target_ent->owner = self;
+	self->target_ent->teammaster->owner = self;
+	VectorCopy (self->target_ent->s.angles, self->s.angles);
+
+	vec[0] = self->target_ent->s.origin[0] - self->s.origin[0];
+	vec[1] = self->target_ent->s.origin[1] - self->s.origin[1];
+	vec[2] = 0;
+	self->move_origin[0] = VectorLength (vec);
+
+	VectorSubtract (self->s.origin, self->target_ent->s.origin, vec);
+	vectoangles (vec, vec);
+	AnglesNormalize (vec);
+	self->move_origin[1] = vec[1];
+
+	self->move_origin[2] = self->s.origin[2] - self->target_ent->s.origin[2];
+
+	// add the brain to the end of the team chain
+	for (ent = self->target_ent->teammaster ; ent->teamchain ; ent = ent->teamchain)
+		;
+	ent->teamchain = self;
+	self->teammaster = self->target_ent->teammaster;
+	self->flags |= FL_TEAMSLAVE;
+}
+
+void turret_brain_deactivate (edict_t *self, edict_t *other, edict_t *activator)
+{
+	self->think = NULL;
+	self->nextthink = 0;
+}
+
+void turret_brain_activate (edict_t *self, edict_t *other, edict_t *activator)
+{
+	// wait before the first shot: "wait", or 3 seconds
+	self->monsterinfo.attack_finished = level.time + (self->wait ? self->wait : 3);
+	self->use = turret_brain_deactivate;
+	self->activator = activator;
+
+	self->think = turret_brain_link;
+	self->nextthink = level.time + FRAMETIME;
+}
+
+/*QUAKED turret_invisible_brain (1 .5 0) (-16 -16 -16) (16 16 16) IGNORE_SIGHT
+Invisible brain to drive the turret.
+
+Does not search for targets. If targeted, can only be turned on once
+and then off once. After that they are completely disabled.
+
+"delay" the delay between firing (default ramps for skill level)
+"wait" how long after it is turned on before it may fire, 3 by default
+"target" the turret breach
+"killtarget" the thing you want it to attack.
+Target the brain if you want it activated later, instead of immediately.
+*/
+void SP_turret_invisible_brain (edict_t *self)
+{
+	if (!self->killtarget)
+	{
+		gi.dprintf ("turret_invisible_brain with no killtarget!\n");
+		G_FreeEdict (self);
+		return;
+	}
+	if (!self->target)
+	{
+		gi.dprintf ("turret_invisible_brain with no target!\n");
+		G_FreeEdict (self);
+		return;
+	}
+
+	if (self->targetname)
+		self->use = turret_brain_activate;
+	else
+	{
+		self->think = turret_brain_link;
+		self->nextthink = level.time + FRAMETIME;
+	}
+
+	self->movetype = MOVETYPE_PUSH;
 	gi.linkentity (self);
 }

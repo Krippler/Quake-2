@@ -145,6 +145,7 @@ void SP_monster_commander_body (edict_t *self);
 void SP_turret_breach (edict_t *self);
 void SP_turret_base (edict_t *self);
 void SP_turret_driver (edict_t *self);
+void SP_turret_invisible_brain (edict_t *self);
 
 
 spawn_t	spawns[] = {
@@ -268,6 +269,7 @@ spawn_t	spawns[] = {
 	{"turret_breach", SP_turret_breach},
 	{"turret_base", SP_turret_base},
 	{"turret_driver", SP_turret_driver},
+	{"turret_invisible_brain", SP_turret_invisible_brain},
 
 	{NULL, NULL}
 };

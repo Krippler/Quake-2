@@ -5,6 +5,18 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Added
+
+- **The big gun over the re-release's Main Gate fires.** Pressing the gate
+  button arms the gate, and the turret above swings round and blasts it
+  open, as the re-release plays it; before, the gate simply blew up and
+  the gun sat still. That takes Ground Zero's `turret_invisible_brain`,
+  the re-release's `func_explosive` that waits to be armed (and the one
+  that can always be shot, like the Hangar's fuses), and a turret's
+  rockets doing the damage the map gives them.
+
 ## [1.3.9] — 2026-10-21
 
 ### Fixed
