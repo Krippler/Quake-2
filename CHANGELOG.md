@@ -5,6 +5,16 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **A flat brown band across the view** at the re-release's Main Gate,
+  whenever the lift beside the gate was up: the renderer, cutting the
+  lift's faces along the map's walls, lost an edge of its rim where the rim
+  lies in the plane of the shaft's diagonal walls, and drew that piece on
+  to the edge of the screen.
+
 ## [1.3.11] — 2026-10-22
 
 ### Added
