@@ -364,6 +364,15 @@ typedef struct
 	float		maxyaw;
 	float		minpitch;
 	float		maxpitch;
+
+	// the 2023 re-release's real-time lights (g_misc.c)
+	float		sl_radius;
+	float		sl_intensity;
+	float		sl_fade_start;
+	float		sl_fade_end;
+	int			sl_style;
+	float		sl_coneangle;
+	char		*sl_styletarget;
 } spawn_temp_t;
 
 
@@ -704,6 +713,8 @@ void ThrowHead (edict_t *self, char *gibname, int damage, int type);
 void ThrowClientHead (edict_t *self, int damage);
 void ThrowGib (edict_t *self, char *gibname, int damage, int type);
 void BecomeExplosion1(edict_t *self);
+void G_ClearShadowLights (void);
+void G_SetupShadowLights (void);
 
 //
 // g_ai.c
@@ -1107,6 +1118,8 @@ struct edict_s
 
 	int			style;			// also used as areaportal number
 	int			plat2flags;		// func_plat2's state (g_func.c)
+	char		*shadowlight;	// a dynamic_light's configstring, for when it is
+	int			shadowlight_cs;	// switched back on, and which it is
 
 	gitem_t		*item;			// for bonus items
 

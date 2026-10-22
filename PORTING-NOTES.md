@@ -214,9 +214,8 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   world space to it. `Mod_LoadDecoupledLightmaps` resamples each onto the
   16-unit grid at the face's `texturemins` that the surface cache and
   `R_LightPoint` index: each grid point is taken back onto the face's plane
-  and read bilinearly from the re-release's lightmap. Its real-time
-  `dynamic_light` entities and see-through grates are not drawn, so the few
-  surfaces lit only by those stay dark.
+  and read bilinearly from the re-release's lightmap. Its see-through grates
+  are not drawn as such; its real-time lights are, below.
 - **`ref_soft/r_model.c`**: the renderer caches an edge once a frame for
   the two faces that share it, one winding each way; id's compiler never
   shared one more widely. The re-release's maps do (1712 uses in base1, 0 in
@@ -256,9 +255,24 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   `func_plat2` from `rogue/src/g_func.c` with the re-release's changes
   (spawnflag 8 is `START_ACTIVE`; a trigger's call is not held back; a
   blocker killed does not turn it round). What the 1997 game still passes
-  over is the re-release's decoration and bot hints (`dynamic_light`,
-  `target_poi`, `info_landmark`, `info_nav_lock`, `func_animation`,
+  over is the re-release's decoration and bot hints (`target_poi`, `info_landmark`, `info_nav_lock`, `func_animation`,
   `misc_model`, `misc_player_mannequin`).
+- **`game/g_misc.c`**, **`client/cl_fx.c`**, **`ref_soft/r_light.c`**: the
+  re-release's real-time lights, a `dynamic_light` at each lamp (or
+  `shadowlight` keys on a `light`), up to 69 a map: radius, intensity, a
+  cone toward a target, a light style. The game gives each to the client in
+  a configstring of its own from `CS_SHADOWLIGHTS` (the base game's unused
+  general ones), emptied while a named one is switched off; the client
+  passes those in the view's PVS, nearest first, to the refresh, flickering
+  and fading as the map asks; the refresh adds them to the lightmaps of the
+  surfaces each can see and to models. 1997's dynamic lights go through
+  walls; these do not: the first time a light is in view, lines through the
+  BSP from it to points of each surface in its reach say which it lights,
+  kept until the map changes. Nor are they relit every frame, as 1997's
+  are: a surface's cache entry is marked with which lamps are on it and how
+  bright, and kept until that changes, so a steady lamp costs nothing after
+  the first frame. Shadows of moving things, the re-release's, are not
+  drawn.
 - **`game/g_turret.c`**, **`game/g_misc.c`**: jail1's big gun.
   `turret_invisible_brain` drives a `turret_breach` with no one in it; the
   re-release's version, which can fire without seeing its mark (spawnflag

@@ -31,7 +31,8 @@ opens the console.
 
 The picture is id's software renderer, at any resolution up to 1920x1200,
 with the maps' coloured light drawn in the palette's colours (**Options →
-Video → coloured light** turns it off, as in 1997).
+Video → coloured light** turns it off, as in 1997), and the re-release's
+lamps lighting its remade maps as it goes (**lamp lights**).
 
 ## On a Linux desktop
 

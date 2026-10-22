@@ -147,6 +147,16 @@ field_t fields[] = {
 	{"height", STOFS(height), F_INT, FFL_SPAWNTEMP},
 	{"noise", STOFS(noise), F_LSTRING, FFL_SPAWNTEMP},
 	{"pausetime", STOFS(pausetime), F_FLOAT, FFL_SPAWNTEMP},
+	{"shadowlightradius", STOFS(sl_radius), F_FLOAT, FFL_SPAWNTEMP},
+	{"shadowlightintensity", STOFS(sl_intensity), F_FLOAT, FFL_SPAWNTEMP},
+	{"shadowlightstartfadedistance", STOFS(sl_fade_start), F_FLOAT, FFL_SPAWNTEMP},
+	{"shadowlightendfadedistance", STOFS(sl_fade_end), F_FLOAT, FFL_SPAWNTEMP},
+	{"shadowlightstyle", STOFS(sl_style), F_INT, FFL_SPAWNTEMP},
+	{"shadowlightconeangle", STOFS(sl_coneangle), F_FLOAT, FFL_SPAWNTEMP},
+	{"shadowlightstyletarget", STOFS(sl_styletarget), F_LSTRING, FFL_SPAWNTEMP},
+	// what the renderer has no use for: it is a shadow map's size
+	{"shadowlightresolution", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"shadowlight", FOFS(shadowlight), F_LSTRING, FFL_NOSPAWN},
 	{"item", STOFS(item), F_LSTRING, FFL_SPAWNTEMP},
 
 //need for item field in edict struct, FFL_SPAWNTEMP item will be skipped on saves

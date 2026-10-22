@@ -66,7 +66,8 @@ The menus and the status bar grow with the resolution; scr_scale at the
 console overrides that (1 is the original, pixel for pixel). Options has a
 music volume slider beside the effects volume.
 The maps' coloured light is drawn in colour; "coloured light" in Options ->
-Video turns it off, as the original was, or to half.
+Video turns it off, as the original was, or to half. The re-release's lamps
+light its remade maps as you go; "lamp lights" there turns them off.
 
 The mouse is held while you play, and let go in the menus and the console,
 and when another window has the focus. "hold mouse" in the Video menu turns

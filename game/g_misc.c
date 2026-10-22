@@ -556,8 +556,144 @@ static void light_use (edict_t *self, edict_t *other, edict_t *activator)
 	}
 }
 
+/*
+=================
+The 2023 re-release's real-time lights
+
+Its maps put a dynamic_light at a lamp, or "shadowlight" keys on a light,
+for its own renderer to light the level with as it goes, shadows and all:
+a radius, an intensity, a cone toward a target, a light style to flicker
+by. Each is given to the client here in a configstring of its own, from
+CS_SHADOWLIGHTS, as
+
+	L x y z radius intensity style fade_start fade_end cone pitch yaw
+
+cone 0 for one that shines all round. The client lights with the ones the
+player can see (cl_fx.c, CL_AddShadowLights). A dynamic_light with a name
+is switched on and off by it, its configstring then empty.
+=================
+*/
+#define MAX_SHADOWLIGHTS	MAX_SHADOWLIGHT_CS
+
+typedef struct
+{
+	edict_t		*ent;		// a dynamic_light, kept to be switched
+	vec3_t		origin;
+	char		*target, *styletarget;
+	float		radius, intensity, fade_start, fade_end, coneangle;
+	int			style;
+	qboolean	start_off;
+} shadowlight_t;
+
+static shadowlight_t	shadowlights[MAX_SHADOWLIGHTS];
+static int				numshadowlights;
+
+void G_ClearShadowLights (void)
+{
+	numshadowlights = 0;
+}
+
+// from the keys just parsed into st, for an entity being spawned
+static void G_AddShadowLight (edict_t *self, qboolean keep)
+{
+	shadowlight_t	*sl;
+
+	if (st.sl_radius <= 0 || numshadowlights == MAX_SHADOWLIGHTS)
+		return;
+	sl = &shadowlights[numshadowlights++];
+	memset (sl, 0, sizeof(*sl));
+	sl->ent = keep ? self : NULL;
+	VectorCopy (self->s.origin, sl->origin);
+	sl->target = self->target;
+	sl->styletarget = st.sl_styletarget;
+	sl->radius = st.sl_radius;
+	sl->intensity = st.sl_intensity ? st.sl_intensity : 1;
+	sl->fade_start = st.sl_fade_start;
+	sl->fade_end = st.sl_fade_end;
+	sl->coneangle = st.sl_coneangle ? st.sl_coneangle : 45;
+	sl->style = st.sl_style;
+	sl->start_off = keep && (self->spawnflags & START_OFF);
+	if (keep)
+		self->shadowlight_cs = CS_SHADOWLIGHTS + numshadowlights - 1;
+}
+
+// once every entity is there: the cones' targets, the styles' lights
+void G_SetupShadowLights (void)
+{
+	shadowlight_t	*sl;
+	edict_t			*t;
+	vec3_t			dir, angles;
+	char			*s;
+	int				i, cone;
+
+	for (i=0, sl=shadowlights ; i<numshadowlights ; i++, sl++)
+	{
+		cone = 0;
+		VectorClear (angles);
+		if (sl->target && (t = G_Find (NULL, FOFS(targetname), sl->target)) != NULL)
+		{
+			VectorSubtract (t->s.origin, sl->origin, dir);
+			if (VectorNormalize (dir))
+			{
+				vectoangles (dir, angles);
+				cone = (int)sl->coneangle;
+				if (cone < 1)
+					cone = 1;
+			}
+		}
+		if (sl->styletarget && (t = G_Find (NULL, FOFS(targetname), sl->styletarget)) != NULL)
+			sl->style = t->style;
+
+		s = va ("L %d %d %d %d %.2f %d %d %d %d %d %d",
+			(int)sl->origin[0], (int)sl->origin[1], (int)sl->origin[2],
+			(int)sl->radius, sl->intensity,
+			sl->style > 0 && sl->style < MAX_LIGHTSTYLES ? sl->style : 0,
+			(int)sl->fade_start, (int)sl->fade_end,
+			cone, (int)angles[PITCH], (int)angles[YAW]);
+		if (sl->ent)
+		{
+			sl->ent->shadowlight = G_CopyString (s);
+			if (sl->start_off)
+				continue;
+		}
+		gi.configstring (CS_SHADOWLIGHTS + i, s);
+	}
+}
+
+void dynamic_light_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	self->spawnflags ^= START_OFF;
+	gi.configstring (self->shadowlight_cs,
+		(self->spawnflags & START_OFF) || !self->shadowlight ? "" : self->shadowlight);
+}
+
+/*QUAKED dynamic_light (0 1 0) (-8 -8 -8) (8 8 8) START_OFF
+The re-release's real-time light. A name switches it on and off.
+"shadowlightradius", "shadowlightintensity", "shadowlightconeangle" with a
+"target" to shine at, "shadowlightstyle" or "shadowlightstyletarget",
+"shadowlightstartfadedistance" and "shadowlightendfadedistance".
+*/
+void SP_dynamic_light (edict_t *self)
+{
+	if (st.sl_radius <= 0)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+	G_AddShadowLight (self, self->targetname != NULL);
+	if (self->targetname)
+	{
+		self->use = dynamic_light_use;
+		self->svflags |= SVF_NOCLIENT;
+	}
+	else
+		G_FreeEdict (self);
+}
+
 void SP_light (edict_t *self)
 {
+	G_AddShadowLight (self, false);
+
 	// no targeted lights in deathmatch, because they cause global messages
 	if (!self->targetname || deathmatch->value)
 	{

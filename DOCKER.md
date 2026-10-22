@@ -60,9 +60,8 @@ the container takes them out of it and the game shows them in the original
 font. Mount the re-release's whole folder, or copy `Q2Game.kpf` anywhere
 into the mount; without it the log says so, and each message is worded from
 its name instead ("Establish communication", "Secondary mission
-objective"), which is close but not always all of it. Two things the re-release draws are not here: its real-time shadowed
-lights (`dynamic_light`) and see-through grates, so a few surfaces lit only
-by those are darker than in the re-release.
+objective"), which is close but not always all of it. The re-release's
+see-through grates are not drawn as such.
 
 Each other directory with pak files, a `maps` directory or a
 `gamex86_64.so` in it is a game: `ctf`, a mission pack, a mod. Start on one
@@ -190,6 +189,15 @@ blue and green of the re-release's -- is drawn in the palette's colours, as
 are coloured flashes from weapons. **coloured light** in Options → Video
 turns it off, as in 1997, or to half; `sw_colorlight` at the console is the
 same setting.
+
+The re-release lights its remade maps with real-time lights at their lamps
+as well as their lightmaps, some of them spotlights, some flickering, some
+switched by the level. They are drawn here as white light on the walls,
+floors and monsters each lamp can see -- not through walls, but without the
+re-release's shadows of moving things. **lamp lights** in Options → Video
+turns them off (`cl_shadowlights 0`); `cl_shadowlight_scale`, 80 by
+default, is how bright they are. A lit surface is kept in the renderer's
+cache while its lamps stay as they are, so they cost next to nothing.
 
 The renderer is in software, so every pixel costs CPU. The log says how many
 cores the container was given.

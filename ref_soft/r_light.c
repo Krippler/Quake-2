@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 int	r_dlightframecount;
 
+static void R_ShadowLightPoint (vec3_t p, vec3_t color);
+
 
 /*
 =============================================================================
@@ -269,6 +271,8 @@ void R_LightPoint (vec3_t p, vec3_t color)
 			VectorMA (color, add, dl->color, color);
 		}
 	}
+
+	R_ShadowLightPoint (currententity->origin, color);
 }
 
 //===================================================================
@@ -286,6 +290,7 @@ With rgb, into blockrgb, each light in its colour; otherwise into the
 brightness of blocklights, as id wrote it.
 */
 static void R_AddDynamicLightsTo (qboolean rgb);
+static void R_AddShadowLightsTo (qboolean rgb);
 
 void R_AddDynamicLights (void)
 {
@@ -463,6 +468,8 @@ static void R_BuildColorLight (int size)
 	}
 	if (surf->dlightframe == r_framecount)
 		R_AddDynamicLightsTo (true);
+	if (surf->slframe == r_framecount)
+		R_AddShadowLightsTo (true);
 
 	for (i=0, p = blockrgb, q = blocktint ; i<size ; i++, p+=3, q+=3)
 	{
@@ -538,6 +545,8 @@ void R_BuildLightMap (void)
 // add all the dynamic lights
 	if (surf->dlightframe == r_framecount)
 		R_AddDynamicLights ();
+	if (surf->slframe == r_framecount)
+		R_AddShadowLightsTo (false);
 
 	R_BuildColorLight (size);
 
@@ -556,3 +565,358 @@ void R_BuildLightMap (void)
 	}
 }
 
+
+/*
+=============================================================================
+
+THE RE-RELEASE'S REAL-TIME LIGHTS
+
+The 2023 re-release lights its remade levels with lights of its own as
+well as their lightmaps, which its renderer draws with shadows. Here they
+are white light added to the lightmaps of the walls each can see, falling
+off to nothing at its radius, and to the models it can see; a spotlight
+only within its cone. A light behind a wall does not shine through it, as
+1997's dynamic lights do: which of the world's surfaces each light can see
+is worked out the first time it is in view, by lines through the BSP from
+the light to points of the surface, and kept until the map changes.
+
+The lights do not move, so a lit surface stays in the surface cache as
+long as the lights on it keep their brightness: it is the slkey a surface
+is marked with, of which lights are on it and how bright, that tells
+D_CacheSurface whether to light it again, rather than a dynamic light's
+every frame.
+=============================================================================
+*/
+
+typedef struct
+{
+	model_t		*world;		// what it was worked out in, and when:
+	int			sequence;	// a new map can be in the same model_t
+	vec3_t		origin;		// as given
+	float		radius;
+	vec3_t		from;		// where lines are drawn from: out of a wall's solid
+	byte		*vis;		// the world's surfaces it can see, a bit each
+	int			*list;		// the same, by number
+	int			numlist;
+} rshadowlight_t;
+
+static rshadowlight_t	r_slcache[MAX_SHADOWLIGHT_CS+1];	// by id
+static shadowlight_t	*r_sl[MAX_SHADOWLIGHTS];		// this frame's, with their cache
+static rshadowlight_t	*r_slc[MAX_SHADOWLIGHTS];
+static int				r_numsl;
+
+// whether the line from start to end goes through solid
+static qboolean R_LineBlocked (mnode_t *node, vec3_t start, vec3_t end)
+{
+	float	front, back, frac;
+	vec3_t	mid;
+	int		side;
+
+	while (node->contents == CONTENTS_NODE)
+	{
+		front = DotProduct (start, node->plane->normal) - node->plane->dist;
+		back = DotProduct (end, node->plane->normal) - node->plane->dist;
+		if (front >= 0 && back >= 0)
+		{
+			node = node->children[0];
+			continue;
+		}
+		if (front < 0 && back < 0)
+		{
+			node = node->children[1];
+			continue;
+		}
+		side = front < 0;
+		frac = front / (front - back);
+		mid[0] = start[0] + frac*(end[0] - start[0]);
+		mid[1] = start[1] + frac*(end[1] - start[1]);
+		mid[2] = start[2] + frac*(end[2] - start[2]);
+		if (R_LineBlocked (node->children[side], start, mid))
+			return true;
+		start = mid;
+		node = node->children[!side];
+	}
+	return (((mleaf_t *)node)->contents & CONTENTS_SOLID) != 0;
+}
+
+static qboolean R_PointSolid (vec3_t p)
+{
+	mnode_t	*node = r_worldmodel->nodes;
+
+	while (node->contents == CONTENTS_NODE)
+		node = node->children[DotProduct (p, node->plane->normal) - node->plane->dist < 0];
+	return (((mleaf_t *)node)->contents & CONTENTS_SOLID) != 0;
+}
+
+static void R_ShadowLightCache (rshadowlight_t *c, shadowlight_t *sl)
+{
+	static float	nudge[6][3] = {{0,0,-1},{0,0,1},{1,0,0},{-1,0,0},{0,1,0},{0,-1,0}};
+	msurface_t	*surf;
+	medge_t		*edge;
+	vec3_t		v[64], centre, p, d;
+	float		dist, size, f;
+	int			i, j, k, e, n, step, surfnum;
+
+	if (c->vis)
+		free (c->vis);
+	if (c->list)
+		free (c->list);
+	memset (c, 0, sizeof(*c));
+	c->world = r_worldmodel;
+	c->sequence = registration_sequence;
+	VectorCopy (sl->origin, c->origin);
+	c->radius = sl->radius;
+
+	// a lamp's light is often put in the lamp
+	VectorCopy (sl->origin, c->from);
+	for (k=1 ; k<=4 && R_PointSolid (c->from) ; k++)
+		for (i=0 ; i<6 ; i++)
+		{
+			VectorMA (sl->origin, k*4, nudge[i], c->from);
+			if (!R_PointSolid (c->from))
+				break;
+		}
+
+	c->vis = calloc ((r_worldmodel->numsurfaces + 7) >> 3, 1);
+	c->list = malloc (r_worldmodel->nummodelsurfaces * sizeof(int));
+	if (!c->vis || !c->list)
+		return;
+
+	for (i=0 ; i<r_worldmodel->nummodelsurfaces ; i++)
+	{
+		surfnum = r_worldmodel->firstmodelsurface + i;
+		surf = r_worldmodel->surfaces + surfnum;
+		if (surf->flags & (SURF_DRAWSKY|SURF_DRAWTURB|SURF_DRAWSKYBOX) || !surf->samples)
+			continue;
+
+		// facing it, near enough
+		dist = DotProduct (c->from, surf->plane->normal) - surf->plane->dist;
+		if (surf->flags & SURF_PLANEBACK)
+			dist = -dist;
+		if (dist <= 0 || dist >= c->radius)
+			continue;
+
+		n = surf->numedges < 64 ? surf->numedges : 64;
+		VectorClear (centre);
+		for (j=0 ; j<n ; j++)
+		{
+			e = r_worldmodel->surfedges[surf->firstedge + j];
+			edge = &r_worldmodel->edges[e >= 0 ? e : -e];
+			VectorCopy (r_worldmodel->vertexes[edge->v[e >= 0 ? 0 : 1]].position, v[j]);
+			VectorAdd (centre, v[j], centre);
+		}
+		if (!n)
+			continue;
+		VectorScale (centre, 1.0/n, centre);
+		size = 0;
+		for (j=0 ; j<n ; j++)
+		{
+			VectorSubtract (v[j], centre, d);
+			f = VectorLength (d);
+			if (f > size)
+				size = f;
+		}
+		VectorSubtract (centre, c->from, d);
+		if (VectorLength (d) - size >= c->radius)
+			continue;
+
+		// seen from it at the middle or toward any of up to 8 corners,
+		// a unit off the face
+		step = n > 8 ? n / 8 : 1;
+		for (j=-1 ; j<n ; j += (j < 0 ? 1 : step))
+		{
+			if (j < 0)
+				VectorCopy (centre, p);
+			else
+				for (k=0 ; k<3 ; k++)
+					p[k] = v[j][k] + (centre[k] - v[j][k]) * 0.2;
+			f = (surf->flags & SURF_PLANEBACK) ? -1 : 1;
+			VectorMA (p, f, surf->plane->normal, p);
+			if (!R_LineBlocked (r_worldmodel->nodes, c->from, p))
+				break;
+		}
+		if (j >= n)
+			continue;
+
+		c->vis[surfnum >> 3] |= 1 << (surfnum & 7);
+		c->list[c->numlist++] = surfnum;
+	}
+}
+
+/*
+=============
+R_PushShadowLights
+
+Before the world is drawn: each light's cache, made if it is not there,
+and the surfaces it falls on marked with it.
+=============
+*/
+void R_PushShadowLights (void)
+{
+	shadowlight_t	*sl;
+	rshadowlight_t	*c;
+	msurface_t		*surf;
+	unsigned		key;
+	int				i, j;
+
+	r_numsl = 0;
+	if (!r_worldmodel || !r_worldmodel->lightdata || r_fullbright->value)
+		return;
+
+	for (i=0, sl=r_newrefdef.shadowlights ; i<r_newrefdef.num_shadowlights ; i++, sl++)
+	{
+		if (sl->id <= 0 || sl->id > MAX_SHADOWLIGHT_CS || r_numsl == MAX_SHADOWLIGHTS)
+			continue;
+		c = &r_slcache[sl->id];
+		if (c->world != r_worldmodel || c->sequence != registration_sequence
+			|| !VectorCompare (c->origin, sl->origin) || c->radius != sl->radius)
+			R_ShadowLightCache (c, sl);
+		if (!c->vis)
+			continue;
+		r_sl[r_numsl] = sl;
+		r_slc[r_numsl++] = c;
+
+		// which light, how bright, and pointing where, for the cache
+		key = sl->id * 2654435761u ^ (unsigned)(sl->brightness * 4);
+		key = key * 2246822519u ^ (unsigned)(sl->spot[0]*64 + sl->spot[1]*4096 + sl->spot[2]*262144);
+		for (j=0 ; j<c->numlist ; j++)
+		{
+			surf = r_worldmodel->surfaces + c->list[j];
+			if (surf->slframe != r_framecount)
+			{
+				surf->slframe = r_framecount;
+				surf->slkey = 0;
+			}
+			surf->slkey = (surf->slkey + key) * 3266489917u + 1;
+		}
+	}
+}
+
+/*
+=============
+R_AddShadowLightsTo
+
+Each light marked on r_drawsurf's surface, into its lightmap: blocklights,
+or with rgb blockrgb, in the same 8.8 a lightmap's brightness is.
+=============
+*/
+static void R_AddShadowLightsTo (qboolean rgb)
+{
+	msurface_t		*surf = r_drawsurf.surf;
+	mtexinfo_t		*tex = surf->texinfo;
+	shadowlight_t	*sl;
+	vec3_t			n, c1, c2, c3, p0, ds, dt, p, d;
+	float			det, a0, b0, planedist, dist, f, cosang, spot;
+	int				i, s, t, smax, tmax, surfnum, add, c, *q;
+
+	surfnum = surf - r_worldmodel->surfaces;
+	smax = (surf->extents[0]>>4)+1;
+	tmax = (surf->extents[1]>>4)+1;
+
+	// a lightmap sample's place in the world: on the plane, where the
+	// texture axes give it its s and t
+	VectorCopy (surf->plane->normal, n);
+	CrossProduct (tex->vecs[1], n, c1);
+	CrossProduct (n, tex->vecs[0], c2);
+	CrossProduct (tex->vecs[0], tex->vecs[1], c3);
+	det = DotProduct (tex->vecs[0], c1);
+	if (fabs (det) < 1e-6)
+		return;
+	a0 = surf->texturemins[0] - tex->vecs[0][3];
+	b0 = surf->texturemins[1] - tex->vecs[1][3];
+	for (i=0 ; i<3 ; i++)
+	{
+		p0[i] = (a0*c1[i] + b0*c2[i] + surf->plane->dist*c3[i]) / det;
+		ds[i] = 16 * c1[i] / det;
+		dt[i] = 16 * c2[i] / det;
+	}
+
+	for (i=0 ; i<r_numsl ; i++)
+	{
+		if (!(r_slc[i]->vis[surfnum >> 3] & (1 << (surfnum & 7))))
+			continue;
+		sl = r_sl[i];
+		planedist = DotProduct (r_slc[i]->from, n) - surf->plane->dist;
+		if (surf->flags & SURF_PLANEBACK)
+			planedist = -planedist;
+		if (planedist <= 0)
+			continue;
+
+		for (t=0 ; t<tmax ; t++)
+			for (s=0 ; s<smax ; s++)
+			{
+				for (c=0 ; c<3 ; c++)
+					p[c] = p0[c] + s*ds[c] + t*dt[c];
+				VectorSubtract (p, sl->origin, d);
+				dist = VectorLength (d);
+				if (dist >= sl->radius)
+					continue;
+				// falling off to its radius, and less at a slant
+				cosang = dist > 1 ? planedist / dist : 1;
+				f = (1 - dist / sl->radius) * (0.35 + 0.65 * cosang);
+				if (sl->spot[0] || sl->spot[1] || sl->spot[2])
+				{
+					spot = dist > 1 ? DotProduct (d, sl->spot) / dist : 1;
+					if (spot <= sl->spotouter)
+						continue;
+					if (spot < sl->spotinner)
+						f *= (spot - sl->spotouter) / (sl->spotinner - sl->spotouter);
+				}
+				add = (int)(sl->brightness * f * 256);
+				if (add <= 0)
+					continue;
+				if (rgb)
+				{
+					q = &blockrgb[(t*smax + s)*3];
+					q[0] += add;
+					q[1] += add;
+					q[2] += add;
+				}
+				else
+					blocklights[t*smax + s] += add;
+			}
+	}
+}
+
+/*
+=============
+R_ShadowLightPoint
+
+A model's light at p from the lights that can see it: added to color, in
+R_LightPoint's 0 to 1 of a lightmap's brightness.
+=============
+*/
+static void R_ShadowLightPoint (vec3_t p, vec3_t color)
+{
+	shadowlight_t	*sl;
+	vec3_t			d, mid;
+	float			dist, f, spot;
+	int				i;
+
+	for (i=0 ; i<r_numsl ; i++)
+	{
+		sl = r_sl[i];
+		VectorSubtract (p, sl->origin, d);
+		dist = VectorLength (d);
+		if (dist >= sl->radius)
+			continue;
+		f = 1 - dist / sl->radius;
+		if (sl->spot[0] || sl->spot[1] || sl->spot[2])
+		{
+			spot = dist > 1 ? DotProduct (d, sl->spot) / dist : 1;
+			if (spot <= sl->spotouter)
+				continue;
+			if (spot < sl->spotinner)
+				f *= (spot - sl->spotouter) / (sl->spotinner - sl->spotouter);
+		}
+		// a model's origin is often at its feet, in the floor's face
+		VectorCopy (p, mid);
+		mid[2] += 16;
+		if (R_LineBlocked (r_worldmodel->nodes, r_slc[i]->from, mid))
+			continue;
+		f *= sl->brightness / 255;
+		color[0] += f;
+		color[1] += f;
+		color[2] += f;
+	}
+}

@@ -2313,3 +2313,151 @@ void CL_ClearEffects (void)
 	CL_ClearDlights ();
 	CL_ClearLightStyles ();
 }
+
+
+/*
+==============
+CL_AddShadowLights
+
+The 2023 re-release's real-time lights, which its maps have at their lamps
+and the game gives us in configstrings (game/g_misc.c): the ones in the
+view's PVS, nearest first, flickering by their light style and fading out
+with distance where the map asks. cl_shadowlights 0 leaves them out;
+cl_shadowlight_scale is how bright an intensity of 1 is at the middle, as
+a lightmap's brightness.
+==============
+*/
+extern int				r_numshadowlights;
+extern shadowlight_t	r_shadowlights[MAX_SHADOWLIGHTS];
+
+typedef struct
+{
+	char		cs[MAX_QPATH];		// what it was parsed from
+	qboolean	valid;
+	vec3_t		origin;
+	float		radius, intensity, fade_start, fade_end;
+	int			style;
+	vec3_t		spot;
+	float		spotouter, spotinner;
+} clshadowlight_t;
+
+static clshadowlight_t	cl_shadowlightcs[MAX_SHADOWLIGHT_CS];
+cvar_t	*cl_shadowlights;
+cvar_t	*cl_shadowlight_scale;
+
+static void CL_ParseShadowLight (clshadowlight_t *sl, char *s)
+{
+	int		x, y, z, radius, style, fs, fe, cone, pitch, yaw;
+	float	intensity;
+	vec3_t	angles;
+
+	strncpy (sl->cs, s, sizeof(sl->cs) - 1);
+	sl->cs[sizeof(sl->cs) - 1] = 0;
+	sl->valid = sscanf (s, "L %d %d %d %d %f %d %d %d %d %d %d", &x, &y, &z,
+		&radius, &intensity, &style, &fs, &fe, &cone, &pitch, &yaw) == 11
+		&& radius > 0;
+	if (!sl->valid)
+		return;
+	VectorSet (sl->origin, x, y, z);
+	sl->radius = radius;
+	sl->intensity = intensity;
+	sl->style = style >= 0 && style < MAX_LIGHTSTYLES ? style : 0;
+	sl->fade_start = fs;
+	sl->fade_end = fe;
+	VectorClear (sl->spot);
+	if (cone > 0)
+	{
+		VectorSet (angles, pitch, yaw, 0);
+		AngleVectors (angles, sl->spot, NULL, NULL);
+		if (cone > 89)
+			cone = 89;
+		sl->spotouter = cos (cone * M_PI / 180);
+		sl->spotinner = cos (cone * 0.75 * M_PI / 180);
+	}
+}
+
+static int ShadowLightCompare (const void *a, const void *b)
+{
+	float	d = ((const float *)a)[1] - ((const float *)b)[1];
+
+	return d < 0 ? -1 : d > 0;
+}
+
+void CL_AddShadowLights (void)
+{
+	clshadowlight_t	*sl;
+	shadowlight_t	*out;
+	float			near[MAX_SHADOWLIGHT_CS][2];	// which, how far
+	float			dist, end, fade, bright;
+	byte			*pvs;
+	int				i, n, cluster;
+	vec3_t			d;
+	char			*cs;
+
+	if (!cl_shadowlights)
+	{
+		cl_shadowlights = Cvar_Get ("cl_shadowlights", "1", CVAR_ARCHIVE);
+		cl_shadowlight_scale = Cvar_Get ("cl_shadowlight_scale", "80", CVAR_ARCHIVE);
+	}
+	if (!cl_shadowlights->value || !cl.refresh_prepped)
+		return;
+
+	cluster = CM_LeafCluster (CM_PointLeafnum (cl.refdef.vieworg));
+	pvs = cluster >= 0 ? CM_ClusterPVS (cluster) : NULL;
+
+	n = 0;
+	for (i=0, sl=cl_shadowlightcs ; i<MAX_SHADOWLIGHT_CS ; i++, sl++)
+	{
+		cs = cl.configstrings[CS_SHADOWLIGHTS+i];
+		if (strcmp (cs, sl->cs))
+			CL_ParseShadowLight (sl, cs);
+		if (!sl->valid)
+			continue;
+		if (pvs)
+		{
+			// one in a wall's solid is let through, by distance alone
+			cluster = CM_LeafCluster (CM_PointLeafnum (sl->origin));
+			if (cluster >= 0 && !(pvs[cluster>>3] & (1<<(cluster&7))))
+				continue;
+		}
+		VectorSubtract (sl->origin, cl.refdef.vieworg, d);
+		dist = VectorLength (d);
+		if (dist > sl->radius + 2048)
+			continue;
+		near[n][0] = i;
+		near[n][1] = dist - sl->radius;
+		n++;
+	}
+	qsort (near, n, sizeof(near[0]), ShadowLightCompare);
+
+	for (i=0 ; i<n && r_numshadowlights < MAX_SHADOWLIGHTS ; i++)
+	{
+		sl = &cl_shadowlightcs[(int)near[i][0]];
+		dist = near[i][1] + sl->radius;
+
+		fade = 1;
+		if (sl->fade_start > 0)
+		{
+			end = sl->fade_end > sl->fade_start ? sl->fade_end : sl->fade_start + 512;
+			if (dist >= end)
+				continue;
+			if (dist > sl->fade_start)
+				fade = 1 - (dist - sl->fade_start) / (end - sl->fade_start);
+		}
+
+		bright = sl->intensity * cl_shadowlight_scale->value * fade;
+		if (sl->style)
+			bright *= cl_lightstyle[sl->style].value[0];
+		if (bright <= 0)
+			continue;
+
+		out = &r_shadowlights[r_numshadowlights++];
+		out->id = (int)near[i][0] + 1;
+		VectorCopy (sl->origin, out->origin);
+		out->radius = sl->radius;
+		out->brightness = bright;
+		VectorCopy (sl->spot, out->spot);
+		out->spotouter = sl->spotouter;
+		out->spotinner = sl->spotinner;
+	}
+}

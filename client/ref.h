@@ -91,6 +91,27 @@ typedef struct
 	float	alpha;
 } particle_t;
 
+/*
+One of the 2023 re-release's real-time lights (cl_fx.c, CL_AddShadowLights):
+a white light that falls off to nothing at its radius, as bright at its
+middle as a lightmap's "brightness", and does not shine through walls. A
+spot shines along spot, fully within acos(spotinner) of it and fading to
+nothing at acos(spotouter); a zero spot shines all round. id is which it
+is, the same from frame to frame, for the refresh to keep what it worked
+out about it.
+*/
+#define	MAX_SHADOWLIGHTS	64
+
+typedef struct
+{
+	int		id;
+	vec3_t	origin;
+	float	radius;
+	float	brightness;
+	vec3_t	spot;
+	float	spotouter, spotinner;
+} shadowlight_t;
+
 typedef struct
 {
 	float		rgb[3];			// 0.0 - 2.0
@@ -116,6 +137,9 @@ typedef struct
 
 	int			num_dlights;
 	dlight_t	*dlights;
+
+	int				num_shadowlights;
+	shadowlight_t	*shadowlights;
 
 	int			num_particles;
 	particle_t	*particles;
