@@ -384,6 +384,15 @@ one non-inlined function, the points are reset each call, and a face that
 crosses once is left without the closing edge. Found by rendering every map
 from thousands of random viewpoints in an optimised build.
 
+A face lying in a splitting plane that is not along an axis -- the rim of
+jail1's lift, risen into the plane of the diagonal walls of its shaft --
+came out a few ten-thousandths either side of it at each vertex, and so
+crossed it four times; the closing edge joins one pair, and the piece left
+open drew its spans on to the right of the screen, a flat band of the
+rim's colour across the view whenever the lift was up. Within a hundredth
+of a unit a vertex is on the plane, as one on a plane along an axis
+already was exactly.
+
 **`ref_soft/r_poly.c`**: `R_ClipAndDrawPoly` projected the translucent
 surfaces' vertices without keeping them inside the view as `R_EmitEdge`
 does; a vertex a fraction past the bottom gave a span row past the end of

@@ -55,10 +55,23 @@ the same side of the plane both times: with -ffast-math the compiler is free
 to compute the same expression differently in two places, and a vertex
 lying on the plane -- the 2023 re-release's maps have plenty -- could come
 out on both sides, giving a polygon one crossing instead of two.
+
+And a vertex within a hundredth of a unit of the plane is on it. A face
+lying in the plane itself -- jail1's lift, whose rim is in the plane of the
+diagonal walls of the hole it rises from -- comes out of a plane that is
+not along an axis a few ten-thousandths either side of it at each vertex,
+and so crossing it four times: the closing edge joins only the last pair
+of crossings, and the piece left open drew its spans to the right of the
+screen, a band of its colour across the view. On the plane it does not
+cross at all, and goes whole to the back.
 */
+#define BPOLY_ON_EPSILON	0.01
+
 static __attribute__((noinline)) float R_BPolyDist (mvertex_t *v, mplane_t *p)
 {
-	return DotProduct (v->position, p->normal) - p->dist;
+	float	d = DotProduct (v->position, p->normal) - p->dist;
+
+	return d > -BPOLY_ON_EPSILON && d < BPOLY_ON_EPSILON ? 0 : d;
 }
 
 
