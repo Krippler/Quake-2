@@ -811,6 +811,24 @@ void func_explosive_use(edict_t *self, edict_t *other, edict_t *activator)
 	func_explosive_explode (self, self, other, self->health, vec3_origin);
 }
 
+/*
+INACTIVE, the re-release's (and Rogue's): the use that arms it is from a
+trigger aimed at it by name; it does not blow up then but can be broken
+from that moment on -- jail1's gate, which its big gun then shoots down.
+*/
+void func_explosive_activate (edict_t *self, edict_t *other, edict_t *activator)
+{
+	if (!((other && other->target && !strcmp (other->target, self->targetname))
+		|| (activator && activator->target && !strcmp (activator->target, self->targetname))))
+		return;
+
+	self->use = func_explosive_use;
+	if (!self->health)
+		self->health = 100;
+	self->die = func_explosive_explode;
+	self->takedamage = DAMAGE_YES;
+}
+
 void func_explosive_spawn (edict_t *self, edict_t *other, edict_t *activator)
 {
 	self->solid = SOLID_BSP;
@@ -841,6 +859,12 @@ void SP_func_explosive (edict_t *self)
 		self->solid = SOLID_NOT;
 		self->use = func_explosive_spawn;
 	}
+	else if (self->spawnflags & 8)	// INACTIVE
+	{
+		self->solid = SOLID_BSP;
+		if (self->targetname)
+			self->use = func_explosive_activate;
+	}
 	else
 	{
 		self->solid = SOLID_BSP;
@@ -853,7 +877,9 @@ void SP_func_explosive (edict_t *self)
 	if (self->spawnflags & 4)
 		self->s.effects |= EF_ANIM_ALLFAST;
 
-	if (self->use != func_explosive_use)
+	// ALWAYS_SHOOTABLE (16), the re-release's: breakable though it has a name
+	if ((self->spawnflags & 16)
+		|| (self->use != func_explosive_use && self->use != func_explosive_activate))
 	{
 		if (!self->health)
 			self->health = 100;

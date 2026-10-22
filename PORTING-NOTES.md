@@ -258,8 +258,18 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   blocker killed does not turn it round). What the 1997 game still passes
   over is the re-release's decoration and bot hints (`dynamic_light`,
   `target_poi`, `info_landmark`, `info_nav_lock`, `func_animation`,
-  `misc_model`, `misc_player_mannequin`) and jail1's
-  `turret_invisible_brain`, without which its big gun does not fire.
+  `misc_model`, `misc_player_mannequin`).
+- **`game/g_turret.c`**, **`game/g_misc.c`**: jail1's big gun.
+  `turret_invisible_brain` drives a `turret_breach` with no one in it; the
+  re-release's version, which can fire without seeing its mark (spawnflag
+  1) -- jail1's aims at a point behind the gate it is to break. It aims
+  only at its killtarget; where Rogue's would then look for another enemy
+  (through `FindTarget`, which a brain with no monster functions cannot
+  survive) it stops. The gate is a `func_explosive` with the re-release's
+  INACTIVE (8): the button arms it, the rocket breaks it; ALWAYS_SHOOTABLE
+  (16) came with it, set on hangar1's fuses. No 1997 map sets either. A
+  breach's `count` is its rockets' damage, and a brain's rockets are the
+  player's who set it off, as in the re-release.
 - **`game/p_client.c`**, **`ctf/p_client.c`**, **`xatrix/src/player/client.c`**,
   **`rogue/src/player/client.c`**: a level's exit names where the next
   starts the player; the 1997 Outpost asks for bunk1's `start`, which the
