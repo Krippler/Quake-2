@@ -17,7 +17,8 @@ docker compose up --build
 ## Without a container
 
 The engine needs an X display at depth 8, 15, 16 or 24, plus the X11
-(`libx11`, `libxext`, `libxrandr`) and libsndfile development packages:
+(`libx11`, `libxext`, `libxrandr`), libsndfile and zlib development packages
+(zlib for the re-release's PNG images):
 
 ```
 make -C linux               # -> linux/build/

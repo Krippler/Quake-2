@@ -221,9 +221,9 @@ renderer takes the .tga of the same name instead, in the palette's colours
 software renderer can draw: a sky at 256x256 as the originals are, a
 texture a multiple of 16 on each side and with its four mip levels.
 
-The re-release's .png images are left alone: none is one the 1997 game
-asks for -- they are its own menus, glow maps and the models of its own
-renderer.
+Failing a .tga, a .png of the same name (r_png.c). Most of the re-release's
+are its own engine's -- menus, glow maps, the skins of its MD5 models -- and
+are never asked for; the rest are found as the targas are.
 =========================================================
 */
 
@@ -390,6 +390,11 @@ static image_t *R_LoadTrueColor (char *name, imagetype_t type)
 	memcpy (tganame, name, len - 4);
 	strcpy (tganame + len - 4, ".tga");
 	LoadTGA (tganame, &rgba, &w, &h);
+	if (!rgba)
+	{
+		strcpy (tganame + len - 4, ".png");
+		LoadPNG (tganame, &rgba, &w, &h);
+	}
 	if (!rgba)
 		return NULL;
 

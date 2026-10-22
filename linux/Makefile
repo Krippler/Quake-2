@@ -142,7 +142,7 @@ CLIENT_SRCS = \
 #############################################################################
 REF_SOFT_SRCS = \
 	ref_soft/r_aclip.c ref_soft/r_alias.c ref_soft/r_bsp.c ref_soft/r_draw.c \
-	ref_soft/r_edge.c ref_soft/r_image.c ref_soft/r_light.c ref_soft/r_main.c \
+	ref_soft/r_edge.c ref_soft/r_image.c ref_soft/r_png.c ref_soft/r_light.c ref_soft/r_main.c \
 	ref_soft/r_misc.c ref_soft/r_model.c ref_soft/r_part.c ref_soft/r_poly.c \
 	ref_soft/r_polyse.c ref_soft/r_rast.c ref_soft/r_scan.c \
 	ref_soft/r_sprite.c ref_soft/r_surf.c qcommon/usable.c \
@@ -150,7 +150,7 @@ REF_SOFT_SRCS = \
 
 # -lXrandr lets the video menu resize the X screen as well as the window; see
 # RW_SetScreenSize in rw_x11.c.
-REF_SOFT_LDFLAGS = -lX11 -lXext -lXrandr -lm
+REF_SOFT_LDFLAGS = -lX11 -lXext -lXrandr -lz -lm
 
 #############################################################################
 # The game libraries.
