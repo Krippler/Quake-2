@@ -117,6 +117,9 @@ typedef struct msurface_s
 	byte		*samplesrgb;	// the same, in colour: [numstyles*surfsize*3]
 	qboolean	colored;		// some of it is lit other than white
 
+	int			slframe;		// the frame the re-release's lights were
+	unsigned	slkey;			// marked on it, and which and how bright (r_light.c)
+
 	struct msurface_s *nextalphasurface;
 } msurface_t;
 

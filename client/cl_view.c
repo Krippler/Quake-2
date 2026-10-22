@@ -42,6 +42,9 @@ cvar_t		*cl_stats;
 int			r_numdlights;
 dlight_t	r_dlights[MAX_DLIGHTS];
 
+int				r_numshadowlights;
+shadowlight_t	r_shadowlights[MAX_SHADOWLIGHTS];
+
 int			r_numentities;
 entity_t	r_entities[MAX_ENTITIES];
 
@@ -63,6 +66,7 @@ Specifies the model that will be used as the world
 void V_ClearScene (void)
 {
 	r_numdlights = 0;
+	r_numshadowlights = 0;
 	r_numentities = 0;
 	r_numparticles = 0;
 }
@@ -524,7 +528,7 @@ void V_RenderView( float stereo_separation )
 		if (!cl_add_particles->value)
 			r_numparticles = 0;
 		if (!cl_add_lights->value)
-			r_numdlights = 0;
+			r_numdlights = r_numshadowlights = 0;
 		if (!cl_add_blend->value)
 		{
 			VectorClear (cl.refdef.blend);
@@ -536,6 +540,8 @@ void V_RenderView( float stereo_separation )
 		cl.refdef.particles = r_particles;
 		cl.refdef.num_dlights = r_numdlights;
 		cl.refdef.dlights = r_dlights;
+		cl.refdef.num_shadowlights = r_numshadowlights;
+		cl.refdef.shadowlights = r_shadowlights;
 		cl.refdef.lightstyles = r_lightstyles;
 
 		cl.refdef.rdflags = cl.frame.playerstate.rdflags;

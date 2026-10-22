@@ -1113,6 +1113,11 @@ ROGUE - VERSIONS
 #define CS_GENERAL			(CS_PLAYERSKINS+MAX_CLIENTS)
 #define	MAX_CONFIGSTRINGS	(CS_GENERAL+MAX_GENERAL)
 
+// the 2023 re-release's real-time lights, in the base game's general
+// configstrings, which it uses for nothing else (g_misc.c, cl_fx.c)
+#define	CS_SHADOWLIGHTS		CS_GENERAL
+#define	MAX_SHADOWLIGHT_CS	256
+
 
 //==============================================
 

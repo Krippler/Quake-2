@@ -363,6 +363,7 @@ typedef struct surfcache_s
 	struct surfcache_s      **owner;                // NULL is an empty chunk of memory
 	int                                     lightadj[MAXLIGHTMAPS]; // checked for strobe flush
 	int                                     dlight;
+	unsigned                                slkey;          // msurface_t's when it was lit
 	int                                     size;           // including header
 	unsigned                        width;
 	unsigned                        height;         // DEBUG only needed for debug
@@ -674,6 +675,7 @@ void R_InsertNewEdges (edge_t *edgestoadd, edge_t *edgelist);
 void R_StepActiveU (edge_t *pedge);
 void R_RemoveEdges (edge_t *pedge);
 void R_PushDlights (model_t *model);
+void R_PushShadowLights (void);
 
 extern void R_Surf8Start (void);
 extern void R_Surf8End (void);

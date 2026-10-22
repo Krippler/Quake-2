@@ -91,6 +91,7 @@ void SP_worldspawn (edict_t *ent);
 void SP_viewthing (edict_t *ent);
 
 void SP_light (edict_t *self);
+void SP_dynamic_light (edict_t *self);
 void SP_light_mine1 (edict_t *ent);
 void SP_light_mine2 (edict_t *ent);
 void SP_info_null (edict_t *self);
@@ -213,6 +214,7 @@ spawn_t	spawns[] = {
 	{"viewthing", SP_viewthing},
 
 	{"light", SP_light},
+	{"dynamic_light", SP_dynamic_light},
 	{"light_mine1", SP_light_mine1},
 	{"light_mine2", SP_light_mine2},
 	{"info_null", SP_info_null},
@@ -542,6 +544,7 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	SaveClientData ();
 
 	gi.FreeTags (TAG_LEVEL);
+	G_ClearShadowLights ();
 
 	memset (&level, 0, sizeof(level));
 	memset (g_edicts, 0, game.maxentities * sizeof (g_edicts[0]));
@@ -621,6 +624,7 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 #endif
 
 	G_FindTeams ();
+	G_SetupShadowLights ();
 
 	PlayerTrail_Init ();
 }

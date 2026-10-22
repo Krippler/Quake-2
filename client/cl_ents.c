@@ -1475,6 +1475,7 @@ void CL_AddEntities (void)
 	CL_AddTEnts ();
 	CL_AddParticles ();
 	CL_AddDLights ();
+	CL_AddShadowLights ();
 	CL_AddLightStyles ();
 }
 

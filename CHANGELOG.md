@@ -5,6 +5,18 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.11] — 2026-10-22
+
+### Added
+
+- **The re-release's lamp lights.** Its remade maps light their rooms with
+  real-time lights at the lamps as well as with their lightmaps -- spot
+  lights under fittings, flickering ones, some switched by the level -- and
+  these were left out, so places lit by them were darker than the
+  re-release's. They are drawn now, on walls, floors and monsters, without
+  shining through walls; **lamp lights** in Options → Video turns them off.
+  The re-release's shadows of moving things are not drawn.
+
 ## [1.3.10] — 2026-10-22
 
 ### Added

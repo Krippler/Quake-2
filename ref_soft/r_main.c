@@ -1038,6 +1038,7 @@ void R_RenderFrame (refdef_t *fd)
 	R_MarkLeaves ();	// done here so we know if we're in water
 
 	R_PushDlights (r_worldmodel);
+	R_PushShadowLights ();
 
 	R_EdgeDrawing ();
 

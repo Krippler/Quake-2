@@ -716,6 +716,7 @@ D_CacheSurface
 surfcache_t *D_CacheSurface (msurface_t *surface, int miplevel)
 {
 	surfcache_t     *cache;
+	unsigned		slkey;
 
 //
 // if the surface is animating or flashing, flush the cache
@@ -730,8 +731,10 @@ surfcache_t *D_CacheSurface (msurface_t *surface, int miplevel)
 // see if the cache holds apropriate data
 //
 	cache = surface->cachespots[miplevel];
+	slkey = surface->slframe == r_framecount ? surface->slkey : 0;
 
 	if (cache && !cache->dlight && surface->dlightframe != r_framecount
+			&& cache->slkey == slkey
 			&& cache->image == r_drawsurf.image
 			&& cache->lightadj[0] == r_drawsurf.lightadj[0]
 			&& cache->lightadj[1] == r_drawsurf.lightadj[1]
@@ -764,6 +767,7 @@ surfcache_t *D_CacheSurface (msurface_t *surface, int miplevel)
 		cache->dlight = 1;
 	else
 		cache->dlight = 0;
+	cache->slkey = slkey;
 
 	r_drawsurf.surfdat = (pixel_t *)cache->data;
 	
