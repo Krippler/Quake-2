@@ -5,6 +5,25 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Added
+
+- **The rest of Quake 64's own entities**, as the re-release has them:
+  Orbital Station's low gravity; Space Station's failure that kills the
+  player; the levels' alarms and machinery sounds; their coloured lamp
+  lights that flicker and pulse; Cargo Bay's ship hologram; Geothermal
+  Station's lava balls; Reactor Core's tank that teleports away; and the
+  invisibility powerup, which hides the player from monsters for 30
+  seconds but for a moment after each shot.
+- **Quake 64's mission objectives**: each level's is printed as it starts
+  and as it changes, and the help computer shows the current one.
+- On Quake 64 maps, as on the N64: powerups take effect when picked up,
+  teleporter pads show no destination marker, and monsters standing in
+  triggers do not set them off in the level's first moment.
+
+Its lens flares are not drawn: the lamps they sit on are.
+
 ## [1.3.17] — 2026-10-23
 
 ### Fixed

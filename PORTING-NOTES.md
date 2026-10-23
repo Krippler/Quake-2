@@ -242,6 +242,21 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     that 1997's items keep the numbers saved games hold. Its planted
     charges keep `ITEM_TRIGGER_SPAWN|ITEM_NO_TOUCH`, which `SpawnItem`
     clears from 1997's keys.
+  - The rest of the re-release's Quake 64 entities, from its game source
+    (id's quake2-rerelease-dll, GPL): `target_gravity`,
+    `target_killplayers`, `target_soundfx`, `target_light`,
+    `misc_hologram`, `misc_lavaball`, `monster_tank_stand`,
+    `item_invisibility`; `target_poi` (its compass) and `misc_flare` (its
+    renderer's) are dropped. `target_light` is a light carried by an
+    entity, `RF_CUSTOMLIGHT` (`q_shared.h`), radius in `frame` and colour
+    in `skinnum`, which the client adds as a dynamic light and does not
+    draw (`cl_ents.c`); the game keeps the light styles, `g_lightstyles`,
+    to fade it by, with the re-release's N64 styles 12 to 14.
+    `level.is_n64` for a map in `q64/`: powerups used when picked up,
+    `misc_teleporter_dest` not shown, no `G_TouchTriggers` from a monster
+    in the first frame. Worldspawn's `goals` are the help computer's
+    message, one tab-separated `$key` after another, each `target_goal`
+    going on to the next (`G_SetGoal`, `G_SetClientSound`).
   - `client/cl_loc.c`: the re-release's key hints, `%bind:cmd:text%`
     before a message's words, are left out.
   - `server/sv_ccmds.c`: a level's files in `save/current` are named by

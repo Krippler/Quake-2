@@ -611,6 +611,9 @@ typedef struct
 #define	RF_SHELL_DOUBLE		0x00010000		// 65536
 #define	RF_SHELL_HALF_DAM	0x00020000
 #define RF_USE_DISGUISE		0x00040000
+// the 2023 re-release's target_light: no model, a light of radius frame and
+// colour skinnum (0xRRGGBBxx); RF_CUSTOM_LIGHT in its engine
+#define RF_CUSTOMLIGHT		0x00080000
 //ROGUE
 
 // player_state_t->refdef flags

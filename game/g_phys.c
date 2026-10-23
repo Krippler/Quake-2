@@ -908,7 +908,10 @@ void SV_Physics_Step (edict_t *ent)
 		SV_FlyMove (ent, FRAMETIME, mask);
 
 		gi.linkentity (ent);
-		G_TouchTriggers (ent);
+		// not in a Quake 64 map's first frame, as the re-release: its
+		// monsters stand in triggers that would wake the level at once
+		if (!level.is_n64 || level.time > FRAMETIME)
+			G_TouchTriggers (ent);
 		if (!ent->inuse)
 			return;
 

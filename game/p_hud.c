@@ -48,6 +48,7 @@ void MoveClientToIntermission (edict_t *ent)
 	ent->client->invincible_framenum = 0;
 	ent->client->breather_framenum = 0;
 	ent->client->enviro_framenum = 0;
+	ent->client->invisible_framenum = 0;
 	ent->client->grenade_blew_up = false;
 	ent->client->grenade_time = 0;
 
@@ -465,6 +466,11 @@ void G_SetStats (edict_t *ent)
 	{
 		ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex ("p_envirosuit");
 		ent->client->ps.stats[STAT_TIMER] = (ent->client->enviro_framenum - level.framenum)/10;
+	}
+	else if (ent->client->invisible_framenum > level.framenum)
+	{
+		ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex ("p_cloaker");
+		ent->client->ps.stats[STAT_TIMER] = (ent->client->invisible_framenum - level.framenum)/10;
 	}
 	else if (ent->client->breather_framenum > level.framenum)
 	{

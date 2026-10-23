@@ -73,6 +73,15 @@ void SP_target_speaker (edict_t *ent);
 void SP_target_explosion (edict_t *ent);
 void SP_target_changelevel (edict_t *ent);
 void SP_target_camera (edict_t *ent);
+void SP_target_gravity (edict_t *ent);
+void SP_target_soundfx (edict_t *ent);
+void SP_target_light (edict_t *ent);
+void SP_target_poi (edict_t *ent);
+void SP_target_killplayers (edict_t *ent);
+void SP_misc_flare (edict_t *ent);
+void SP_misc_hologram (edict_t *ent);
+void SP_misc_lavaball (edict_t *ent);
+void SP_monster_tank_stand (edict_t *ent);
 void SP_target_secret (edict_t *ent);
 void SP_target_goal (edict_t *ent);
 void SP_target_splash (edict_t *ent);
@@ -199,6 +208,15 @@ spawn_t	spawns[] = {
 	{"target_explosion", SP_target_explosion},
 	{"target_changelevel", SP_target_changelevel},
 	{"target_camera", SP_target_camera},
+	{"target_gravity", SP_target_gravity},
+	{"target_soundfx", SP_target_soundfx},
+	{"target_light", SP_target_light},
+	{"target_poi", SP_target_poi},
+	{"target_killplayers", SP_target_killplayers},
+	{"misc_flare", SP_misc_flare},
+	{"misc_hologram", SP_misc_hologram},
+	{"misc_lavaball", SP_misc_lavaball},
+	{"monster_tank_stand", SP_monster_tank_stand},
 	{"target_secret", SP_target_secret},
 	{"target_goal", SP_target_goal},
 	{"target_splash", SP_target_splash},
@@ -556,6 +574,7 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	memset (g_edicts, 0, game.maxentities * sizeof (g_edicts[0]));
 
 	strncpy (level.mapname, mapname, sizeof(level.mapname)-1);
+	level.is_n64 = !strncmp (level.mapname, "q64/", 4);
 	strncpy (game.spawnpoint, spawnpoint, sizeof(game.spawnpoint)-1);
 
 	// set client fields on player ents
@@ -799,6 +818,26 @@ char *dm_statusbar =
 ;
 
 
+char	*g_lightstyles[G_NUMLIGHTSTYLES] =
+{
+	"m",											// 0 normal
+	"mmnmmommommnonmmonqnmmo",						// 1 FLICKER (first variety)
+	"abcdefghijklmnopqrstuvwxyzyxwvutsrqponmlkjihgfedcba",	// 2 SLOW STRONG PULSE
+	"mmmmmaaaaammmmmaaaaaabcdefgabcdefg",			// 3 CANDLE (first variety)
+	"mamamamamama",									// 4 FAST STROBE
+	"jklmnopqrstuvwxyzyxwvutsrqponmlkj",			// 5 GENTLE PULSE 1
+	"nmonqnmomnmomomno",							// 6 FLICKER (second variety)
+	"mmmaaaabcdefgmmmmaaaammmaamm",					// 7 CANDLE (second variety)
+	"mmmaaammmaaammmabcdefaaaammmmabcdefmmmaaaa",	// 8 CANDLE (third variety)
+	"aaaaaaaazzzzzzzz",								// 9 SLOW STROBE (fourth variety)
+	"mmamammmmammamamaaamammma",					// 10 FLUORESCENT FLICKER
+	"abcdefghijklmnopqrrqponmlkjihgfedcba",			// 11 SLOW PULSE NOT FADE TO BLACK
+	// the re-release's, for its Quake 64 maps, whose styles are 10 on
+	"zzazazzzzazzazazaaazazzza",					// 12 N64's 2 (fast strobe)
+	"abcdefghijklmnopqrstuvwxyz",					// 13 N64's 3 (half of strong pulse)
+	"abcdefghijklmnopqrstuvwxyzyxwvutsrqponmlkjihgfedcba"	// 14 N64's 4 (fast strobe)
+};
+
 /*QUAKED worldspawn (0 0 0) ?
 
 Only used for the world.
@@ -811,6 +850,8 @@ Only used for the world.
 */
 void SP_worldspawn (edict_t *ent)
 {
+	int		i;
+
 	ent->movetype = MOVETYPE_PUSH;
 	ent->solid = SOLID_BSP;
 	ent->inuse = true;			// since the world doesn't use G_Spawn()
@@ -865,6 +906,14 @@ void SP_worldspawn (edict_t *ent)
 	level.pic_health = gi.imageindex ("i_health");
 	gi.imageindex ("help");
 	gi.imageindex ("field_3");
+
+	// the Quake 64 maps' objectives, which the help computer shows
+	if (st.goals && st.goals[0] && !deathmatch->value)
+	{
+		level.goals = st.goals;
+		level.goal_num = 0;
+		G_SetGoal ();
+	}
 
 	if (!st.gravity)
 		gi.cvar_set("sv_gravity", "800");
@@ -954,44 +1003,11 @@ void SP_worldspawn (edict_t *ent)
 
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is doublebright.
+// The table is kept, g_lightstyles, for the re-release's target_light.
 //
+	for (i=0 ; i<G_NUMLIGHTSTYLES ; i++)
+		gi.configstring(CS_LIGHTS+i, g_lightstyles[i]);
 
-	// 0 normal
-	gi.configstring(CS_LIGHTS+0, "m");
-	
-	// 1 FLICKER (first variety)
-	gi.configstring(CS_LIGHTS+1, "mmnmmommommnonmmonqnmmo");
-	
-	// 2 SLOW STRONG PULSE
-	gi.configstring(CS_LIGHTS+2, "abcdefghijklmnopqrstuvwxyzyxwvutsrqponmlkjihgfedcba");
-	
-	// 3 CANDLE (first variety)
-	gi.configstring(CS_LIGHTS+3, "mmmmmaaaaammmmmaaaaaabcdefgabcdefg");
-	
-	// 4 FAST STROBE
-	gi.configstring(CS_LIGHTS+4, "mamamamamama");
-	
-	// 5 GENTLE PULSE 1
-	gi.configstring(CS_LIGHTS+5,"jklmnopqrstuvwxyzyxwvutsrqponmlkj");
-	
-	// 6 FLICKER (second variety)
-	gi.configstring(CS_LIGHTS+6, "nmonqnmomnmomomno");
-	
-	// 7 CANDLE (second variety)
-	gi.configstring(CS_LIGHTS+7, "mmmaaaabcdefgmmmmaaaammmaamm");
-	
-	// 8 CANDLE (third variety)
-	gi.configstring(CS_LIGHTS+8, "mmmaaammmaaammmabcdefaaaammmmabcdefmmmaaaa");
-	
-	// 9 SLOW STROBE (fourth variety)
-	gi.configstring(CS_LIGHTS+9, "aaaaaaaazzzzzzzz");
-	
-	// 10 FLUORESCENT FLICKER
-	gi.configstring(CS_LIGHTS+10, "mmamammmmammamamaaamammma");
-
-	// 11 SLOW PULSE NOT FADE TO BLACK
-	gi.configstring(CS_LIGHTS+11, "abcdefghijklmnopqrrqponmlkjihgfedcba");
-	
 	// styles 32-62 are assigned by the light program for switchable lights
 
 	// 63 testing

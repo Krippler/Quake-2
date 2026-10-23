@@ -180,6 +180,9 @@ qboolean Pickup_Powerup (edict_t *ent, edict_t *other)
 			ent->item->use (other, ent->item);
 		}
 	}
+	// the N64's powerups take effect when picked up, as the re-release has it
+	else if (level.is_n64 && ent->item->use)
+		ent->item->use (other, ent->item);
 
 	return true;
 }
@@ -389,6 +392,26 @@ void Use_Envirosuit (edict_t *ent, gitem_t *item)
 		ent->client->enviro_framenum = level.framenum + 300;
 
 //	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage.wav"), 1, ATTN_NORM, 0);
+}
+
+//======================================================================
+
+/*
+The re-release's invisibility: for 30 seconds monsters do not see the player
+(visible, g_ai.c), but for a moment after each shot, when they glimpse
+them now and then (PlayerNoise sets the fade); drawn see-through.
+*/
+void Use_Invisibility (edict_t *ent, gitem_t *item)
+{
+	ent->client->pers.inventory[ITEM_INDEX(item)]--;
+	ValidateSelectedItem (ent);
+
+	if (ent->client->invisible_framenum > level.framenum)
+		ent->client->invisible_framenum += 300;
+	else
+		ent->client->invisible_framenum = level.framenum + 300;
+
+	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect.wav"), 1, ATTN_NORM, 0);
 }
 
 //======================================================================
@@ -2117,8 +2140,32 @@ tank commander's head
 /* precache */ "items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav"
 	},
 
-	// The 2023 re-release's Quake 64 keys, after all of 1997's items so
-	// that the numbers of those, which saved games keep, stay as they were
+	// The 2023 re-release's Quake 64 keys and its invisibility, after all
+	// of 1997's items so that the numbers of those, which saved games keep,
+	// stay as they were
+
+/*QUAKED item_invisibility (.3 .3 1) (-16 -16 -16) (16 16 16)
+*/
+	{
+		"item_invisibility",
+		Pickup_Powerup,
+		Use_Invisibility,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/items/cloaker/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_cloaker",
+/* pickup */	"Invisibility",
+/* width */		2,
+		300,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "items/protect.wav"
+	},
 
 /*QUAKED key_explosive_charges (0 .5 .8) (-16 -16 -16) (16 16 16)
 Quake 64: the charges a trigger_key takes to blow a way through

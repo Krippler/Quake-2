@@ -2028,6 +2028,9 @@ Point teleporters at these.
 */
 void SP_misc_teleporter_dest (edict_t *ent)
 {
+	// the re-release's N64 maps have none to be seen
+	if (level.is_n64)
+		return;
 	gi.setmodel (ent, "models/objects/dmspot/tris.md2");
 	ent->s.skinnum = 0;
 	ent->solid = SOLID_BBOX;
@@ -2087,4 +2090,100 @@ Where a trigger_teleport sends players: only looked at.
 */
 void SP_info_teleport_destination (edict_t *self)
 {
+}
+
+/*
+==============================================================================
+
+The 2023 re-release's for its Quake 64 maps
+
+==============================================================================
+*/
+
+/*QUAKED misc_flare (1.0 1.0 0.0) (-32 -32 -32) (32 32 32) RED GREEN BLUE LOCK_ANGLE
+A lens flare, which the re-release's renderer draws at a lamp. This one
+has none, and the lamp is there in the map.
+*/
+void SP_misc_flare (edict_t *ent)
+{
+	G_FreeEdict (ent);
+}
+
+/*QUAKED misc_hologram (1.0 1.0 0.0) (-16 -16 0) (16 16 32)
+A see-through Strogg ship turning: Cargo Bay's.
+*/
+void misc_hologram_think (edict_t *ent)
+{
+	ent->s.angles[YAW] = anglemod (ent->s.angles[YAW] + 100 * FRAMETIME);
+	ent->nextthink = level.time + FRAMETIME;
+}
+
+void SP_misc_hologram (edict_t *ent)
+{
+	ent->solid = SOLID_NOT;
+	ent->s.modelindex = gi.modelindex ("models/ships/strogg1/tris.md2");
+	VectorSet (ent->mins, -16, -16, 0);
+	VectorSet (ent->maxs, 16, 16, 32);
+	ent->s.renderfx = RF_TRANSLUCENT | RF_FULLBRIGHT;
+	ent->think = misc_hologram_think;
+	ent->nextthink = level.time + FRAMETIME;
+	gi.linkentity (ent);
+}
+
+/*QUAKED misc_lavaball (0 .5 .8) (-8 -8 -8) (8 8 8) NO_EXPLODE
+Throws up a ball of fire every few seconds, at "speed", as Quake's lava
+did: Geothermal Station's.
+*/
+#define LAVABALL_NO_EXPLODE	1
+
+void lavaball_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+	if (self->spawnflags & LAVABALL_NO_EXPLODE)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+	if (other->takedamage)
+		T_Damage (other, self, self, vec3_origin, self->s.origin, vec3_origin, 20, 0, 0, MOD_EXPLOSIVE);
+	if (gi.pointcontents (self->s.origin) & CONTENTS_LAVA)
+		G_FreeEdict (self);
+	else
+		BecomeExplosion1 (self);
+}
+
+void lavaball_fly (edict_t *self)
+{
+	edict_t	*ball;
+
+	ball = G_Spawn ();
+	ball->classname = "fireball";
+	ball->s.effects = EF_ROCKET | EF_GIB;
+	ball->s.renderfx = RF_MINLIGHT;
+	ball->solid = SOLID_BBOX;
+	ball->movetype = MOVETYPE_TOSS;
+	ball->clipmask = MASK_SHOT;
+	ball->velocity[0] = crandom() * 50;
+	ball->velocity[1] = crandom() * 50;
+	ball->velocity[2] = self->speed * 1.75 + random() * 200;
+	ball->avelocity[0] = crandom() * 360;
+	ball->avelocity[1] = crandom() * 360;
+	ball->avelocity[2] = crandom() * 360;
+	gi.setmodel (ball, "models/objects/gibs/sm_meat/tris.md2");
+	VectorCopy (self->s.origin, ball->s.origin);
+	ball->nextthink = level.time + 5;
+	ball->think = G_FreeEdict;
+	ball->touch = lavaball_touch;
+	ball->spawnflags = self->spawnflags;
+	gi.linkentity (ball);
+
+	self->nextthink = level.time + random() * 5;
+}
+
+void SP_misc_lavaball (edict_t *self)
+{
+	self->classname = "fireball";
+	self->think = lavaball_fly;
+	self->nextthink = level.time + random() * 5;
+	if (!self->speed)
+		self->speed = 185;
 }

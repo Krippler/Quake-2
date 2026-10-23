@@ -311,6 +311,7 @@ typedef struct
 	float		intermissiontime;		// time the intermission was started
 	char		*changemap;
 	int			exitintermission;
+	qboolean	is_n64;		// a Quake 64 map, q64/: the re-release does some things its way
 	int			camera;		// a target_camera holds the view (g_target.c): 2 once skipped
 	vec3_t		intermission_origin;
 	vec3_t		intermission_angle;
@@ -331,6 +332,8 @@ typedef struct
 
 	int			total_goals;
 	int			found_goals;
+	char		*goals;			// the re-release's Quake 64 objectives, tab between
+	int			goal_num;		// which of them is the player's now
 
 	int			total_monsters;
 	int			killed_monsters;
@@ -374,6 +377,8 @@ typedef struct
 	int			sl_style;
 	float		sl_coneangle;
 	char		*sl_styletarget;
+	float		radius;			// the re-release's target_light
+	char		*goals;			// and worldspawn's Quake 64 objectives
 } spawn_temp_t;
 
 
@@ -643,6 +648,10 @@ void	G_ProjectSource (vec3_t point, vec3_t distance, vec3_t forward, vec3_t righ
 edict_t *G_Find (edict_t *from, int fieldofs, char *match);
 edict_t *findradius (edict_t *from, vec3_t org, float rad);
 edict_t *G_PickTarget (char *targetname);
+void G_SetGoal (void);
+
+#define	G_NUMLIGHTSTYLES	15
+extern char	*g_lightstyles[G_NUMLIGHTSTYLES];	// g_spawn.c
 void	G_UseTargets (edict_t *ent, edict_t *activator);
 void	G_SetMovedir (vec3_t angles, vec3_t movedir);
 
@@ -958,6 +967,8 @@ struct gclient_s
 	float		invincible_framenum;
 	float		breather_framenum;
 	float		enviro_framenum;
+	float		invisible_framenum;			// the re-release's invisibility
+	float		invisibility_fade_framenum;	// seen till then, after a shot
 
 	qboolean	grenade_blew_up;
 	float		grenade_time;
