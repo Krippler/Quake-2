@@ -5,6 +5,22 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Added
+
+- **The Reckoning's gekk and its super tank** (Call of the Machine's
+  `monster_boss5`) as they were made: the gekk spits, leaps, swims and
+  bursts into green gibs; the super tank wears a power shield and its
+  rockets seek their target. All of The Reckoning's monsters are now its
+  own.
+
+### Fixed
+
+- A crash that could come of a monster's skin being read a little outside
+  it, where the model meets the edge of the screen -- a 1997 slip that
+  went unseen in its smaller skins.
+
 ## [1.3.18] — 2026-10-23
 
 ### Added

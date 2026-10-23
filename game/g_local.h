@@ -139,6 +139,7 @@ typedef enum
 #define AI_COMBAT_POINT			0x00001000
 #define AI_MEDIC				0x00002000
 #define AI_RESURRECTING			0x00004000
+#define AI_IGNORE_PAIN			0x00008000	// The Reckoning's: its gekk leaping
 
 //monster attack state
 #define AS_STRAIGHT				1
@@ -518,6 +519,7 @@ extern	int	body_armor_index;
 #define MOD_TARGET_BLASTER	33
 #define MOD_RIPPER			34		// The Reckoning's
 #define MOD_PHALANX			35
+#define MOD_GEKK			36
 #define MOD_FRIENDLY_FIRE	0x8000000
 
 extern	int	meansOfDeath;
@@ -659,6 +661,7 @@ void G_SetGoal (void);
 void monster_fire_blueblaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
 void monster_fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
 void monster_dabeam (edict_t *self);
+void monster_fire_heat (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype);
 void fire_plasma (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void G_HealthTarget (edict_t *self);
 char *G_StandIn (char *classname);

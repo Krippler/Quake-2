@@ -280,7 +280,15 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     phalanx gladiator, skin 2. `MAX_FRAMES` is 1024 (`qfiles.h`): the
     re-release's soldier has 575 frames, its gunner 799; every 1997
     monster's frames are the first of its re-release model's, so the 1997
-    code drives them as it did.
+    code drives them as it did. Its gekk is `m_gekk.c`, its code with its
+    acid gibs, and its super tank `monster_boss5` in `m_supertank.c`: a
+    power shield and `fire_heat`'s seeking rockets. `AI_IGNORE_PAIN`
+    keeps a leaping gekk from its pain (`T_Damage`).
+  - `ref_soft/r_image.c`: a skin is allocated with two rows and more
+    either side of it (`R_AllocPixels`): drawing an alias model steps a
+    texture pointer along each span, and where a triangle is clipped at
+    the screen's edge it can land outside the skin, which ASan caught
+    with the gekk's.
   - `client/cl_loc.c`: the re-release's key hints, `%bind:cmd:text%`
     before a message's words, are left out.
   - `server/sv_ccmds.c`: a level's files in `save/current` are named by

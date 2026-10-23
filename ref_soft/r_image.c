@@ -461,7 +461,7 @@ static image_t *R_LoadTrueColor (char *name, imagetype_t type)
 	}
 	else
 	{
-		image->pixels[0] = malloc (nw*nh);
+		image->pixels[0] = R_AllocPixels (image, nw*nh);
 		R_QuantizeRGBA (sized, image->pixels[0], nw*nh, type != it_sky);
 		for (i=0 ; i<nw*nh ; i++)
 			if (image->pixels[0][i] == 255)
@@ -500,6 +500,37 @@ image_t *R_FindFreeImage (void)
 
 /*
 ================
+R_AllocPixels, R_FreePixels
+
+A skin's pixels with room on either side of them: the alias model
+drawing steps a texture pointer along a span, and where a triangle meets
+the edge of the screen it can land a pixel or so outside the skin -- a
+read of what lies next to it, as in 1997, which ASan catches. Two rows and
+some either side keep that inside what is allocated.
+================
+*/
+byte *R_AllocPixels (image_t *image, int size)
+{
+	byte	*p;
+
+	image->pad = image->type == it_skin ? image->width * 2 + 256 : 0;
+	p = malloc (size + 2 * image->pad);
+	if (!p)
+		ri.Sys_Error (ERR_FATAL, "R_AllocPixels: out of memory");
+	memset (p, 0, image->pad);
+	memset (p + image->pad + size, 0, image->pad);
+	return p + image->pad;
+}
+
+void R_FreePixels (image_t *image)
+{
+	if (image->pixels[0])
+		free (image->pixels[0] - image->pad);
+	image->pixels[0] = NULL;
+}
+
+/*
+================
 GL_LoadPic
 
 ================
@@ -520,7 +551,7 @@ image_t *GL_LoadPic (char *name, byte *pic, int width, int height, imagetype_t t
 	image->type = type;
 
 	c = width*height;
-	image->pixels[0] = malloc (c);
+	image->pixels[0] = R_AllocPixels (image, c);
 	image->transparent = false;
 	for (i=0 ; i<c ; i++)
 	{
@@ -673,7 +704,7 @@ void R_FreeUnusedImages (void)
 		if (image->type == it_pic)
 			continue;		// don't free pics
 		// free it
-		free (image->pixels[0]);	// the other mip levels just follow
+		R_FreePixels (image);	// the other mip levels just follow
 		memset (image, 0, sizeof(*image));
 	}
 }
@@ -705,7 +736,7 @@ void	R_ShutdownImages (void)
 		if (!image->registration_sequence)
 			continue;		// free texture
 		// free it
-		free (image->pixels[0]);	// the other mip levels just follow
+		R_FreePixels (image);	// the other mip levels just follow
 		memset (image, 0, sizeof(*image));
 	}
 }
