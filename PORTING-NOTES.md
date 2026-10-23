@@ -217,13 +217,15 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     these, but none is asked to: they are only sent for a map past 255.
     The level files of a save keep 1997's layout with the new configstrings
     after the portal state, so a save from before them loads.
-  - `qcommon/cmodel.c`: a box touching a brush is not inside it. 1997 took
-    `d1 > 0` for in front, so a player exactly as wide as a gap was stuck in
-    it -- mgu1m1's drop pod; traces stop 1/32 short of a face, so nothing
-    rests touching one otherwise. `game/p_client.c` lifts a start point by
-    less than 9 where 9 is in the ceiling, as the re-release does, and the
-    base game has Ground Zero's `trigger_teleport` and
-    `info_teleport_destination`, which that pod lands by.
+  - `game/p_client.c` lifts a start point by less than 9 where 9 is in
+    the ceiling, as the re-release does, and the base game has Ground
+    Zero's `trigger_teleport` and `info_teleport_destination`, which
+    mgu1m1's drop pod lands by. The pod is exactly as wide as the player,
+    and touching a brush counts as inside it (`CM_TestBoxInBrush`), so the
+    player cannot move in it -- nor need to. 1.3.13 counted touching as
+    outside, to free them; but pmove snaps to an eighth of a unit, which
+    then could leave a player exactly on a wall, and a trace starting there
+    along or into it is all solid: they stuck on walls, corners and ladders.
   - `qcommon/cmd.c`: on the command line `-` starts another command only
     where an argument would, not inside `q64/geo-stat`.
 - **`server/sv_game.c`**: `PF_setmodel` given no model leaves the entity

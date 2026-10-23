@@ -1166,11 +1166,11 @@ void CM_TestBoxInBrush (vec3_t mins, vec3_t maxs, vec3_t p1,
 
 		d1 = DotProduct (p1, plane->normal) - dist;
 
-		// if completely in front of face, no intersection. Touching it is
-		// not inside it either: Call of the Machine's mgu1m1 starts the
-		// player in a drop pod exactly as wide as they are, which 1997's
-		// > 0 had them stuck in
-		if (d1 >= 0)
+		// if completely in front of face, no intersection. Touching counts
+		// as inside: pmove's grid snapping relies on it to keep a box off
+		// faces, and a box resting exactly on one is caught by the trace
+		// as soon as it slides along it (stuck on walls and ladders, 1.3.13)
+		if (d1 > 0)
 			return;
 
 	}

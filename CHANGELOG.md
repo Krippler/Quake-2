@@ -5,6 +5,15 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **Stuck on walls, corners, boxes and ladders** since 1.3.13: brushing
+  against one could stop the player dead. 1.3.13 counted a player touching
+  a wall as clear of it, to free them from Call of the Machine's drop pod,
+  which they need not move in; the 1997 rule is back.
+
 ## [1.3.13] — 2026-10-23
 
 ### Added
