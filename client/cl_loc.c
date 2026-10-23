@@ -31,6 +31,9 @@ in the file read
 
 	map_establish_communication = "Establish communication\nlink to command ship." // 1 hits
 
+with, before some, the re-release's key hints, %bind:+moveup:...%, which
+are left out.
+
 loc_language picks the file. A message the file does not have, or every
 one when there is no file, is worded from its name, which the re-release
 makes from its first words: "$map_establish_communication" as "Establish
@@ -160,6 +163,21 @@ static void Loc_Load (void)
 		u = (const unsigned char *)line;
 		while ((const char *)u < eol && *u != '"')
 		{
+			// the re-release's key hints, "%bind:+moveup:$map_jump_ladder%"
+			// before the words: drawn as pictures of keys, which the 1997
+			// font has none of, so left out
+			if (!strncmp ((const char *)u, "%bind:", 6))
+			{
+				const unsigned char	*e = u + 6;
+
+				while ((const char *)e < eol && *e != '%' && *e != '"')
+					e++;
+				if ((const char *)e < eol && *e == '%')
+				{
+					u = e + 1;
+					continue;
+				}
+			}
 			if (*u == '\\' && (const char *)u + 1 < eol)
 			{
 				u++;

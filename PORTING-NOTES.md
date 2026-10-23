@@ -237,6 +237,13 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     where they were for the camera to see. The
     `.cin` each changelevel names first is not in the re-release; the
     client finds none and goes straight on to the map after the `+`.
+  - `game/g_items.c`: Quake 64's keys, `key_explosive_charges`,
+    `key_yellow_key` and `key_power_core`, at the end of the item list so
+    that 1997's items keep the numbers saved games hold. Its planted
+    charges keep `ITEM_TRIGGER_SPAWN|ITEM_NO_TOUCH`, which `SpawnItem`
+    clears from 1997's keys.
+  - `client/cl_loc.c`: the re-release's key hints, `%bind:cmd:text%`
+    before a message's words, are left out.
   - `server/sv_ccmds.c`: a level's files in `save/current` are named by
     `SV_LevelFileName`, with `#` for the `/` of `q64/outpost`: the save
     slots are flat directories, copied and wiped by `*.sav`.

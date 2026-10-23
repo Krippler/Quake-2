@@ -1062,9 +1062,15 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 {
 	PrecacheItem (item);
 
+	// the Quake 64 keys too: its planted charges appear when the
+	// trigger_key takes the player's, and are not to be picked up
+	// (ITEM_TRIGGER_SPAWN|ITEM_NO_TOUCH)
 	if (ent->spawnflags)
 	{
-		if (strcmp(ent->classname, "key_power_cube") != 0)
+		if (strcmp(ent->classname, "key_power_cube") != 0
+			&& strcmp(ent->classname, "key_explosive_charges") != 0
+			&& strcmp(ent->classname, "key_yellow_key") != 0
+			&& strcmp(ent->classname, "key_power_core") != 0)
 		{
 			ent->spawnflags = 0;
 			gi.dprintf("%s at %s has invalid spawnflags set\n", ent->classname, vtos(ent->s.origin));
@@ -2109,6 +2115,81 @@ tank commander's head
 		NULL,
 		0,
 /* precache */ "items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav"
+	},
+
+	// The 2023 re-release's Quake 64 keys, after all of 1997's items so
+	// that the numbers of those, which saved games keep, stay as they were
+
+/*QUAKED key_explosive_charges (0 .5 .8) (-16 -16 -16) (16 16 16)
+Quake 64: the charges a trigger_key takes to blow a way through
+*/
+	{
+		"key_explosive_charges",
+		Pickup_Key,
+		NULL,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/items/n64/charge/tris.md2", EF_ROTATE,
+		NULL,
+		"n64/i_charges",
+		"Explosive Charges",
+		2,
+		0,
+		NULL,
+		IT_STAY_COOP|IT_KEY,
+		0,
+		NULL,
+		0,
+/* precache */ ""
+	},
+
+/*QUAKED key_yellow_key (0 .5 .8) (-16 -16 -16) (16 16 16)
+Quake 64: door key - yellow
+*/
+	{
+		"key_yellow_key",
+		Pickup_Key,
+		NULL,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/items/n64/yellow_key/tris.md2", EF_ROTATE,
+		NULL,
+		"n64/i_yellow_key",
+		"Yellow Key",
+		2,
+		0,
+		NULL,
+		IT_STAY_COOP|IT_KEY,
+		0,
+		NULL,
+		0,
+/* precache */ ""
+	},
+
+/*QUAKED key_power_core (0 .5 .8) (-16 -16 -16) (16 16 16)
+Quake 64: a power core, which a trigger_key takes to start a machine
+*/
+	{
+		"key_power_core",
+		Pickup_Key,
+		NULL,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/items/n64/power_core/tris.md2", EF_ROTATE,
+		NULL,
+		"k_powercube",
+		"Power Core",
+		2,
+		0,
+		NULL,
+		IT_STAY_COOP|IT_KEY,
+		0,
+		NULL,
+		0,
+/* precache */ ""
 	},
 
 	// end of list marker

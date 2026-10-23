@@ -59,7 +59,9 @@ the container takes them out of it and the game shows them in the original
 font. Mount the re-release's whole folder, or copy `Q2Game.kpf` anywhere
 into the mount; without it the log says so, and each message is worded from
 its name instead ("Establish communication", "Secondary mission
-objective"), which is close but not always all of it. The re-release's
+objective"), which is close but not always all of it: the re-release cuts
+those names short, and "Shoot barrels to make them explo" is all there is
+of one. The log says at start whether it found `Q2Game.kpf`. The re-release's
 see-through grates are not drawn as such.
 
 Each other directory with pak files, a `maps` directory or a

@@ -5,6 +5,25 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.17] — 2026-10-23
+
+### Fixed
+
+- **Central Complex could not be finished**, nor Detention Center,
+  Processing Plant or Space Station after it: their doors and machines
+  take Quake 64's own keys -- explosive charges, the yellow key, the power
+  core -- which the 1997 game had not got, so they were never there to
+  pick up. They are now, and the charges planted where they are used.
+- **The re-release's ladder hints** came out with `%bind:+moveup:...%` in
+  front of them: those are pictures of keys in its own engine, and are
+  left out now.
+
+The re-release's messages are cut short ("Shoot barrels to make them
+explo") when its `Q2Game.kpf` is not in the mount: that is where their
+words are, and without it each is made from its name, which the
+re-release cuts at 36 letters. Mount the re-release's whole folder, or put
+`Q2Game.kpf` in it (DOCKER.md).
+
 ## [1.3.16] — 2026-10-23
 
 ### Fixed
