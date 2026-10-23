@@ -268,7 +268,7 @@ void SP_target_explosion (edict_t *ent)
 The 2023 re-release's, for its Quake 64 maps' ends: when used, the players'
 view flies from here through the path of points it targets -- at the speed
 of each, else its own, waiting at each its "wait" -- looking at its
-"pathtarget", and then the entities its "killtarget" names are used (not
+"pathtarget", at a figure of each player where they stood, and then the entities its "killtarget" names are used (not
 removed): the level's target_changelevel. Any button after two seconds
 skips to that.
 */
@@ -297,10 +297,48 @@ void target_camera_view (edict_t *self)
 	}
 }
 
+/*
+The players as the camera sees them: MoveClientToIntermission takes them
+out of the world, so a figure of each, standing, where they were.
+*/
+void target_camera_figures (edict_t *self)
+{
+	edict_t	*client, *figure;
+	int		i;
+
+	for (i=0 ; i<maxclients->value ; i++)
+	{
+		client = g_edicts + 1 + i;
+		if (!client->inuse || !client->client || client->health <= 0)
+			continue;
+		figure = G_Spawn ();
+		figure->classname = "camera_figure";
+		figure->s = client->s;
+		figure->s.number = figure - g_edicts;
+		figure->s.frame = 0;		// standing
+		figure->s.angles[PITCH] = figure->s.angles[ROLL] = 0;
+		figure->s.event = 0;
+		figure->s.effects = 0;
+		figure->s.renderfx = 0;
+		figure->s.sound = 0;
+		VectorCopy (client->mins, figure->mins);
+		VectorCopy (client->maxs, figure->maxs);
+		figure->solid = SOLID_NOT;
+		figure->owner = self->teamchain;	// the list of them
+		self->teamchain = figure;
+		gi.linkentity (figure);
+	}
+}
+
 void target_camera_end (edict_t *self)
 {
 	edict_t	*t;
 
+	while ((t = self->teamchain) != NULL)
+	{
+		self->teamchain = t->owner;
+		G_FreeEdict (t);
+	}
 	self->think = NULL;
 	level.camera = -1;				// the intermission keeps its view
 	level.intermissiontime = 0;		// so the changelevel begins one
@@ -363,6 +401,7 @@ void use_target_camera (edict_t *self, edict_t *other, edict_t *activator)
 	level.intermissiontime = level.time;
 	level.exitintermission = 0;
 	level.camera = 1;
+	target_camera_figures (self);
 	target_camera_view (self);
 	self->think = target_camera_think;
 	self->nextthink = level.time + (self->wait > FRAMETIME ? self->wait : FRAMETIME);

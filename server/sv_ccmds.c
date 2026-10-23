@@ -271,6 +271,27 @@ void SV_CopySaveGame (char *src, char *dst)
 
 /*
 ==============
+SV_LevelFileName
+
+The map's name for its level files in save/current: a map in a directory of
+its own, the re-release's q64/outpost, as q64#outpost, since the save slots
+hold their files side by side and are copied and wiped without directories
+==============
+*/
+char *SV_LevelFileName (void)
+{
+	static char	name[MAX_QPATH];
+	char		*p;
+
+	strncpy (name, sv.name, sizeof(name)-1);
+	for (p = name ; *p ; p++)
+		if (*p == '/' || *p == '\\')
+			*p = '#';
+	return name;
+}
+
+/*
+==============
 SV_WriteLevelFile
 
 ==============
@@ -282,7 +303,7 @@ void SV_WriteLevelFile (void)
 
 	Com_DPrintf("SV_WriteLevelFile()\n");
 
-	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sv2", FS_Gamedir(), sv.name);
+	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sv2", FS_Gamedir(), SV_LevelFileName ());
 	f = fopen(name, "wb");
 	if (!f)
 	{
@@ -297,7 +318,7 @@ void SV_WriteLevelFile (void)
 		MAX_CONFIGSTRINGS - CS_MODELS_EXT, f);
 	fclose (f);
 
-	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sav", FS_Gamedir(), sv.name);
+	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sav", FS_Gamedir(), SV_LevelFileName ());
 	ge->WriteLevel (name);
 }
 
@@ -314,7 +335,7 @@ void SV_ReadLevelFile (void)
 
 	Com_DPrintf("SV_ReadLevelFile()\n");
 
-	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sv2", FS_Gamedir(), sv.name);
+	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sv2", FS_Gamedir(), SV_LevelFileName ());
 	f = fopen(name, "rb");
 	if (!f)
 	{
@@ -329,7 +350,7 @@ void SV_ReadLevelFile (void)
 		MAX_CONFIGSTRINGS - CS_MODELS_EXT, f);
 	fclose (f);
 
-	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sav", FS_Gamedir(), sv.name);
+	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sav", FS_Gamedir(), SV_LevelFileName ());
 	ge->ReadLevel (name);
 }
 
