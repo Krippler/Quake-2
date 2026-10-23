@@ -5,6 +5,38 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.13] — 2026-10-23
+
+### Added
+
+- **The re-release's Quake 64 campaign and Call of the Machine.** All 222
+  of its maps now play from its own pak, `q64/` and `mgu*` among them
+  (`map q64/outpost`, `map mguhub`): the 12 in its extended QBSP format,
+  faces wider than the software renderer's 256-unit surfaces (cut into
+  pieces as they load), lightmaps on a grid of their own, more than 255
+  models (sent past 255 by a protocol extension only this engine speaks),
+  and the map limits up to the re-release's.
+- **PNG images.** A texture, sky, picture or skin the re-release has only
+  as a PNG is read from it, as its TGAs are -- the Quake 64 maps' textures.
+- **`trigger_teleport`**, Ground Zero's, in the base game: Call of the
+  Machine's first map lands its drop pod with one.
+
+### Fixed
+
+- **The sky smeared in the Reckoning's demo on Outer Compound**, and in
+  every map whose sky the re-release has only as a 24-bit TGA -- the
+  mission packs', Call of the Machine's, most deathmatch maps'. The
+  software renderer read only 8-bit skies and drew nothing in their place.
+  It now takes the re-release's TGA wherever the 8-bit image is missing
+  -- skies, textures, pictures, skins -- in the palette's colours.
+- **A box exactly as wide as a gap no longer sticks in it.** Touching a
+  brush counted as being inside it, which left the player unable to move
+  at the start of Call of the Machine, in a drop pod exactly their width;
+  and a start point with a ceiling less than 9 units above the player now
+  lifts them less.
+- `+map q64/geo-stat` on the command line went to `q64/geo`: a `-` inside
+  an argument was taken for the start of another.
+
 ## [1.3.12] — 2026-10-22
 
 ### Fixed

@@ -252,14 +252,31 @@ void CL_ParseDelta (entity_state_t *from, entity_state_t *to, int number, int bi
 	VectorCopy (from->origin, to->old_origin);
 	to->number = number;
 
-	if (bits & U_MODEL)
-		to->modelindex = MSG_ReadByte (&net_message);
-	if (bits & U_MODEL2)
-		to->modelindex2 = MSG_ReadByte (&net_message);
-	if (bits & U_MODEL3)
-		to->modelindex3 = MSG_ReadByte (&net_message);
-	if (bits & U_MODEL4)
-		to->modelindex4 = MSG_ReadByte (&net_message);
+	if (bits & U_MODEL16)
+	{
+		if (bits & U_MODEL)
+			to->modelindex = MSG_ReadShort (&net_message);
+		if (bits & U_MODEL2)
+			to->modelindex2 = MSG_ReadShort (&net_message);
+		if (bits & U_MODEL3)
+			to->modelindex3 = MSG_ReadShort (&net_message);
+		if (bits & U_MODEL4)
+			to->modelindex4 = MSG_ReadShort (&net_message);
+		if ((unsigned)to->modelindex >= MAX_MODELS_EXT || (unsigned)to->modelindex2 >= MAX_MODELS_EXT
+			|| (unsigned)to->modelindex3 >= MAX_MODELS_EXT || (unsigned)to->modelindex4 >= MAX_MODELS_EXT)
+			Com_Error (ERR_DROP, "CL_ParseDelta: bad model number");
+	}
+	else
+	{
+		if (bits & U_MODEL)
+			to->modelindex = MSG_ReadByte (&net_message);
+		if (bits & U_MODEL2)
+			to->modelindex2 = MSG_ReadByte (&net_message);
+		if (bits & U_MODEL3)
+			to->modelindex3 = MSG_ReadByte (&net_message);
+		if (bits & U_MODEL4)
+			to->modelindex4 = MSG_ReadByte (&net_message);
+	}
 		
 	if (bits & U_FRAME8)
 		to->frame = MSG_ReadByte (&net_message);
@@ -594,7 +611,14 @@ void CL_ParsePlayerstate (frame_t *oldframe, frame_t *newframe)
 
 	if (flags & PS_WEAPONINDEX)
 	{
-		state->gunindex = MSG_ReadByte (&net_message);
+		if (flags & PS_WEAPONINDEX16)
+		{
+			state->gunindex = MSG_ReadShort (&net_message);
+			if ((unsigned)state->gunindex >= MAX_MODELS_EXT)
+				Com_Error (ERR_DROP, "CL_ParsePlayerstate: bad gun model number");
+		}
+		else
+			state->gunindex = MSG_ReadByte (&net_message);
 	}
 
 	if (flags & PS_WEAPONFRAME)

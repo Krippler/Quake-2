@@ -38,8 +38,8 @@ typedef struct
 	int			contents;
 	int			cluster;
 	int			area;
-	unsigned short	firstleafbrush;
-	unsigned short	numleafbrushes;
+	int			firstleafbrush;		// QBSP's are past 65535
+	int			numleafbrushes;
 } cleaf_t;
 
 typedef struct
@@ -79,7 +79,7 @@ cleaf_t		map_leafs[MAX_MAP_LEAFS];
 int			emptyleaf, solidleaf;
 
 int			numleafbrushes;
-unsigned short	map_leafbrushes[MAX_MAP_LEAFBRUSHES];
+int			map_leafbrushes[MAX_MAP_LEAFBRUSHES];
 
 int			numcmodels;
 cmodel_t	map_cmodels[MAX_MAP_MODELS];
@@ -128,6 +128,7 @@ int		c_traces, c_brush_traces;
 */
 
 byte	*cmod_base;
+qboolean	cmod_qbsp;		// the map is in QBSP (qfiles.h)
 
 /*
 =================
@@ -209,14 +210,17 @@ CMod_LoadNodes
 void CMod_LoadNodes (lump_t *l)
 {
 	dnode_t		*in;
+	dqnode_t	*qin;
 	int			child;
 	cnode_t		*out;
-	int			i, j, count;
+	int			i, j, count, size;
 	
 	in = (void *)(cmod_base + l->fileofs);
-	if (l->filelen % sizeof(*in))
+	qin = (void *)in;
+	size = cmod_qbsp ? sizeof(*qin) : sizeof(*in);
+	if (l->filelen % size)
 		Com_Error (ERR_DROP, "MOD_LoadBmodel: funny lump size");
-	count = l->filelen / sizeof(*in);
+	count = l->filelen / size;
 
 	if (count < 1)
 		Com_Error (ERR_DROP, "Map has no nodes");
@@ -227,12 +231,12 @@ void CMod_LoadNodes (lump_t *l)
 
 	numnodes = count;
 
-	for (i=0 ; i<count ; i++, out++, in++)
+	for (i=0 ; i<count ; i++, out++, in++, qin++)
 	{
-		out->plane = map_planes + LittleLong(in->planenum);
+		out->plane = map_planes + LittleLong(cmod_qbsp ? qin->planenum : in->planenum);
 		for (j=0 ; j<2 ; j++)
 		{
-			child = LittleLong (in->children[j]);
+			child = LittleLong (cmod_qbsp ? qin->children[j] : in->children[j]);
 			out->children[j] = child;
 		}
 	}
@@ -282,12 +286,15 @@ void CMod_LoadLeafs (lump_t *l)
 	int			i;
 	cleaf_t		*out;
 	dleaf_t 	*in;
-	int			count;
+	dqleaf_t	*qin;
+	int			count, size;
 	
 	in = (void *)(cmod_base + l->fileofs);
-	if (l->filelen % sizeof(*in))
+	qin = (void *)in;
+	size = cmod_qbsp ? sizeof(*qin) : sizeof(*in);
+	if (l->filelen % size)
 		Com_Error (ERR_DROP, "MOD_LoadBmodel: funny lump size");
-	count = l->filelen / sizeof(*in);
+	count = l->filelen / size;
 
 	if (count < 1)
 		Com_Error (ERR_DROP, "Map with no leafs");
@@ -299,13 +306,24 @@ void CMod_LoadLeafs (lump_t *l)
 	numleafs = count;
 	numclusters = 0;
 
-	for ( i=0 ; i<count ; i++, in++, out++)
+	for ( i=0 ; i<count ; i++, in++, qin++, out++)
 	{
-		out->contents = LittleLong (in->contents);
-		out->cluster = LittleShort (in->cluster);
-		out->area = LittleShort (in->area);
-		out->firstleafbrush = LittleShort (in->firstleafbrush);
-		out->numleafbrushes = LittleShort (in->numleafbrushes);
+		if (cmod_qbsp)
+		{
+			out->contents = LittleLong (qin->contents);
+			out->cluster = LittleLong (qin->cluster);
+			out->area = LittleLong (qin->area);
+			out->firstleafbrush = LittleLong (qin->firstleafbrush);
+			out->numleafbrushes = LittleLong (qin->numleafbrushes);
+		}
+		else
+		{
+			out->contents = LittleLong (in->contents);
+			out->cluster = LittleShort (in->cluster);
+			out->area = LittleShort (in->area);
+			out->firstleafbrush = (unsigned short)LittleShort (in->firstleafbrush);
+			out->numleafbrushes = (unsigned short)LittleShort (in->numleafbrushes);
+		}
 
 		if (out->cluster >= numclusters)
 			numclusters = out->cluster + 1;
@@ -378,14 +396,17 @@ CMod_LoadLeafBrushes
 void CMod_LoadLeafBrushes (lump_t *l)
 {
 	int			i;
-	unsigned short	*out;
+	int			*out;
 	unsigned short 	*in;
-	int			count;
+	unsigned	*qin;
+	int			count, size;
 	
 	in = (void *)(cmod_base + l->fileofs);
-	if (l->filelen % sizeof(*in))
+	qin = (void *)in;
+	size = cmod_qbsp ? sizeof(*qin) : sizeof(*in);
+	if (l->filelen % size)
 		Com_Error (ERR_DROP, "MOD_LoadBmodel: funny lump size");
-	count = l->filelen / sizeof(*in);
+	count = l->filelen / size;
 
 	if (count < 1)
 		Com_Error (ERR_DROP, "Map with no planes");
@@ -396,8 +417,8 @@ void CMod_LoadLeafBrushes (lump_t *l)
 	out = map_leafbrushes;
 	numleafbrushes = count;
 
-	for ( i=0 ; i<count ; i++, in++, out++)
-		*out = LittleShort (*in);
+	for ( i=0 ; i<count ; i++, in++, qin++, out++)
+		*out = cmod_qbsp ? (int)LittleLong (*qin) : (unsigned short)LittleShort (*in);
 }
 
 /*
@@ -410,13 +431,16 @@ void CMod_LoadBrushSides (lump_t *l)
 	int			i, j;
 	cbrushside_t	*out;
 	dbrushside_t 	*in;
-	int			count;
+	dqbrushside_t	*qin;
+	int			count, size;
 	int			num;
 
 	in = (void *)(cmod_base + l->fileofs);
-	if (l->filelen % sizeof(*in))
+	qin = (void *)in;
+	size = cmod_qbsp ? sizeof(*qin) : sizeof(*in);
+	if (l->filelen % size)
 		Com_Error (ERR_DROP, "MOD_LoadBmodel: funny lump size");
-	count = l->filelen / sizeof(*in);
+	count = l->filelen / size;
 
 	// need to save space for box planes
 	if (count > MAX_MAP_BRUSHSIDES)
@@ -425,11 +449,13 @@ void CMod_LoadBrushSides (lump_t *l)
 	out = map_brushsides;	
 	numbrushsides = count;
 
-	for ( i=0 ; i<count ; i++, in++, out++)
+	for ( i=0 ; i<count ; i++, in++, qin++, out++)
 	{
-		num = LittleShort (in->planenum);
+		num = cmod_qbsp ? (int)LittleLong (qin->planenum) : (unsigned short)LittleShort (in->planenum);
+		if (num < 0 || num >= numplanes)
+			Com_Error (ERR_DROP, "Bad brushside planenum");
 		out->plane = &map_planes[num];
-		j = LittleShort (in->texinfo);
+		j = cmod_qbsp ? LittleLong (qin->texinfo) : LittleShort (in->texinfo);
 		if (j >= numtexinfo)
 			Com_Error (ERR_DROP, "Bad brushside texinfo");
 		out->surface = &map_surfaces[j];
@@ -604,6 +630,7 @@ cmodel_t *CM_LoadMap (char *name, qboolean clientload, unsigned *checksum)
 	if (header.version != BSPVERSION)
 		Com_Error (ERR_DROP, "CMod_LoadBrushModel: %s has wrong version number (%i should be %i)"
 		, name, header.version, BSPVERSION);
+	cmod_qbsp = header.ident == IDQBSPHEADER;
 
 	cmod_base = (byte *)buf;
 
@@ -1139,8 +1166,11 @@ void CM_TestBoxInBrush (vec3_t mins, vec3_t maxs, vec3_t p1,
 
 		d1 = DotProduct (p1, plane->normal) - dist;
 
-		// if completely in front of face, no intersection
-		if (d1 > 0)
+		// if completely in front of face, no intersection. Touching it is
+		// not inside it either: Call of the Machine's mgu1m1 starts the
+		// player in a drop pod exactly as wide as they are, which 1997's
+		// > 0 had them stuck in
+		if (d1 >= 0)
 			return;
 
 	}

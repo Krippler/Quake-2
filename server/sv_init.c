@@ -44,7 +44,8 @@ int SV_FindIndex (char *name, int start, int max, qboolean create)
 		return 0;
 
 	if (i == max)
-		Com_Error (ERR_DROP, "*Index: overflow");
+		Com_Error (ERR_DROP, "*Index: no room for %s among the %i %s", name, max - 1,
+			start == CS_MODELS ? "models" : start == CS_SOUNDS ? "sounds" : "images");
 
 	strncpy (sv.configstrings[start+i], name, sizeof(sv.configstrings[i]));
 
@@ -61,9 +62,43 @@ int SV_FindIndex (char *name, int start, int max, qboolean create)
 }
 
 
+/*
+A model's number: the 1997 255, then on to MAX_MODELS_EXT in configstrings
+of their own (CS_MODEL, q_shared.h), for Call of the Machine's biggest maps.
+*/
 int SV_ModelIndex (char *name)
 {
-	return SV_FindIndex (name, CS_MODELS, MAX_MODELS, true);
+	int		i;
+
+	if (!name || !name[0])
+		return 0;
+
+	// never 255, which a client takes for a player's model in their skin
+	for (i=1 ; i<MAX_MODELS_EXT ; i++)
+	{
+		if (i == 255)
+			continue;
+		if (!sv.configstrings[CS_MODEL(i)][0])
+			break;
+		if (!strcmp(sv.configstrings[CS_MODEL(i)], name))
+			return i;
+	}
+
+	if (i == MAX_MODELS_EXT)
+		Com_Error (ERR_DROP, "*Index: no room for %s among the %i models", name, MAX_MODELS_EXT - 2);
+
+	strncpy (sv.configstrings[CS_MODEL(i)], name, sizeof(sv.configstrings[0]) - 1);
+
+	if (sv.state != ss_loading)
+	{	// send the update to everyone
+		SZ_Clear (&sv.multicast);
+		MSG_WriteChar (&sv.multicast, svc_configstring);
+		MSG_WriteShort (&sv.multicast, CS_MODEL(i));
+		MSG_WriteString (&sv.multicast, name);
+		SV_Multicast (vec3_origin, MULTICAST_ALL_R);
+	}
+
+	return i;
 }
 
 int SV_SoundIndex (char *name)
@@ -241,11 +276,17 @@ void SV_SpawnServer (char *server, char *spawnpoint, server_state_t serverstate,
 	//
 	SV_ClearWorld ();
 	
+	// the brush models from 2, past 255 as SV_ModelIndex goes
+	if (CM_NumInlineModels() >= MAX_MODELS_EXT - 1)
+		Com_Error (ERR_DROP, "%s has %i brush models; there is room for %i",
+			server, CM_NumInlineModels(), MAX_MODELS_EXT - 2);
 	for (i=1 ; i< CM_NumInlineModels() ; i++)
 	{
-		Com_sprintf (sv.configstrings[CS_MODELS+1+i], sizeof(sv.configstrings[CS_MODELS+1+i]),
+		int		m = i+1 < 255 ? i+1 : i+2;
+
+		Com_sprintf (sv.configstrings[CS_MODEL(m)], sizeof(sv.configstrings[0]),
 			"*%i", i);
-		sv.models[i+1] = CM_InlineModel (sv.configstrings[CS_MODELS+1+i]);
+		sv.models[m] = CM_InlineModel (sv.configstrings[CS_MODEL(m)]);
 	}
 
 	//

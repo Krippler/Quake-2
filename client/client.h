@@ -159,8 +159,8 @@ typedef struct
 	//
 	// locally derived information from server state
 	//
-	struct model_s	*model_draw[MAX_MODELS];
-	struct cmodel_s	*model_clip[MAX_MODELS];
+	struct model_s	*model_draw[MAX_MODELS_EXT];
+	struct cmodel_s	*model_clip[MAX_MODELS_EXT];
 
 	struct sfx_s	*sound_precache[MAX_SOUNDS];
 	struct image_s	*image_precache[MAX_IMAGES];

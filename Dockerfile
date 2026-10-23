@@ -28,6 +28,7 @@ RUN apt-get update \
         libxext-dev \
         libxrandr-dev \
         libsndfile1-dev \
+        zlib1g-dev \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
@@ -74,6 +75,7 @@ RUN apt-get update \
         libxext6 \
         libxrandr2 \
         libsndfile1 \
+        zlib1g \
         xvfb \
         x11vnc \
         websockify \

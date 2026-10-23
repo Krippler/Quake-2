@@ -23,7 +23,8 @@
 #   4  which music directory the engine picks.
 #   5  depth 8: the renderer's PseudoColor path, with its colormap.
 #   6  a stand-in for the 2023 re-release's pak on top: what of it this
-#      engine cannot read gives way to the original's, and a demo in its
+#      engine cannot read gives way to the original's, a sky and a texture
+#      it has only as 24-bit TGAs are drawn from them, and a demo in its
 #      protocol plays.
 #
 # Given real game data it goes further: point QUAKE2_SMOKE_DATA at a directory
@@ -388,9 +389,9 @@ stop_engine
 #
 # The 2023 re-release's pak on top of the original's, as QUAKE2_RERELEASE=1
 # links it: for each file the first copy the engine can read is used, and the
-# stand-in's QBSP map and 24-bit picture each give way to the original's copy
-# underneath; its own map loads from it, and its demo, in its own protocol,
-# plays.
+# stand-in's broken map and 24-bit picture each give way to the original's
+# copy underneath; its own map, in the extended QBSP format, loads from it,
+# and its demo, in its own protocol, plays.
 say "phase 6: a re-release pak on top of the original's"
 start_x 24
 ln -sfn "$work/rerelease/baseq2/pak0.pak" "$work/baseq2/pak9.pak"
@@ -401,8 +402,8 @@ wait_for_log rerelease "client_connect\|entered the game" \
 sleep 2
 alive rerelease
 grep -q "Added packfile .*pak9.pak" "$work/rerelease.log" || die "pak9.pak was not opened"
-grep -q "maps/smoke.bsp is in the re-release's extended QBSP format" "$work/rerelease.log" \
-    || die "the QBSP copy of the map was not passed over; see $work/rerelease.log"
+grep -q "maps/smoke.bsp has lump 4 of an odd size; looking further down" "$work/rerelease.log" \
+    || die "the broken QBSP copy of the map was not passed over; see $work/rerelease.log"
 grep -q "pics/i_health.pcx is not an 8-bit paletted PCX" "$work/rerelease.log" \
     || die "the 24-bit picture was not passed over; see $work/rerelease.log"
 n=$(colours rerelease)
@@ -414,7 +415,15 @@ wait_for_log rerelease "pak9.pak : maps/rr_only.bsp" \
     || die "the re-release pak's own map was not loaded from it; see $work/rerelease.log"
 sleep 2
 alive rerelease
-say "a map only the re-release pak has loaded from it"
+say "a map only the re-release pak has, in the QBSP format, loaded from it"
+# its sky is only there as 24-bit targas, as many of the re-release's are
+grep -q "env/rrskyrt.pcx: from env/rrskyrt.tga, 256x256" "$work/rerelease.log" \
+    || die "the re-release's targa sky was not taken for the .pcx; see $work/rerelease.log"
+grep -q "textures/rr/wall.wal: from textures/rr/wall.tga, 64x64" "$work/rerelease.log" \
+    || die "the re-release's targa texture was not taken for the .wal; see $work/rerelease.log"
+n=$(colours rerelease)
+[ "$n" -ge 3 ] || die "with its walls from a targa the room holds $n colour(s)"
+say "its sky and walls, there only as 24-bit targas, were loaded from them; $n colours"
 
 # The re-release's own demos are in its protocol, 2022, and are written
 # as 1997's as they play (server/sv_rrdemo.c): the stand-in's goes to its

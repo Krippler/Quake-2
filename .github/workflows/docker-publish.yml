@@ -194,7 +194,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             gcc libc6-dev make pkg-config binutils \
             libx11-dev libxext-dev libxrandr-dev libasound2-dev \
-            libsndfile1-dev
+            libsndfile1-dev zlib1g-dev
 
       - name: Checkout repository
         uses: actions/checkout@v4

@@ -553,6 +553,10 @@ void MSG_WriteDeltaEntity (entity_state_t *from, entity_state_t *to, sizebuf_t *
 		bits |= U_MODEL3;
 	if ( to->modelindex4 != from->modelindex4 )
 		bits |= U_MODEL4;
+	if ( (bits & (U_MODEL|U_MODEL2|U_MODEL3|U_MODEL4))
+		&& (to->modelindex > 255 || to->modelindex2 > 255
+		|| to->modelindex3 > 255 || to->modelindex4 > 255) )
+		bits |= U_MODEL16;
 
 	if ( to->sound != from->sound )
 		bits |= U_SOUND;
@@ -600,14 +604,28 @@ void MSG_WriteDeltaEntity (entity_state_t *from, entity_state_t *to, sizebuf_t *
 	else
 		MSG_WriteByte (msg,	to->number);
 
-	if (bits & U_MODEL)
-		MSG_WriteByte (msg,	to->modelindex);
-	if (bits & U_MODEL2)
-		MSG_WriteByte (msg,	to->modelindex2);
-	if (bits & U_MODEL3)
-		MSG_WriteByte (msg,	to->modelindex3);
-	if (bits & U_MODEL4)
-		MSG_WriteByte (msg,	to->modelindex4);
+	if (bits & U_MODEL16)
+	{
+		if (bits & U_MODEL)
+			MSG_WriteShort (msg, to->modelindex);
+		if (bits & U_MODEL2)
+			MSG_WriteShort (msg, to->modelindex2);
+		if (bits & U_MODEL3)
+			MSG_WriteShort (msg, to->modelindex3);
+		if (bits & U_MODEL4)
+			MSG_WriteShort (msg, to->modelindex4);
+	}
+	else
+	{
+		if (bits & U_MODEL)
+			MSG_WriteByte (msg,	to->modelindex);
+		if (bits & U_MODEL2)
+			MSG_WriteByte (msg,	to->modelindex2);
+		if (bits & U_MODEL3)
+			MSG_WriteByte (msg,	to->modelindex3);
+		if (bits & U_MODEL4)
+			MSG_WriteByte (msg,	to->modelindex4);
+	}
 
 	if (bits & U_FRAME8)
 		MSG_WriteByte (msg, to->frame);

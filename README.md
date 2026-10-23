@@ -65,7 +65,7 @@ redistribute. Any of these works:
   `baseq2` beside its `rerelease` folder, and that is the one this engine
   plays; mounting the whole install directory finds it. With
   `-e QUAKE2_RERELEASE=1` the re-release's own pak goes on top, for its
-  remade maps and its demos, with the original game's files standing in for
+  remade maps, the Quake 64 campaign, Call of the Machine and its demos, with the original game's files standing in for
   whatever of it a 1997 engine cannot read; its maps' messages come from its
   `Q2Game.kpf`, so mount the whole install or copy that file in too
   ([DOCKER.md](DOCKER.md#the-2023-re-releases-pak)).

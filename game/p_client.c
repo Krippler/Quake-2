@@ -923,6 +923,25 @@ void	SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles)
 
 	VectorCopy (spot->s.origin, origin);
 	origin[2] += 9;
+	/* Less, where 9 is in something: Call of the Machine's mgu1m1 puts its
+	   drop pod's start in a room 64 high, 24 above the floor, where 9 -- and
+	   the 1 PutClientInServer adds -- has the player in the ceiling and
+	   unable to move. The re-release lifts a start by 1 */
+	{
+		vec3_t	mins = {-16, -16, -24}, maxs = {16, 16, 32}, test;
+		int		lift;
+
+		VectorCopy (origin, test);
+		for (lift = 9 ; lift >= 0 ; lift--)
+		{
+			test[2] = spot->s.origin[2] + lift + 1;
+			if (!gi.trace (test, mins, maxs, test, NULL, MASK_PLAYERSOLID).startsolid)
+			{
+				origin[2] = spot->s.origin[2] + lift;
+				break;
+			}
+		}
+	}
 	VectorCopy (spot->s.angles, angles);
 }
 

@@ -298,6 +298,8 @@ void SV_WritePlayerstateToClient (client_frame_t *from, client_frame_t *to, size
 		pflags |= PS_WEAPONFRAME;
 
 	pflags |= PS_WEAPONINDEX;
+	if (ps->gunindex > 255)
+		pflags |= PS_WEAPONINDEX16;
 
 	//
 	// write it
@@ -367,7 +369,10 @@ void SV_WritePlayerstateToClient (client_frame_t *from, client_frame_t *to, size
 
 	if (pflags & PS_WEAPONINDEX)
 	{
-		MSG_WriteByte (msg, ps->gunindex);
+		if (pflags & PS_WEAPONINDEX16)
+			MSG_WriteShort (msg, ps->gunindex);
+		else
+			MSG_WriteByte (msg, ps->gunindex);
 	}
 
 	if (pflags & PS_WEAPONFRAME)

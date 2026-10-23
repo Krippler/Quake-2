@@ -76,7 +76,7 @@ typedef struct mplane_s
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct
 {
-	unsigned short	v[2];
+	unsigned int	v[2];		// past 65535 in QBSP maps; C_ONLY, so asm_draw.h does not count
 	unsigned int	cachededgeoffset;
 } medge_t;
 
@@ -139,8 +139,8 @@ typedef struct mnode_s
 	mplane_t	*plane;
 	struct mnode_s	*children[2];	
 
-	unsigned short		firstsurface;
-	unsigned short		numsurfaces;
+	int			firstsurface;	// past 65535 in QBSP maps
+	int			numsurfaces;
 } mnode_t;
 
 

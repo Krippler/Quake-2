@@ -51,7 +51,7 @@ typedef struct
 	int			framenum;
 
 	char		name[MAX_QPATH];			// map name, or cinematic name
-	struct cmodel_s		*models[MAX_MODELS];
+	struct cmodel_s		*models[MAX_MODELS_EXT];
 
 	char		configstrings[MAX_CONFIGSTRINGS][MAX_QPATH];
 	entity_state_t	baselines[MAX_EDICTS];

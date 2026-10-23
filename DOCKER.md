@@ -47,10 +47,9 @@ What plays from it, by the re-release's own maps:
 
 | | |
 | --- | --- |
-| the base campaign, The Reckoning, the deathmatch maps | yes, from the re-release's copies |
-| `q2dm3` and four Ground Zero maps | from the original game's copies: the re-release's have faces wider than the software renderer draws |
-| the N64 campaign (`q64/`) | no: wider faces, and textures in a format of its own |
-| Call of the Machine (`mgu*`) | no: 12 of its maps are in the re-release's extended QBSP format, and the rest have more texture entries than a 1997 engine loads |
+| the base campaign, The Reckoning, Ground Zero, the deathmatch maps | yes, from the re-release's copies |
+| the N64 campaign (`q64/`) | yes: `map q64/outpost` in the console |
+| Call of the Machine (`mgu*`) | yes: `map mguhub` in the console, or `map mgu1m1` for its first unit |
 | its demos | yes: recorded in its own network protocol, and translated to 1997's as they play |
 
 Each copy passed over is named in the log with the reason. The re-release's

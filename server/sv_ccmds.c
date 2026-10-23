@@ -289,8 +289,12 @@ void SV_WriteLevelFile (void)
 		Com_Printf ("Failed to open %s\n", name);
 		return;
 	}
-	fwrite (sv.configstrings, sizeof(sv.configstrings), 1, f);
+	// 1997's configstrings, its portals, then the model numbers past 255:
+	// a level file from before them is read as one with none
+	fwrite (sv.configstrings, sizeof(sv.configstrings[0]), CS_MODELS_EXT, f);
 	CM_WritePortalState (f);
+	fwrite (sv.configstrings[CS_MODELS_EXT], sizeof(sv.configstrings[0]),
+		MAX_CONFIGSTRINGS - CS_MODELS_EXT, f);
 	fclose (f);
 
 	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sav", FS_Gamedir(), sv.name);
@@ -317,8 +321,12 @@ void SV_ReadLevelFile (void)
 		Com_Printf ("Failed to open %s\n", name);
 		return;
 	}
-	FS_Read (sv.configstrings, sizeof(sv.configstrings), f);
+	FS_Read (sv.configstrings, sizeof(sv.configstrings[0]) * CS_MODELS_EXT, f);
 	CM_ReadPortalState (f);
+	memset (sv.configstrings[CS_MODELS_EXT], 0,
+		sizeof(sv.configstrings[0]) * (MAX_CONFIGSTRINGS - CS_MODELS_EXT));
+	fread (sv.configstrings[CS_MODELS_EXT], sizeof(sv.configstrings[0]),
+		MAX_CONFIGSTRINGS - CS_MODELS_EXT, f);
 	fclose (f);
 
 	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sav", FS_Gamedir(), sv.name);

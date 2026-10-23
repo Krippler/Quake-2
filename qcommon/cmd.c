@@ -324,13 +324,19 @@ qboolean Cbuf_AddLateCommands (void)
 	build = Z_Malloc (s+1);
 	build[0] = 0;
 	
+	// A command runs to the next argument that starts with + or with a -
+	// that is not a number's. id's ran to any + or - at all, so that
+	// "+map q64/geo-stat" was "map q64/geo".
+#define ARGSTART(k)	((k) == 0 || text[(k)-1] == ' ')
+#define ENDS(k)		(ARGSTART(k) && (text[k] == '+' || (text[k] == '-' \
+						&& !(text[(k)+1] >= '0' && text[(k)+1] <= '9') && text[(k)+1] != '.')))
 	for (i=0 ; i<s-1 ; i++)
 	{
-		if (text[i] == '+')
+		if (text[i] == '+' && ARGSTART(i))
 		{
 			i++;
 
-			for (j=i ; (text[j] != '+') && (text[j] != '-') && (text[j] != 0) ; j++)
+			for (j=i ; text[j] != 0 && !ENDS(j) ; j++)
 				;
 
 			c = text[j];
@@ -342,6 +348,8 @@ qboolean Cbuf_AddLateCommands (void)
 			i = j-1;
 		}
 	}
+#undef ENDS
+#undef ARGSTART
 
 	ret = (build[0] != 0);
 	if (ret)
