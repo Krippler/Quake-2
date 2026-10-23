@@ -533,3 +533,120 @@ void M_MonsterDodge (edict_t *self, edict_t *attacker, float eta, trace_t *tr)
 		self->monsterinfo.dodge_time = level.time + 0.2 + random() * 0.5;
 	}
 }
+
+/*
+The re-release's reinforcements: a summoner's list of "classname strength"
+pairs, ';' between, and how much strength it may have out at once.  Each
+is spawned and freed once to learn its box.
+*/
+// the next word, ' ' or ';' after it; NULL at the end
+static char *RR_Token (char **p, char *out, int size)
+{
+	int		len = 0;
+
+	while (**p == ' ' || **p == ';')
+		(*p)++;
+	if (!**p)
+		return NULL;
+	while (**p && **p != ' ' && **p != ';')
+	{
+		if (len < size - 1)
+			out[len++] = **p;
+		(*p)++;
+	}
+	out[len] = 0;
+	return out;
+}
+
+void M_SetupReinforcements (edict_t *self, char *reinforcements, int default_slots)
+{
+	edict_t	*ent;
+	char	*p, *token, number[16];
+	int		n;
+	spawn_temp_t	saved;
+
+	self->monsterinfo.monster_slots = st.monster_slots ? st.monster_slots : default_slots;
+	self->monsterinfo.num_reinforcements = 0;
+	memset (self->monsterinfo.chosen_reinforcements, 255, sizeof(self->monsterinfo.chosen_reinforcements));
+
+	if (st.reinforcements)
+		reinforcements = st.reinforcements;
+	if (!self->monsterinfo.monster_slots || !reinforcements || !*reinforcements)
+		return;
+
+	if (skill->value)
+		self->monsterinfo.monster_slots += floor(self->monsterinfo.monster_slots * (skill->value / 2));
+
+	// the summoner's spawn keys are not theirs
+	saved = st;
+	memset (&st, 0, sizeof(st));
+
+	p = reinforcements;
+	while (self->monsterinfo.num_reinforcements < MAX_REINFORCEMENT_TYPES)
+	{
+		n = self->monsterinfo.num_reinforcements;
+
+		// "classname strength", ';' or ' ' between
+		token = RR_Token (&p, self->monsterinfo.reinforcements[n].classname, sizeof(self->monsterinfo.reinforcements[n].classname));
+		if (!token)
+			break;
+		token = RR_Token (&p, number, sizeof(number));
+		self->monsterinfo.reinforcements[n].strength = token ? atoi (number) : 0;
+
+		ent = G_Spawn ();
+		ent->classname = self->monsterinfo.reinforcements[n].classname;
+		ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+		ED_CallSpawn (ent);
+		VectorCopy (ent->mins, self->monsterinfo.reinforcements[n].mins);
+		VectorCopy (ent->maxs, self->monsterinfo.reinforcements[n].maxs);
+		G_FreeEdict (ent);
+
+		self->monsterinfo.num_reinforcements++;
+	}
+
+	st = saved;
+}
+
+int M_SlotsLeft (edict_t *self)
+{
+	return self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
+}
+
+/*
+Ready (in chosen_reinforcements) up to max_slots of them (0 for no
+limit), as much as there's room for; how many, on a logarithmic scale
+so it's seldom many.  Returns how many.
+*/
+int M_PickReinforcements (edict_t *self, int max_slots)
+{
+	byte	available[MAX_REINFORCEMENT_TYPES];
+	int		num_slots, remaining, num_chosen, num_available, i;
+
+	memset (self->monsterinfo.chosen_reinforcements, 255, sizeof(self->monsterinfo.chosen_reinforcements));
+
+	num_slots = (int)(log(random() * (1 << MAX_REINFORCEMENTS)) / log(2));
+	if (num_slots < 1)
+		num_slots = 1;
+
+	remaining = M_SlotsLeft (self);
+
+	for (num_chosen = 0; num_chosen < num_slots; num_chosen++)
+	{
+		if ((max_slots && num_chosen == max_slots) || remaining <= 0)
+			break;
+
+		// what there's room for
+		num_available = 0;
+		for (i = 0; i < self->monsterinfo.num_reinforcements; i++)
+			if (self->monsterinfo.reinforcements[i].strength <= remaining)
+				available[num_available++] = i;
+		if (!num_available)
+			break;
+
+		i = rand() % num_available;
+		self->monsterinfo.chosen_reinforcements[num_chosen] = available[i];
+		remaining -= self->monsterinfo.reinforcements[available[i]].strength;
+	}
+
+	return num_chosen;
+}

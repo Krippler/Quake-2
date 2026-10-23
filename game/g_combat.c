@@ -91,6 +91,8 @@ Killed
 */
 void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
+	qboolean	summoned;
+
 	if (targ->health < -999)
 		targ->health = -999;
 
@@ -98,13 +100,14 @@ void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, v
 
 	if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEAD_DEAD))
 	{
-		// Ground Zero's summoned monsters free their summoner's slot
-		if ((targ->monsterinfo.aiflags & (AI_SPAWNED_CARRIER|AI_SPAWNED_MEDIC_C))
-			&& targ->monsterinfo.commander && targ->monsterinfo.commander->inuse
-			&& !strcmp(targ->monsterinfo.commander->classname,
-				(targ->monsterinfo.aiflags & AI_SPAWNED_CARRIER)
-				? "monster_carrier" : "monster_medic_commander"))
-			targ->monsterinfo.commander->monsterinfo.monster_slots++;
+		// a carrier's flyers give it a slot back as they die (the re-release's)
+		if (targ->monsterinfo.aiflags & AI_SPAWNED_CARRIER)
+		{
+			if (targ->monsterinfo.commander && targ->monsterinfo.commander->inuse
+				&& !strcmp(targ->monsterinfo.commander->classname, "monster_carrier"))
+				targ->monsterinfo.commander->monsterinfo.monster_slots++;
+			targ->monsterinfo.commander = NULL;
+		}
 
 //		targ->svflags |= SVF_DEADMONSTER;	// now treat as a different content type
 		if (!(targ->monsterinfo.aiflags & (AI_GOOD_GUY|AI_DO_NOT_COUNT)))
@@ -124,6 +127,10 @@ void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, v
 		return;
 	}
 
+	// (before monster_death_use clears its flags, and a gib's head is no
+	// longer a monster)
+	summoned = (targ->svflags & SVF_MONSTER) && (targ->monsterinfo.aiflags & AI_SPAWNED_MEDIC_C);
+
 	if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEAD_DEAD))
 	{
 		targ->touch = NULL;
@@ -131,6 +138,15 @@ void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, v
 	}
 
 	targ->die (targ, inflictor, attacker, damage, point);
+
+	// a medic commander's back only once gibbed, as he could revive them
+	if (summoned && targ->health <= targ->gib_health)
+	{
+		if (targ->monsterinfo.commander && targ->monsterinfo.commander->inuse
+			&& !strcmp(targ->monsterinfo.commander->classname, "monster_medic_commander"))
+			targ->monsterinfo.commander->monsterinfo.monster_used -= targ->monsterinfo.monster_slots;
+		targ->monsterinfo.commander = NULL;
+	}
 }
 
 

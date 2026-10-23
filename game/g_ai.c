@@ -196,6 +196,10 @@ void ai_charge (edict_t *self, float dist)
 {
 	vec3_t	v;
 
+	// Ground Zero's: one may charge with no enemy (a kamikaze flyer)
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
 	// Ground Zero's manual steering keeps the yaw it was set
 	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
 	{
@@ -204,8 +208,29 @@ void ai_charge (edict_t *self, float dist)
 	}
 	M_ChangeYaw (self);
 
-	if (dist)
-		M_walkmove (self, self->s.angles[YAW], dist);
+	if (!dist)
+		return;
+
+	// Ground Zero's charge: a kamikaze flyer chases its goal
+	if (self->monsterinfo.aiflags & AI_CHARGING)
+	{
+		M_MoveToGoal (self, dist);
+		return;
+	}
+
+	// and its circle strafe (the stalker's, the carrier's flyers')
+	if ((self->monsterinfo.aiflags & AI_CIRCLE_STRAFE) && self->monsterinfo.attack_state == AS_SLIDING)
+	{
+		float	ofs = self->monsterinfo.lefty ? 90 : -90;
+
+		if (M_walkmove (self, self->ideal_yaw + ofs, dist))
+			return;
+		self->monsterinfo.lefty = 1 - self->monsterinfo.lefty;
+		M_walkmove (self, self->ideal_yaw - ofs, dist);
+		return;
+	}
+
+	M_walkmove (self, self->s.angles[YAW], dist);
 }
 
 

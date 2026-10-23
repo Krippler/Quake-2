@@ -123,6 +123,10 @@ typedef enum
 #define GIB_ORGANIC				0
 #define GIB_METALLIC			1
 
+// the re-release's summoned reinforcements
+#define	MAX_REINFORCEMENTS		5	// at once
+#define	MAX_REINFORCEMENT_TYPES	8	// to pick from
+
 //monster ai flags
 #define AI_STAND_GROUND			0x00000001
 #define AI_TEMP_STAND_GROUND	0x00000002
@@ -142,6 +146,7 @@ typedef enum
 #define AI_IGNORE_PAIN			0x00008000	// The Reckoning's: its gekk leaping
 #define AI_MANUAL_STEERING		0x00010000	// Ground Zero's: it sets its own yaw (turret, medic commander)
 #define AI_DODGING				0x00040000	// Ground Zero's: in a dodge
+#define AI_CHARGING				0x00080000	// Ground Zero's kamikaze flyer: chasing
 #define AI_IGNORE_SHOTS			0x00200000	// not angered by a monster's shot
 #define AI_DO_NOT_COUNT			0x00400000	// not in the level's count of monsters
 #define AI_SPAWNED_CARRIER		0x00800000	// summoned by a carrier
@@ -149,6 +154,7 @@ typedef enum
 #define AI_SPAWNED_WIDOW		0x02000000	// summoned by a widow (none here)
 #define AI_BLOCKED				0x04000000	// the medic commander's signal to summon
 #define AI_WALK_WALLS			0x08000000	// Ground Zero's stalker: it walks on ceilings
+#define AI_CIRCLE_STRAFE		0x10000000	// Ground Zero's: it circles as it charges, sliding
 // on a ceiling: Ground Zero's gravityVector, unset (zero) meaning down
 #define GRAVITY_UP(ent)			((ent)->gravityVector[2] > 0)
 
@@ -395,6 +401,8 @@ typedef struct
 	float		radius;			// the re-release's target_light
 	char		*goals;			// and worldspawn's Quake 64 objectives
 	float		health_multiplier;	// a monster's health, scaled
+	char		*reinforcements;	// the re-release's summoners': "classname strength;..."
+	int			monster_slots;		// and how much they may have summoned at once
 } spawn_temp_t;
 
 
@@ -487,7 +495,17 @@ typedef struct
 	// Ground Zero's summoners (medic commander, carrier): who summoned a
 	// monster, and how many more a summoner may have
 	edict_t		*commander;
-	int			monster_slots;
+	int			monster_slots;		// a summoner's total; a summoned monster's strength
+	int			monster_used;		// how much of a summoner's are out
+
+	// the re-release's reinforcements, parsed (inline, for save games)
+	struct {
+		char	classname[32];
+		int		strength;
+		vec3_t	mins, maxs;
+	}			reinforcements[MAX_REINFORCEMENT_TYPES];
+	int			num_reinforcements;
+	byte		chosen_reinforcements[MAX_REINFORCEMENTS];	// readied; 255 for none
 
 	float		melee_debounce_time;	// the re-release's: no melee till then
 
@@ -724,8 +742,14 @@ qboolean fire_hit_rr (edict_t *self, vec3_t aim, int damage, int kick);
 void PredictAim (edict_t *self, edict_t *target, vec3_t start, float bolt_speed, qboolean eye_height, float offset, vec3_t aimdir, vec3_t aimpoint);
 qboolean M_CheckClearShot (edict_t *self, vec3_t offset, vec3_t start);
 void monster_dead (edict_t *self);
+void M_SetupReinforcements (edict_t *self, char *reinforcements, int default_slots);
+int M_PickReinforcements (edict_t *self, int max_slots);
+int M_SlotsLeft (edict_t *self);
 qboolean ai_check_move (edict_t *self, float dist);
 void vectoangles2 (vec3_t value, vec3_t angles);
+float vectoyaw2 (vec3_t vec);
+qboolean inback (edict_t *self, edict_t *other);
+qboolean below (edict_t *self, edict_t *other);
 qboolean M_CalculatePitchToFire (edict_t *self, vec3_t target, vec3_t start, vec3_t aim, float speed, float time_remaining, qboolean mortar, qboolean destroy_on_touch);
 void T_SlamRadiusDamage (vec3_t point, edict_t *inflictor, edict_t *attacker, float damage, float kick, edict_t *ignore, float radius, int mod);
 void monster_duck_down (edict_t *self);
@@ -1144,6 +1168,7 @@ struct edict_s
 	char		*deathtarget;
 	char		*healthtarget;	// used as it is hurt (g_cotm.c)
 	edict_t		*beam;			// the re-release's: its shambler's lightning
+	edict_t		*bad_area;		// Ground Zero's: the tesla's area it stands in
 	char		*combattarget;
 	edict_t		*target_ent;
 

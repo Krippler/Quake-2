@@ -738,51 +738,39 @@ mmove_t medic_move_attackCable = {FRAME_attack33, FRAME_attack60, medic_frames_a
 /*
 =============================================================================
 
-The medic commander's reinforcements: by skill, and luck, one, three or
-five of these, stronger to weaker, in the spots before it -- or behind it,
-turning round first.
+The medic commander's reinforcements, as the re-release has them: its
+list (by default soldiers to a gladiator, or the map's), as many as it
+has room for, in the spots before it -- or behind it, turning round first.
 
 =============================================================================
 */
-static char *reinforcements[] = {
-	"monster_soldier_light",	// 0
-	"monster_soldier",			// 1
-	"monster_soldier_ss",		// 2
-	"monster_infantry",			// 3
-	"monster_gunner",			// 4
-	"monster_medic",			// 5
-	"monster_gladiator"			// 6
-};
+static char *default_reinforcements = "monster_soldier_light 1;monster_soldier 2;monster_soldier_ss 2;monster_infantry 3;monster_gunner 4;monster_medic 5;monster_gladiator 6";
+#define	DEFAULT_MONSTER_SLOTS_BASE	3
 
-static vec3_t reinforcement_mins[] = {
-	{-16, -16, -24}, {-16, -16, -24}, {-16, -16, -24}, {-16, -16, -24},
-	{-16, -16, -24}, {-16, -16, -24}, {-32, -32, -24}
-};
-
-static vec3_t reinforcement_maxs[] = {
-	{16, 16, 32}, {16, 16, 32}, {16, 16, 32}, {16, 16, 32},
-	{16, 16, 32}, {16, 16, 32}, {32, 32, 64}
-};
-
-static vec3_t reinforcement_position[] = {
+static vec3_t reinforcement_position[MAX_REINFORCEMENTS] = {
 	{80, 0, 0}, {40, 60, 0}, {40, -60, 0}, {0, 80, 0}, {0, -80, 0}
 };
 
-// 1, 3 or 5 of them
-static int medic_num_summoned (int summonStr)
+// how many it readied
+static int medic_num_chosen (edict_t *self)
 {
-	if (summonStr)
-		return (summonStr - 1) + (summonStr % 2);
-	return 1;
+	int		n;
+
+	for (n = 0; n < MAX_REINFORCEMENTS; n++)
+		if (self->monsterinfo.chosen_reinforcements[n] == 255)
+			break;
+	return n;
 }
 
 // is there room for the count'th, at its spot before it (or behind)?
-static qboolean medic_spawn_spot (edict_t *self, int summonStr, int count, qboolean behind, qboolean ground, vec3_t spawnpoint)
+static qboolean medic_spawn_spot (edict_t *self, int count, qboolean behind, qboolean ground, vec3_t spawnpoint)
 {
-	vec3_t	f, r, offset, startpoint;
-	int		which;
+	vec3_t	f, r, offset, startpoint, mins, maxs;
+	int		which = self->monsterinfo.chosen_reinforcements[count];
 
-	which = summonStr - (count + (count % 2));		// 0, 2, 2, 4, 4 weaker
+	VectorCopy (self->monsterinfo.reinforcements[which].mins, mins);
+	VectorCopy (self->monsterinfo.reinforcements[which].maxs, maxs);
+
 	AngleVectors (self->s.angles, f, r, NULL);
 	VectorCopy (reinforcement_position[count], offset);
 	if (behind)
@@ -793,11 +781,11 @@ static qboolean medic_spawn_spot (edict_t *self, int summonStr, int count, qbool
 	G_ProjectSource (self->s.origin, offset, f, r, startpoint);
 	startpoint[2] += 10;		// a little off the ground
 
-	if (!FindSpawnPoint (startpoint, reinforcement_mins[which], reinforcement_maxs[which], spawnpoint, 32))
+	if (!FindSpawnPoint (startpoint, mins, maxs, spawnpoint, 32))
 		return false;
 	if (ground)
-		return CheckGroundSpawnPoint (spawnpoint, reinforcement_mins[which], reinforcement_maxs[which], 256, -1);
-	return CheckSpawnPoint (spawnpoint, reinforcement_mins[which], reinforcement_maxs[which]);
+		return CheckGroundSpawnPoint (spawnpoint, mins, maxs, 256, -1);
+	return CheckSpawnPoint (spawnpoint, mins, maxs);
 }
 
 void medic_start_spawn (edict_t *self)
@@ -809,39 +797,19 @@ void medic_start_spawn (edict_t *self)
 void medic_determine_spawn (edict_t *self)
 {
 	vec3_t	spawnpoint;
-	float	lucky;
-	int		summonStr, count, num_summoned;
+	int		count, num_summoned;
 	qboolean	found = false;
 
-	lucky = random();
-	summonStr = skill->value;
-
-	if (lucky < 0.05)
-		summonStr -= 3;
-	else if (lucky < 0.15)
-		summonStr -= 2;
-	else if (lucky < 0.3)
-		summonStr -= 1;
-	else if (lucky > 0.95)
-		summonStr += 3;
-	else if (lucky > 0.85)
-		summonStr += 2;
-	else if (lucky > 0.7)
-		summonStr += 1;
-
-	if (summonStr < 0)
-		summonStr = 0;
-	self->plat2flags = summonStr;
-	num_summoned = medic_num_summoned (summonStr);
+	num_summoned = M_PickReinforcements (self, 0);
 
 	for (count = 0; count < num_summoned && !found; count++)
-		found = medic_spawn_spot (self, summonStr, count, false, true, spawnpoint);
+		found = medic_spawn_spot (self, count, false, true, spawnpoint);
 
 	if (!found)
 	{
 		// try behind, and turn round to face there
 		for (count = 0; count < num_summoned && !found; count++)
-			found = medic_spawn_spot (self, summonStr, count, true, true, spawnpoint);
+			found = medic_spawn_spot (self, count, true, true, spawnpoint);
 
 		if (found)
 		{
@@ -859,7 +827,7 @@ void medic_determine_spawn (edict_t *self)
 void medic_spawngrows (edict_t *self)
 {
 	vec3_t	spawnpoint;
-	int		summonStr, count, num_summoned, num_success = 0;
+	int		count, num_summoned, num_success = 0, which;
 	float	current_yaw;
 
 	// if it was turning round, wait till it has
@@ -874,15 +842,17 @@ void medic_spawngrows (edict_t *self)
 		self->monsterinfo.aiflags &= ~(AI_HOLD_FRAME|AI_MANUAL_STEERING);
 	}
 
-	summonStr = self->plat2flags;
-	num_summoned = medic_num_summoned (summonStr);
+	num_summoned = medic_num_chosen (self);
 
 	for (count = 0; count < num_summoned; count++)
 	{
-		if (!medic_spawn_spot (self, summonStr, count, false, true, spawnpoint))
+		if (!medic_spawn_spot (self, count, false, true, spawnpoint))
 			continue;
 		num_success++;
-		SpawnGrow_Spawn (spawnpoint, (summonStr - (count + (count % 2))) > 3 ? 1 : 0);
+		which = self->monsterinfo.chosen_reinforcements[count];
+		VectorAdd (spawnpoint, self->monsterinfo.reinforcements[which].mins, spawnpoint);
+		VectorAdd (spawnpoint, self->monsterinfo.reinforcements[which].maxs, spawnpoint);
+		SpawnGrow_Spawn (spawnpoint, 0);
 	}
 
 	if (!num_success)
@@ -893,20 +863,18 @@ void medic_finish_spawn (edict_t *self)
 {
 	edict_t	*ent, *designated_enemy;
 	vec3_t	spawnpoint;
-	int		summonStr, count, num_summoned, which;
+	int		count, num_summoned, which;
 
-	if (self->plat2flags < 0)
-		self->plat2flags *= -1;
-	summonStr = self->plat2flags;
-	num_summoned = medic_num_summoned (summonStr);
+	num_summoned = medic_num_chosen (self);
 
 	for (count = 0; count < num_summoned; count++)
 	{
-		which = summonStr - (count + (count % 2));
-		if (!medic_spawn_spot (self, summonStr, count, false, false, spawnpoint))
+		which = self->monsterinfo.chosen_reinforcements[count];
+		if (!medic_spawn_spot (self, count, false, false, spawnpoint))
 			continue;
 		ent = CreateGroundMonster (spawnpoint, self->s.angles,
-			reinforcement_mins[which], reinforcement_maxs[which], reinforcements[which], 256);
+			self->monsterinfo.reinforcements[which].mins, self->monsterinfo.reinforcements[which].maxs,
+			self->monsterinfo.reinforcements[which].classname, 256);
 		if (!ent)
 			continue;
 
@@ -918,7 +886,8 @@ void medic_finish_spawn (edict_t *self)
 
 		ent->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_MEDIC_C;
 		ent->monsterinfo.commander = self;
-		self->monsterinfo.monster_slots--;
+		ent->monsterinfo.monster_slots = self->monsterinfo.reinforcements[which].strength;
+		self->monsterinfo.monster_used += self->monsterinfo.reinforcements[which].strength;
 
 		if (self->monsterinfo.aiflags & AI_MEDIC)
 			designated_enemy = self->oldenemy;
@@ -1013,7 +982,7 @@ void medic_attack(edict_t *self)
 	r = random();
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 	{
-		if (r > 0.8 && self->monsterinfo.monster_slots > 2)
+		if (r > 0.8 && M_SlotsLeft (self))
 			self->monsterinfo.currentmove = &medic_move_callReinforcements;
 		else
 			self->monsterinfo.currentmove = &medic_move_attackCable;
@@ -1025,7 +994,7 @@ void medic_attack(edict_t *self)
 			self->monsterinfo.currentmove = &medic_move_callReinforcements;
 			return;
 		}
-		if (r > 0.2 && range(self, self->enemy) != RANGE_MELEE && self->monsterinfo.monster_slots > 2)
+		if (r > 0.2 && range_to (self, self->enemy) > 20 && M_SlotsLeft (self))
 			self->monsterinfo.currentmove = &medic_move_callReinforcements;
 		else
 			self->monsterinfo.currentmove = &medic_move_attackBlaster;
@@ -1042,21 +1011,24 @@ qboolean medic_checkattack (edict_t *self)
 
 	if (MEDIC_COMMANDER(self))
 	{
-		// the commander summons for an unseen player, and at a distance
+		// the commander summons for an unseen player; and, with much room
+		// left, a large bias to summon at a distance
 		if (self->enemy && self->enemy->client && !visible (self, self->enemy)
-			&& self->monsterinfo.monster_slots > 2)
+			&& M_SlotsLeft (self))
 		{
 			self->monsterinfo.attack_state = AS_BLIND;
 			return true;
 		}
-		if (random() < 0.8 && self->monsterinfo.monster_slots > 5
+		if (self->monsterinfo.monster_slots && random() < 0.8
+			&& M_SlotsLeft (self) > self->monsterinfo.monster_slots * 0.8
 			&& realrange (self, self->enemy) > 150)
 		{
 			self->monsterinfo.aiflags |= AI_BLOCKED;
 			self->monsterinfo.attack_state = AS_MISSILE;
 			return true;
 		}
-		if (skill->value > 0 && (self->monsterinfo.aiflags & AI_STAND_GROUND))
+		// its idle looks bad in a fight: on a combat point, always attack
+		if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		{
 			self->monsterinfo.attack_state = AS_MISSILE;
 			return true;
@@ -1066,21 +1038,9 @@ qboolean medic_checkattack (edict_t *self)
 	return M_CheckAttack (self);
 }
 
-// the commander's reinforcements, precached
+// the commander's spawn-grow
 static void MedicCommanderCache (void)
 {
-	edict_t	*ent;
-	int		i;
-
-	for (i = 0; i < 7; i++)
-	{
-		ent = G_Spawn ();
-		ent->classname = reinforcements[i];
-		ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-		ED_CallSpawn (ent);
-		G_FreeEdict (ent);
-	}
-
 	gi.modelindex ("models/items/spawngro/tris.md2");
 	gi.modelindex ("models/items/spawngro2/tris.md2");
 }
@@ -1157,12 +1117,8 @@ void SP_monster_medic (edict_t *self)
 	if (MEDIC_COMMANDER(self))
 	{
 		self->s.skinnum = 2;
-		if (skill->value == 0)
-			self->monsterinfo.monster_slots = 3;
-		else if (skill->value == 1)
-			self->monsterinfo.monster_slots = 4;
-		else
-			self->monsterinfo.monster_slots = 6;
+		// its reinforcements: the map's, or soldiers to a gladiator
+		M_SetupReinforcements (self, default_reinforcements, DEFAULT_MONSTER_SLOTS_BASE);
 		// Ground Zero's blind fire: it summons for a player it can't see
 		self->monsterinfo.blindfire = true;
 

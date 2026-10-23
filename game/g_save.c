@@ -144,6 +144,7 @@ field_t fields[] = {
 	{"currentmove", FOFS(monsterinfo.currentmove), F_MMOVE, FFL_NOSPAWN},
 	{"commander", FOFS(monsterinfo.commander), F_EDICT, FFL_NOSPAWN},
 	{"beam", FOFS(beam), F_EDICT, FFL_NOSPAWN},
+	{"bad_area", FOFS(bad_area), F_EDICT, FFL_NOSPAWN},
 
 	{"endfunc", FOFS(moveinfo.endfunc), F_FUNCTION, FFL_NOSPAWN},
 
@@ -166,6 +167,8 @@ field_t fields[] = {
 	{"item", STOFS(item), F_LSTRING, FFL_SPAWNTEMP},
 	{"radius", STOFS(radius), F_FLOAT, FFL_SPAWNTEMP},
 	{"health_multiplier", STOFS(health_multiplier), F_FLOAT, FFL_SPAWNTEMP},
+	{"reinforcements", STOFS(reinforcements), F_LSTRING, FFL_SPAWNTEMP},
+	{"monster_slots", STOFS(monster_slots), F_INT, FFL_SPAWNTEMP},
 	{"healthtarget", FOFS(healthtarget), F_LSTRING},
 	{"goals", STOFS(goals), F_LSTRING, FFL_SPAWNTEMP},
 	{"rgba", FOFS(s.skinnum), F_INT},

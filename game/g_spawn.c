@@ -88,6 +88,8 @@ void SP_monster_stalker (edict_t *ent);
 void SP_monster_arachnid (edict_t *ent);
 void SP_monster_shambler (edict_t *ent);
 void SP_monster_guncmdr (edict_t *ent);
+void SP_monster_carrier (edict_t *ent);
+void SP_monster_kamikaze (edict_t *ent);
 void SP_monster_boss5 (edict_t *ent);
 void SP_monster_gekk (edict_t *ent);
 void SP_monster_gladb (edict_t *ent);
@@ -248,6 +250,8 @@ spawn_t	spawns[] = {
 	{"monster_arachnid", SP_monster_arachnid},
 	{"monster_shambler", SP_monster_shambler},
 	{"monster_guncmdr", SP_monster_guncmdr},
+	{"monster_carrier", SP_monster_carrier},
+	{"monster_kamikaze", SP_monster_kamikaze},
 	{"monster_boss5", SP_monster_boss5},
 	{"monster_gekk", SP_monster_gekk},
 	{"monster_gladb", SP_monster_gladb},

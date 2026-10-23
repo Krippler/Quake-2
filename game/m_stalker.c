@@ -1498,7 +1498,7 @@ SP_monster_stalker(edict_t *self)
 	self->monsterinfo.currentmove = &stalker_move_stand;
 	self->monsterinfo.scale = MODEL_SCALE;
 
-	self->monsterinfo.aiflags |= AI_WALK_WALLS;
+	self->monsterinfo.aiflags |= AI_WALK_WALLS|AI_CIRCLE_STRAFE;
 
 	VectorSet(self->gravityVector, 0, 0, -1);
 	if (self->spawnflags & 8)

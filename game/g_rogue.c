@@ -228,6 +228,16 @@ void stationarymonster_start (edict_t *self)
  * for a monster, the spawn-grow effect it appears in, and spawning it.
  */
 #define	SPAWN_STEPSIZE		18
+
+// spawn a monster mid-game, with none of the last map entity's spawn keys
+static void RR_CallSpawnClean (edict_t *ent)
+{
+	spawn_temp_t	saved = st;
+
+	memset (&st, 0, sizeof(st));
+	ED_CallSpawn (ent);
+	st = saved;
+}
 #define	SPAWNGROW_LIFESPAN	0.3
 
 qboolean FindSpawnPoint (vec3_t startpoint, vec3_t mins, vec3_t maxs, vec3_t spawnpoint, float maxMoveUp)
@@ -360,7 +370,7 @@ static void DetermineBBox (char *classname, vec3_t mins, vec3_t maxs)
 	ent = G_Spawn ();
 	ent->classname = classname;
 	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-	ED_CallSpawn (ent);
+	RR_CallSpawnClean (ent);
 	VectorCopy (ent->mins, mins);
 	VectorCopy (ent->maxs, maxs);
 	G_FreeEdict (ent);
@@ -375,7 +385,7 @@ edict_t *CreateMonster (vec3_t origin, vec3_t angles, char *classname)
 	VectorCopy (angles, ent->s.angles);
 	ent->classname = classname;
 	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-	ED_CallSpawn (ent);
+	RR_CallSpawnClean (ent);
 	ent->s.renderfx |= RF_IR_VISIBLE;
 	return ent;
 }
@@ -756,4 +766,47 @@ void monster_fire_flechette (edict_t *self, vec3_t start, vec3_t dir, int damage
 	gi.WriteShort (self - g_edicts);
 	gi.WriteByte (flashtype);
 	gi.multicast (start, MULTICAST_PVS);
+}
+
+// Ground Zero's: is other behind self, or straight below it?
+qboolean inback (edict_t *self, edict_t *other)
+{
+	vec3_t	vec, forward;
+
+	AngleVectors (self->s.angles, forward, NULL, NULL);
+	VectorSubtract (other->s.origin, self->s.origin, vec);
+	VectorNormalize (vec);
+	return DotProduct (vec, forward) < -0.3;
+}
+
+qboolean below (edict_t *self, edict_t *other)
+{
+	vec3_t	vec, down = {0, 0, -1};
+
+	VectorSubtract (other->s.origin, self->s.origin, vec);
+	VectorNormalize (vec);
+	return DotProduct (vec, down) > 0.95;		// an 18 degree arc below
+}
+
+// vectoyaw without its rounding to whole degrees
+float vectoyaw2 (vec3_t vec)
+{
+	float	yaw;
+
+	if (vec[PITCH] == 0)
+	{
+		if (vec[YAW] == 0)
+			yaw = 0;
+		else if (vec[YAW] > 0)
+			yaw = 90;
+		else
+			yaw = 270;
+	}
+	else
+	{
+		yaw = atan2(vec[YAW], vec[PITCH]) * 180 / M_PI;
+		if (yaw < 0)
+			yaw += 360;
+	}
+	return yaw;
 }

@@ -216,9 +216,30 @@ mframe_t flyer_frames_run [] =
 };
 mmove_t	flyer_move_run = {FRAME_stand01, FRAME_stand45, flyer_frames_run, NULL};
 
+/*
+Ground Zero's kamikaze flyer (its carrier launches them, mass 100): it
+flies at its enemy with a rocket trail and blows up beside it
+*/
+#define	FLYER_KAMIKAZE(self)	((self)->mass > 50)
+
+void flyer_kamikaze (edict_t *self);
+void flyer_kamikaze_check (edict_t *self);
+
+mframe_t flyer_frames_kamikaze [] =
+{
+	ai_charge, 40, flyer_kamikaze_check,
+	ai_charge, 40, flyer_kamikaze_check,
+	ai_charge, 40, flyer_kamikaze_check,
+	ai_charge, 40, flyer_kamikaze_check,
+	ai_charge, 40, flyer_kamikaze_check
+};
+mmove_t flyer_move_kamikaze = {FRAME_rollr02, FRAME_rollr06, flyer_frames_kamikaze, flyer_kamikaze};
+
 void flyer_run (edict_t *self)
 {
-	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
+	if (FLYER_KAMIKAZE(self))
+		self->monsterinfo.currentmove = &flyer_move_kamikaze;
+	else if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		self->monsterinfo.currentmove = &flyer_move_stand;
 	else
 		self->monsterinfo.currentmove = &flyer_move_run;
@@ -226,12 +247,89 @@ void flyer_run (edict_t *self)
 
 void flyer_walk (edict_t *self)
 {
-	self->monsterinfo.currentmove = &flyer_move_walk;
+	if (FLYER_KAMIKAZE(self))
+		flyer_run (self);
+	else
+		self->monsterinfo.currentmove = &flyer_move_walk;
 }
 
 void flyer_stand (edict_t *self)
 {
+	if (FLYER_KAMIKAZE(self))
+		flyer_run (self);
+	else
 		self->monsterinfo.currentmove = &flyer_move_stand;
+}
+
+void flyer_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point);
+
+static void flyer_kamikaze_explode (edict_t *self)
+{
+	vec3_t	dir;
+
+	if (self->monsterinfo.commander && self->monsterinfo.commander->inuse
+		&& !strcmp(self->monsterinfo.commander->classname, "monster_carrier"))
+		self->monsterinfo.commander->monsterinfo.monster_slots++;
+
+	VectorClear (dir);
+	if (self->enemy)
+	{
+		VectorSubtract (self->enemy->s.origin, self->s.origin, dir);
+		T_Damage (self->enemy, self, self, dir, self->s.origin, vec3_origin, 50, 50, DAMAGE_RADIUS, MOD_UNKNOWN);
+	}
+
+	flyer_die (self, NULL, NULL, 0, dir);
+}
+
+void flyer_kamikaze (edict_t *self)
+{
+	self->monsterinfo.currentmove = &flyer_move_kamikaze;
+}
+
+void flyer_kamikaze_check (edict_t *self)
+{
+	// it may have gone already (blocked)
+	if (!self->inuse)
+		return;
+
+	if (!self->enemy || !self->enemy->inuse)
+	{
+		flyer_kamikaze_explode (self);
+		return;
+	}
+
+	self->goalentity = self->enemy;
+
+	if (realrange (self, self->enemy) < 90)
+		flyer_kamikaze_explode (self);
+}
+
+// a kamikaze blows up when blocked
+qboolean flyer_blocked (edict_t *self, float dist)
+{
+	vec3_t	origin;
+
+	if (self->mass != 100)
+		return false;		// a normal flyer
+
+	flyer_kamikaze_check (self);
+
+	// if that didn't blow it up (blocked by the player)
+	if (self->inuse)
+	{
+		if (self->monsterinfo.commander && self->monsterinfo.commander->inuse
+			&& !strcmp(self->monsterinfo.commander->classname, "monster_carrier"))
+			self->monsterinfo.commander->monsterinfo.monster_slots++;
+
+		VectorMA (self->s.origin, -0.02, self->velocity, origin);
+		gi.WriteByte (svc_temp_entity);
+		gi.WriteByte (TE_ROCKET_EXPLOSION);
+		gi.WritePosition (origin);
+		gi.multicast (self->s.origin, MULTICAST_PHS);
+
+		G_FreeEdict (self);
+	}
+	return true;
 }
 
 mframe_t flyer_frames_start [] =
@@ -486,8 +584,37 @@ void flyer_loop_melee (edict_t *self)
 
 
 
+// Ground Zero's circle strafe: the carrier's flyers start in it
+mframe_t flyer_frames_attack3 [] =
+{
+	ai_charge, 10, NULL,
+	ai_charge, 10, NULL,
+	ai_charge, 10, NULL,
+	ai_charge, 10, flyer_fireleft,
+	ai_charge, 10, flyer_fireright,
+	ai_charge, 10, flyer_fireleft,
+	ai_charge, 10, flyer_fireright,
+	ai_charge, 10, flyer_fireleft,
+	ai_charge, 10, flyer_fireright,
+	ai_charge, 10, flyer_fireleft,
+	ai_charge, 10, flyer_fireright,
+	ai_charge, 10, NULL,
+	ai_charge, 10, NULL,
+	ai_charge, 10, NULL,
+	ai_charge, 10, NULL,
+	ai_charge, 10, NULL,
+	ai_charge, 10, NULL
+};
+mmove_t flyer_move_attack3 = {FRAME_attak201, FRAME_attak217, flyer_frames_attack3, flyer_run};
+
 void flyer_attack (edict_t *self)
 {
+	if (FLYER_KAMIKAZE(self))
+	{
+		flyer_run (self);
+		return;
+	}
+
 /*	if (random() <= 0.5)	
 		self->monsterinfo.currentmove = &flyer_move_attack1;
 	else */
@@ -512,6 +639,11 @@ void flyer_nextmove (edict_t *self)
 
 void flyer_melee (edict_t *self)
 {
+	if (FLYER_KAMIKAZE(self))
+	{
+		flyer_run (self);
+		return;
+	}
 //	flyer.nextmove = ACTION_attack1;
 //	self->monsterinfo.currentmove = &flyer_move_stop;
 	self->monsterinfo.currentmove = &flyer_move_start_melee;
@@ -531,6 +663,9 @@ void flyer_check_melee(edict_t *self)
 void flyer_pain (edict_t *self, edict_t *other, float kick, int damage)
 {
 	int		n;
+
+	if (FLYER_KAMIKAZE(self))
+		return;		// kamikazes feel no pain
 
 	if (self->health < (self->max_health / 2))
 		self->s.skinnum = 1;
@@ -616,6 +751,7 @@ void SP_monster_flyer (edict_t *self)
 	self->monsterinfo.melee = flyer_melee;
 	self->monsterinfo.sight = flyer_sight;
 	self->monsterinfo.idle = flyer_idle;
+	self->monsterinfo.blocked = flyer_blocked;
 
 	gi.linkentity (self);
 
@@ -623,4 +759,18 @@ void SP_monster_flyer (edict_t *self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	flymonster_start (self);
+}
+
+/*QUAKED monster_kamikaze (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
+Ground Zero's suicide flyer
+*/
+void SP_monster_kamikaze (edict_t *self)
+{
+	SP_monster_flyer (self);
+	if (!self->inuse)
+		return;
+
+	VectorSet (self->maxs, 16, 16, 16);
+	self->s.effects |= EF_ROCKET;
+	self->mass = 100;
 }
