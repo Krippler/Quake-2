@@ -162,36 +162,70 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
 (`QUAKE2_RERELEASE=1`, as `baseq2/pak9.pak`):
 
 - **`qcommon/usable.c`** (new, built into the engine and the renderer):
-  whether a copy of a file is one this engine reads -- a map in IBSP 38
-  within the loaders' limits and with no face wider than the 256 units the
-  software renderer's surface cache takes; an MD2 within the 1997 limits; an
+  whether a copy of a file is one this engine reads -- a map in IBSP 38 or
+  the re-release's QBSP within the loaders' limits, its edges' vertices and
+  its faces' texinfo and edges in range; an MD2 within the 1997 limits; an
   8-bit PCX; a WAL with its mip levels inside it. `MAX_MAP_LIGHTING` is not
   checked: nothing loading a map enforces it, and the re-release's lighting
   lumps are past it. Nor is how far a map reaches: the 1997 game's own ware1
   goes to 4408 units and fact3's bounds to 99999, and both play. (1.3.0 to
   1.3.5 did check it, against 4096, and turned those two away.)
 - **`ref_soft/r_image.c`**: some of the re-release's images are only there
-  as 24- or 32-bit TGA: 84 skies (the mission packs', Call of the
-  Machine's, the deathmatch maps') and the Quake 64 maps' textures. A sky
+  as 24- or 32-bit TGA or as PNG: 84 skies (the mission packs', Call of
+  the Machine's, the deathmatch maps') and the Quake 64 maps' textures. A sky
   was asked for as a `.pcx` and not found, and the software renderer then
   drew nothing where it was -- the last frames smeared across the top of
   the view, in the Reckoning's demo on xcompnd1 for one. A `.pcx` or `.wal`
-  that is not there is now taken from the `.tga` of the same name: read by
+  that is not there is now taken from the `.tga`, else the `.png`, of the
+  same name (`r_png.c`, new: every colour type and bit depth, `tRNS` and
+  Adam7, inflated by zlib), the TGA read by
   a `LoadTGA` that checks its lengths (id's did not, and stopped the game
   on a kind it did not read), each pixel the nearest of the palette's
   colours that the colormap shades (the coloured light's table), a sky
   averaged to 256x256 as the originals are, a texture to a multiple of 16
-  on each side with four mip levels made by averaging. Its PNGs are its
-  own engine's -- menus, glow maps, MD5 skins -- and none is asked for.
+  on each side with four mip levels made by averaging.
 - **`qcommon/files.c`**: `FS_LoadFileSkip` and `FS_FOpenFileSkip` open the
   copy of a file a given number of copies down the search path;
   `FS_LoadUsableFile` walks down until `usable.c` accepts one, and says why
   it passed over each. `CM_LoadMap` uses it, the renderer the same through a
   new `refimport_t` field (`client/ref.h`, at the end), for maps, models,
-  pictures and textures: so the console font and the 12 Call of the Machine
-  maps in QBSP format, the soldier with 575 frames, `q2dm3` with its wide
-  faces each come from the original's paks. Server, client and renderer
+  pictures and textures: so the console font and the soldier with 575
+  frames each come from the original's paks. Server, client and renderer
   settle on the same copy of a map, and its checksum agrees.
+- **The re-release's maps past 1997's**: the Quake 64 campaign, Call of
+  the Machine, `q2dm3` and four of Ground Zero's.
+  - `qcommon/qfiles.h`: QBSP, "QBSP" for "IBSP", is IBSP with ints for its
+    shorts and floats for its nodes' and leafs' bounds (`dqnode_t` and the
+    rest); `MAX_MAP_*` up to the re-release's own. `cmodel.c` and the
+    renderer's `r_model.c` read either; `medge_t` and the leaf lists are
+    ints for it.
+  - `ref_soft/r_model.c`: faces wider than the surface cache's 256 texels
+    (`q2dm3`'s, the N64 maps' floors) are cut along the texture's 240-texel
+    grid lines as the map loads, `Mod_SplitSurfaces`, each piece a face of
+    its own with its share of the lightmap; the leafs' and nodes' face
+    lists are remapped to the pieces. The re-release's `DECOUPLED_LM`
+    lightmaps, on a grid of their own per face, are resampled on to the
+    16-unit one this renderer lights by. A translucent face that flows
+    (Ground Zero's `SURF_FLOWING`) is drawn as turbulent ones are, its
+    extents being theirs (`r_poly.c`).
+  - more than 255 models (Call of the Machine's mgu5m2 has 227 brush
+    models, and its monsters' and items' on top): `MAX_MODELS_EXT`, 1024, with the numbers past 255 in
+    configstrings of their own after 1997's, `CS_MODEL(i)`; an entity with
+    one is sent with `U_MODEL16` and its model numbers as shorts, a player
+    state with `PS_WEAPONINDEX16`. 255 itself is never handed out, a
+    client drawing it as a player in their skin. A 1997 client cannot read
+    these, but none is asked to: they are only sent for a map past 255.
+    The level files of a save keep 1997's layout with the new configstrings
+    after the portal state, so a save from before them loads.
+  - `qcommon/cmodel.c`: a box touching a brush is not inside it. 1997 took
+    `d1 > 0` for in front, so a player exactly as wide as a gap was stuck in
+    it -- mgu1m1's drop pod; traces stop 1/32 short of a face, so nothing
+    rests touching one otherwise. `game/p_client.c` lifts a start point by
+    less than 9 where 9 is in the ceiling, as the re-release does, and the
+    base game has Ground Zero's `trigger_teleport` and
+    `info_teleport_destination`, which that pod lands by.
+  - `qcommon/cmd.c`: on the command line `-` starts another command only
+    where an argument would, not inside `q64/geo-stat`.
 - **`server/sv_game.c`**: `PF_setmodel` given no model leaves the entity
   without one instead of stopping the map. The re-release's maps have
   point-sized triggers fired only by name (city2's `trigger_once`), which

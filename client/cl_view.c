@@ -284,9 +284,15 @@ void CL_PrepRefresh (void)
 	num_cl_weaponmodels = 1;
 	strcpy(cl_weaponmodels[0], "weapon.md2");
 
-	for (i=1 ; i<MAX_MODELS && cl.configstrings[CS_MODELS+i][0] ; i++)
+	for (i=1 ; i<MAX_MODELS_EXT ; i++)
 	{
-		strcpy (name, cl.configstrings[CS_MODELS+i]);
+		if (!cl.configstrings[CS_MODEL(i)][0])
+		{
+			if (i == 255)
+				continue;	// a server past 255 leaves it for players
+			break;
+		}
+		strcpy (name, cl.configstrings[CS_MODEL(i)]);
 		name[37] = 0;	// never go beyond one line
 		if (name[0] != '*')
 			Com_Printf ("%s\r", name); 
@@ -297,16 +303,16 @@ void CL_PrepRefresh (void)
 			// special player weapon model
 			if (num_cl_weaponmodels < MAX_CLIENTWEAPONMODELS)
 			{
-				strncpy(cl_weaponmodels[num_cl_weaponmodels], cl.configstrings[CS_MODELS+i]+1,
+				strncpy(cl_weaponmodels[num_cl_weaponmodels], cl.configstrings[CS_MODEL(i)]+1,
 					sizeof(cl_weaponmodels[num_cl_weaponmodels]) - 1);
 				num_cl_weaponmodels++;
 			}
 		} 
 		else
 		{
-			cl.model_draw[i] = re.RegisterModel (cl.configstrings[CS_MODELS+i]);
+			cl.model_draw[i] = re.RegisterModel (cl.configstrings[CS_MODEL(i)]);
 			if (name[0] == '*')
-				cl.model_clip[i] = CM_InlineModel (cl.configstrings[CS_MODELS+i]);
+				cl.model_clip[i] = CM_InlineModel (cl.configstrings[CS_MODEL(i)]);
 			else
 				cl.model_clip[i] = NULL;
 		}

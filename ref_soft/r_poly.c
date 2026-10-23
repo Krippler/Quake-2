@@ -1065,7 +1065,9 @@ void R_BuildPolygonFromSurface(msurface_t *fa)
 		VectorSubtract( vec3_origin, r_polydesc.vpn, r_polydesc.vpn );
 	}
 
-	if ( fa->texinfo->flags & SURF_WARP )
+	// flowing faces too: they are drawn as turbulent, with turbulent's
+	// extents, which the surface cache has no room for
+	if ( fa->flags & SURF_DRAWTURB )
 	{
 		r_polydesc.pixels       = fa->texinfo->image->pixels[0];
 		r_polydesc.pixel_width  = fa->texinfo->image->width;
@@ -1215,9 +1217,9 @@ void R_DrawAlphaSurfaces( void )
 		R_BuildPolygonFromSurface( s );
 
 		if (s->texinfo->flags & SURF_TRANS66)
-			R_ClipAndDrawPoly( 0.60f, ( s->texinfo->flags & SURF_WARP) != 0, true );
+			R_ClipAndDrawPoly( 0.60f, ( s->flags & SURF_DRAWTURB) != 0, true );
 		else
-			R_ClipAndDrawPoly( 0.30f, ( s->texinfo->flags & SURF_WARP) != 0, true );
+			R_ClipAndDrawPoly( 0.30f, ( s->flags & SURF_DRAWTURB) != 0, true );
 
 		s = s->nextalphasurface;
 	}

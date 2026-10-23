@@ -1969,7 +1969,8 @@ void teleporter_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_
 	other->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
 
 	// draw the teleport splash at source and on the player
-	self->owner->s.event = EV_PLAYER_TELEPORT;
+	if (self->owner)
+		self->owner->s.event = EV_PLAYER_TELEPORT;
 	other->s.event = EV_PLAYER_TELEPORT;
 
 	// set angles
@@ -2036,3 +2037,54 @@ void SP_misc_teleporter_dest (edict_t *ent)
 	gi.linkentity (ent);
 }
 
+
+/*QUAKED trigger_teleport (.5 .5 .5) ? player_only silent ctf_only start_on
+Ground Zero's, which the 2023 re-release's maps use: a brush that teleports
+the players in it to the info_teleport_destination it targets. Given a
+targetname, it is off until used, or on until used with start_on. Call of
+the Machine's mgu1m1 ends its drop pod's descent with one.
+*/
+#define TELEPORT_START_ON	8
+
+void trigger_teleport_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+	if (self->delay)
+		return;		// off
+	teleporter_touch (self, other, plane, surf);
+}
+
+void trigger_teleport_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	self->delay = !self->delay;
+}
+
+void SP_trigger_teleport (edict_t *self)
+{
+	if (!self->target)
+	{
+		gi.dprintf ("trigger_teleport without a target.\n");
+		G_FreeEdict (self);
+		return;
+	}
+
+	self->delay = 0;
+	if (self->targetname)
+	{
+		self->use = trigger_teleport_use;
+		if (!(self->spawnflags & TELEPORT_START_ON))
+			self->delay = 1;
+	}
+	self->touch = trigger_teleport_touch;
+	self->solid = SOLID_TRIGGER;
+	self->movetype = MOVETYPE_NONE;
+	self->svflags |= SVF_NOCLIENT;
+	gi.setmodel (self, self->model);
+	gi.linkentity (self);
+}
+
+/*QUAKED info_teleport_destination (.5 .5 .5) (-16 -16 -24) (16 16 32)
+Where a trigger_teleport sends players: only looked at.
+*/
+void SP_info_teleport_destination (edict_t *self)
+{
+}

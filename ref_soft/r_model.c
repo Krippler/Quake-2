@@ -179,9 +179,11 @@ model_t *Mod_ForName (char *name, qboolean crash)
 		break;
 	
 	case IDBSPHEADER:
+	case IDQBSPHEADER:
 		// reserved, not committed: the 2023 re-release's maps, their
-		// lighting kept in colour as well, take more than the 16 MB of 1997
-		loadmodel->extradata = Hunk_Begin (0x4000000);
+		// lighting kept in colour as well and their wide faces split, take
+		// more than the 16 MB of 1997 -- Call of the Machine's most of all
+		loadmodel->extradata = Hunk_Begin (0x10000000);
 		Mod_LoadBrushModel (mod, buf);
 		break;
 
@@ -300,6 +302,28 @@ byte *Mod_ClusterPVS (int cluster, model_t *model)
 */
 
 byte	*mod_base;
+static qboolean	mod_qbsp;		// the map is in QBSP (qfiles.h)
+
+/*
+Each face of the file as the surfaces it became (Mod_SplitSurfaces): face
+i is surfaces mod_surfmap[i] up to mod_surfmap[i+1]. The nodes, leafs and
+submodels number faces, and are read through it.
+*/
+static int		*mod_surfmap;
+static int		mod_numfaces;
+
+/*
+Each leaf face is the face's pieces, in the order they are: mod_leaffacemap
+says where each leaf face of the file starts among them, for the leafs.
+*/
+static int		*mod_leaffacemap;
+static int		mod_numleaffaces;
+
+// a QBSP node's or leaf's bound, as the short the renderer keeps
+static short Mod_Short (float f)
+{
+	return f < -32768 ? -32768 : f > 32767 ? 32767 : (short)floor (f);
+}
 
 
 /*
@@ -482,7 +506,7 @@ static int Mod_CountSharedEdges (lump_t *edges, lump_t *surfedges)
 	int		*in;
 	byte	*used;
 
-	numedges = edges->filelen / sizeof(dedge_t);
+	numedges = edges->filelen / (mod_qbsp ? sizeof(dqedge_t) : sizeof(dedge_t));
 	count = surfedges->filelen / sizeof(int);
 	in = (void *)(mod_base + surfedges->fileofs);
 	used = calloc (numedges ? numedges : 1, 1);
@@ -504,22 +528,35 @@ static int Mod_CountSharedEdges (lump_t *edges, lump_t *surfedges)
 void Mod_LoadEdges (lump_t *l)
 {
 	dedge_t *in;
+	dqedge_t *qin;
 	medge_t *out;
-	int 	i, count;
+	int 	i, count, size;
 
 	in = (void *)(mod_base + l->fileofs);
-	if (l->filelen % sizeof(*in))
+	qin = (void *)in;
+	size = mod_qbsp ? sizeof(*qin) : sizeof(*in);
+	if (l->filelen % size)
 		ri.Sys_Error (ERR_DROP,"MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
-	count = l->filelen / sizeof(*in);
+	count = l->filelen / size;
 	out = Hunk_Alloc ( (count + mod_extraedges + 13) * sizeof(*out));	// extra for skybox
 
 	loadmodel->edges = out;
 	loadmodel->numedges = count;
 
-	for ( i=0 ; i<count ; i++, in++, out++)
+	for ( i=0 ; i<count ; i++, in++, qin++, out++)
 	{
-		out->v[0] = (unsigned short)LittleShort(in->v[0]);
-		out->v[1] = (unsigned short)LittleShort(in->v[1]);
+		if (mod_qbsp)
+		{
+			out->v[0] = LittleLong(qin->v[0]);
+			out->v[1] = LittleLong(qin->v[1]);
+		}
+		else
+		{
+			out->v[0] = (unsigned short)LittleShort(in->v[0]);
+			out->v[1] = (unsigned short)LittleShort(in->v[1]);
+		}
+		if (out->v[0] >= loadmodel->numvertexes || out->v[1] >= loadmodel->numvertexes)
+			ri.Sys_Error (ERR_DROP, "Mod_LoadEdges: bad vertex number in %s", loadmodel->name);
 	}
 }
 
@@ -650,7 +687,9 @@ void CalcSurfaceExtents (msurface_t *s)
 		s->extents[i] = (bmaxs[i] - bmins[i]) * 16;
 		if (s->extents[i] < 16)
 			s->extents[i] = 16;	// take at least one cache block
-		if ( !(tex->flags & (SURF_WARP|SURF_SKY)) && s->extents[i] > 256)
+		// wider than 256 the surface cache cannot take it: such a face is
+		// cut into pieces that it can, as the map loads (Mod_SplitSurfaces)
+		if ( !(tex->flags & (SURF_WARP|SURF_SKY)) && s->extents[i] > 16384)
 			ri.Sys_Error (ERR_DROP,"Bad surface extents");
 	}
 }
@@ -664,43 +703,62 @@ Mod_LoadFaces
 void Mod_LoadFaces (lump_t *l)
 {
 	dface_t		*in;
+	dqface_t	*qin;
 	msurface_t 	*out;
-	int			i, count, surfnum;
+	int			i, count, surfnum, size, texinfo;
 	int			planenum, side;
 
 	in = (void *)(mod_base + l->fileofs);
-	if (l->filelen % sizeof(*in))
+	qin = (void *)in;
+	size = mod_qbsp ? sizeof(*qin) : sizeof(*in);
+	if (l->filelen % size)
 		ri.Sys_Error (ERR_DROP,"MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
-	count = l->filelen / sizeof(*in);
+	count = l->filelen / size;
 	out = Hunk_Alloc ( (count+6)*sizeof(*out));	// extra for skybox
 
 	loadmodel->surfaces = out;
 	loadmodel->numsurfaces = count;
 
-	for ( surfnum=0 ; surfnum<count ; surfnum++, in++, out++)
+	for ( surfnum=0 ; surfnum<count ; surfnum++, in++, qin++, out++)
 	{
-		out->firstedge = LittleLong(in->firstedge);
-		out->numedges = LittleShort(in->numedges);		
+		if (mod_qbsp)
+		{
+			out->firstedge = LittleLong(qin->firstedge);
+			out->numedges = LittleLong(qin->numedges);
+			planenum = LittleLong(qin->planenum);
+			side = LittleLong(qin->side);
+			texinfo = LittleLong(qin->texinfo);
+		}
+		else
+		{
+			out->firstedge = LittleLong(in->firstedge);
+			out->numedges = LittleShort(in->numedges);
+			planenum = (unsigned short)LittleShort(in->planenum);
+			side = LittleShort(in->side);
+			texinfo = LittleShort(in->texinfo);
+		}
 		if (out->numedges < 3)
-			ri.Sys_Error (ERR_DROP,"Surface with %s edges", out->numedges);
+			ri.Sys_Error (ERR_DROP,"Surface with %i edges", out->numedges);
+		if (out->firstedge < 0 || out->firstedge > loadmodel->numsurfedges - out->numedges
+			|| planenum < 0 || planenum >= loadmodel->numplanes
+			|| texinfo < 0 || texinfo >= loadmodel->numtexinfo)
+			ri.Sys_Error (ERR_DROP, "Mod_LoadFaces: bad face in %s", loadmodel->name);
 		out->flags = 0;
 
-		planenum = LittleShort(in->planenum);
-		side = LittleShort(in->side);
 		if (side)
 			out->flags |= SURF_PLANEBACK;			
 
 		out->plane = loadmodel->planes + planenum;
 
-		out->texinfo = loadmodel->texinfo + LittleShort (in->texinfo);
+		out->texinfo = loadmodel->texinfo + texinfo;
 
 		CalcSurfaceExtents (out);
 				
 	// lighting info is converted from 24 bit on disk to 8 bit
 
 		for (i=0 ; i<MAXLIGHTMAPS ; i++)
-			out->styles[i] = in->styles[i];
-		i = LittleLong(in->lightofs);
+			out->styles[i] = mod_qbsp ? qin->styles[i] : in->styles[i];
+		i = LittleLong(mod_qbsp ? qin->lightofs : in->lightofs);
 		if (i == -1)
 		{
 			out->samples = NULL;
@@ -773,37 +831,46 @@ Mod_LoadNodes
 */
 void Mod_LoadNodes (lump_t *l)
 {
-	int			i, j, count, p;
+	int			i, j, count, p, size, first, num;
 	dnode_t		*in;
+	dqnode_t	*qin;
 	mnode_t 	*out;
 
 	in = (void *)(mod_base + l->fileofs);
-	if (l->filelen % sizeof(*in))
+	qin = (void *)in;
+	size = mod_qbsp ? sizeof(*qin) : sizeof(*in);
+	if (l->filelen % size)
 		ri.Sys_Error (ERR_DROP,"MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
-	count = l->filelen / sizeof(*in);
+	count = l->filelen / size;
 	out = Hunk_Alloc ( count*sizeof(*out));	
 
 	loadmodel->nodes = out;
 	loadmodel->numnodes = count;
 
-	for ( i=0 ; i<count ; i++, in++, out++)
+	for ( i=0 ; i<count ; i++, in++, qin++, out++)
 	{
 		for (j=0 ; j<3 ; j++)
 		{
-			out->minmaxs[j] = LittleShort (in->mins[j]);
-			out->minmaxs[3+j] = LittleShort (in->maxs[j]);
+			out->minmaxs[j] = mod_qbsp ? Mod_Short (LittleFloat (qin->mins[j])) : LittleShort (in->mins[j]);
+			out->minmaxs[3+j] = mod_qbsp ? Mod_Short (LittleFloat (qin->maxs[j])) : LittleShort (in->maxs[j]);
 		}
 	
-		p = LittleLong(in->planenum);
+		p = LittleLong(mod_qbsp ? qin->planenum : in->planenum);
+		if (p < 0 || p >= loadmodel->numplanes)
+			ri.Sys_Error (ERR_DROP, "Mod_LoadNodes: bad plane in %s", loadmodel->name);
 		out->plane = loadmodel->planes + p;
 
-		out->firstsurface = LittleShort (in->firstface);
-		out->numsurfaces = LittleShort (in->numfaces);
+		first = mod_qbsp ? (int)LittleLong (qin->firstface) : (unsigned short)LittleShort (in->firstface);
+		num = mod_qbsp ? (int)LittleLong (qin->numfaces) : (unsigned short)LittleShort (in->numfaces);
+		if (first < 0 || num < 0 || first > mod_numfaces - num)
+			ri.Sys_Error (ERR_DROP, "Mod_LoadNodes: bad faces in %s", loadmodel->name);
+		out->firstsurface = mod_surfmap[first];
+		out->numsurfaces = mod_surfmap[first + num] - mod_surfmap[first];
 		out->contents = CONTENTS_NODE;	// differentiate from leafs
 		
 		for (j=0 ; j<2 ; j++)
 		{
-			p = LittleLong (in->children[j]);
+			p = LittleLong (mod_qbsp ? qin->children[j] : in->children[j]);
 			if (p >= 0)
 				out->children[j] = loadmodel->nodes + p;
 			else
@@ -822,33 +889,50 @@ Mod_LoadLeafs
 void Mod_LoadLeafs (lump_t *l)
 {
 	dleaf_t 	*in;
+	dqleaf_t	*qin;
 	mleaf_t 	*out;
-	int			i, j, count;
+	int			i, j, count, size, first, num;
 
 	in = (void *)(mod_base + l->fileofs);
-	if (l->filelen % sizeof(*in))
+	qin = (void *)in;
+	size = mod_qbsp ? sizeof(*qin) : sizeof(*in);
+	if (l->filelen % size)
 		ri.Sys_Error (ERR_DROP,"MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
-	count = l->filelen / sizeof(*in);
+	count = l->filelen / size;
 	out = Hunk_Alloc ( count*sizeof(*out));
 
 	loadmodel->leafs = out;
 	loadmodel->numleafs = count;
 
-	for ( i=0 ; i<count ; i++, in++, out++)
+	for ( i=0 ; i<count ; i++, in++, qin++, out++)
 	{
 		for (j=0 ; j<3 ; j++)
 		{
-			out->minmaxs[j] = LittleShort (in->mins[j]);
-			out->minmaxs[3+j] = LittleShort (in->maxs[j]);
+			out->minmaxs[j] = mod_qbsp ? Mod_Short (LittleFloat (qin->mins[j])) : LittleShort (in->mins[j]);
+			out->minmaxs[3+j] = mod_qbsp ? Mod_Short (LittleFloat (qin->maxs[j])) : LittleShort (in->maxs[j]);
 		}
 
-		out->contents = LittleLong(in->contents);
-		out->cluster = LittleShort(in->cluster);
-		out->area = LittleShort(in->area);
-
-		out->firstmarksurface = loadmodel->marksurfaces +
-			LittleShort(in->firstleafface);
-		out->nummarksurfaces = LittleShort(in->numleaffaces);
+		if (mod_qbsp)
+		{
+			out->contents = LittleLong(qin->contents);
+			out->cluster = LittleLong(qin->cluster);
+			out->area = LittleLong(qin->area);
+			first = LittleLong(qin->firstleafface);
+			num = LittleLong(qin->numleaffaces);
+		}
+		else
+		{
+			out->contents = LittleLong(in->contents);
+			out->cluster = LittleShort(in->cluster);
+			out->area = LittleShort(in->area);
+			first = (unsigned short)LittleShort(in->firstleafface);
+			num = (unsigned short)LittleShort(in->numleaffaces);
+		}
+		// the leaf faces as they are once each face is its pieces
+		if (first < 0 || num < 0 || first > mod_numleaffaces - num)
+			ri.Sys_Error (ERR_DROP, "Mod_LoadLeafs: bad leaf faces in %s", loadmodel->name);
+		out->firstmarksurface = loadmodel->marksurfaces + mod_leaffacemap[first];
+		out->nummarksurfaces = mod_leaffacemap[first + num] - mod_leaffacemap[first];
 	}	
 }
 
@@ -860,25 +944,40 @@ Mod_LoadMarksurfaces
 */
 void Mod_LoadMarksurfaces (lump_t *l)
 {	
-	int		i, j, count;
-	short		*in;
+	int		i, j, k, count, total, size;
+	unsigned short		*in;
+	unsigned	*qin;
 	msurface_t **out;
 	
 	in = (void *)(mod_base + l->fileofs);
-	if (l->filelen % sizeof(*in))
+	qin = (void *)in;
+	size = mod_qbsp ? sizeof(*qin) : sizeof(*in);
+	if (l->filelen % size)
 		ri.Sys_Error (ERR_DROP,"MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
-	count = l->filelen / sizeof(*in);
-	out = Hunk_Alloc ( count*sizeof(*out));	
+	count = l->filelen / size;
+	mod_numleaffaces = count;
+	mod_leaffacemap = malloc ((count + 1) * sizeof(int));
 
+	total = 0;
+	for ( i=0 ; i<count ; i++)
+	{
+		j = mod_qbsp ? (int)LittleLong(qin[i]) : (unsigned short)LittleShort(in[i]);
+		if (j < 0 || j >= mod_numfaces)
+			ri.Sys_Error (ERR_DROP,"Mod_ParseMarksurfaces: bad surface number");
+		mod_leaffacemap[i] = total;
+		total += mod_surfmap[j+1] - mod_surfmap[j];
+	}
+	mod_leaffacemap[count] = total;
+
+	out = Hunk_Alloc ( (total ? total : 1)*sizeof(*out));	
 	loadmodel->marksurfaces = out;
-	loadmodel->nummarksurfaces = count;
+	loadmodel->nummarksurfaces = total;
 
 	for ( i=0 ; i<count ; i++)
 	{
-		j = LittleShort(in[i]);
-		if (j >= loadmodel->numsurfaces)
-			ri.Sys_Error (ERR_DROP,"Mod_ParseMarksurfaces: bad surface number");
-		out[i] = loadmodel->surfaces + j;
+		j = mod_qbsp ? (int)LittleLong(qin[i]) : (unsigned short)LittleShort(in[i]);
+		for (k=mod_surfmap[j] ; k<mod_surfmap[j+1] ; k++)
+			*out++ = loadmodel->surfaces + k;
 	}
 }
 
@@ -902,7 +1001,11 @@ void Mod_LoadSurfedges (lump_t *l)
 	loadmodel->numsurfedges = count;
 
 	for ( i=0 ; i<count ; i++)
+	{
 		out[i] = LittleLong (in[i]);
+		if (out[i] >= loadmodel->numedges || -out[i] >= loadmodel->numedges)
+			ri.Sys_Error (ERR_DROP, "Mod_LoadSurfedges: bad edge number in %s", loadmodel->name);
+	}
 
 	// see Mod_CountSharedEdges
 	if (mod_extraedges)
@@ -1166,6 +1269,246 @@ static void Mod_MarkColoredSurfaces (void)
 	}
 }
 
+
+/*
+=================
+Mod_SplitSurfaces
+
+The software renderer's surface cache takes a face no more than 256 units
+across its texture, and id's compiler cut faces to that size; the 2023
+re-release's compiler did not, for the Quake 64 maps, Call of the
+Machine's and a few others -- faces up to 3264 units across. Each such
+face is cut here, as the map loads, along its texture's axes every 240
+units -- 240 so that a piece's 16-unit lightmap grid, rounded out each
+way, is still within 256 -- into pieces the cache takes. The pieces keep
+the face's plane, texture and flags; each has new vertices and edges of
+its own, and its part of the face's lightmap, which is on the same 16-unit
+grid and so is copied, not resampled. A point where a cut crosses an edge
+is worked out from the edge's two ends in the same order whichever piece
+asks, so pieces meet exactly.
+
+The nodes, leafs and submodels number the file's faces: mod_surfmap says
+which surfaces each became.
+=================
+*/
+#define SPLIT_SIZE		240
+#define MAX_SPLIT_VERTS	64
+
+typedef struct
+{
+	int		parent;
+	int		numverts;
+	vec3_t	verts[MAX_SPLIT_VERTS];
+} splitpiece_t;
+
+static float Mod_TexCoord (vec3_t v, float *vec)
+{
+	return v[0]*vec[0] + v[1]*vec[1] + v[2]*vec[2] + vec[3];
+}
+
+// the part of in where the coordinate along vec is >= c (ge) or <= c
+static int Mod_ClipPoly (vec3_t *in, int n, float *vec, float c, qboolean ge, vec3_t *out)
+{
+	int		i, j, k, m = 0;
+	float	di, dj, f;
+	float	*a, *b;
+	qboolean	ini, inj;
+
+	for (i=0 ; i<n ; i++)
+	{
+		j = (i + 1) % n;
+		di = Mod_TexCoord (in[i], vec) - c;
+		dj = Mod_TexCoord (in[j], vec) - c;
+		ini = ge ? di >= 0 : di <= 0;
+		inj = ge ? dj >= 0 : dj <= 0;
+		if (ini && m < MAX_SPLIT_VERTS)
+		{
+			VectorCopy (in[i], out[m]);		// a macro: m++ in it is three
+			m++;
+		}
+		if (ini != inj && di != 0 && dj != 0 && m < MAX_SPLIT_VERTS)
+		{
+			// from the end that sorts first, so both sides get one point
+			a = in[i]; b = in[j];
+			if (a[0] > b[0] || (a[0] == b[0] && (a[1] > b[1] || (a[1] == b[1] && a[2] > b[2]))))
+			{
+				a = in[j]; b = in[i];
+				f = dj; dj = di; di = f;
+			}
+			f = di / (di - dj);
+			for (k=0 ; k<3 ; k++)
+				out[m][k] = a[k] + f * (b[k] - a[k]);
+			m++;
+		}
+	}
+	return m;
+}
+
+static qboolean Mod_NeedsSplit (msurface_t *surf)
+{
+	return !(surf->flags & (SURF_DRAWTURB|SURF_DRAWSKY))
+		&& (surf->extents[0] > 256 || surf->extents[1] > 256);
+}
+
+static void Mod_SplitSurfaces (void)
+{
+	msurface_t	*oldsurfs = loadmodel->surfaces, *surf, *piece, *newsurfs;
+	mvertex_t	*newverts;
+	medge_t		*newedges;
+	int			*newsurfedges;
+	splitpiece_t	*pieces = NULL;
+	int			numpieces = 0, maxpieces = 0, split = 0, newpolyverts = 0;
+	int			i, j, k, e, n, n2, si, ti, style, styles, total;
+	int			smax, tmax, psmax, ptmax, ds, dt, row;
+	float		mins[2], maxs[2], val;
+	vec3_t		poly[MAX_SPLIT_VERTS], strip[MAX_SPLIT_VERTS], tmp[MAX_SPLIT_VERTS];
+	float		*vec;
+	int			numorig = loadmodel->numsurfaces;
+
+	mod_numfaces = numorig;
+	mod_surfmap = malloc ((numorig + 1) * sizeof(int));
+
+	// the pieces of each face that needs cutting
+	for (i=0 ; i<numorig ; i++)
+	{
+		surf = &oldsurfs[i];
+		if (!Mod_NeedsSplit (surf))
+			continue;
+		n = surf->numedges < MAX_SPLIT_VERTS ? surf->numedges : MAX_SPLIT_VERTS;
+		mins[0] = mins[1] = 999999;
+		maxs[0] = maxs[1] = -999999;
+		for (j=0 ; j<n ; j++)
+		{
+			e = loadmodel->surfedges[surf->firstedge + j];
+			VectorCopy (loadmodel->vertexes[e >= 0 ? loadmodel->edges[e].v[0]
+				: loadmodel->edges[-e].v[1]].position, poly[j]);
+			for (k=0 ; k<2 ; k++)
+			{
+				val = Mod_TexCoord (poly[j], surf->texinfo->vecs[k]);
+				if (val < mins[k]) mins[k] = val;
+				if (val > maxs[k]) maxs[k] = val;
+			}
+		}
+		split++;
+		for (si = (int)floor (mins[0] / SPLIT_SIZE) ; si * SPLIT_SIZE < maxs[0] ; si++)
+		{
+			vec = surf->texinfo->vecs[0];
+			n2 = Mod_ClipPoly (poly, n, vec, si * SPLIT_SIZE, true, tmp);
+			n2 = Mod_ClipPoly (tmp, n2, vec, (si+1) * SPLIT_SIZE, false, strip);
+			if (n2 < 3)
+				continue;
+			for (ti = (int)floor (mins[1] / SPLIT_SIZE) ; ti * SPLIT_SIZE < maxs[1] ; ti++)
+			{
+				splitpiece_t	*sp;
+				int				m;
+
+				vec = surf->texinfo->vecs[1];
+				m = Mod_ClipPoly (strip, n2, vec, ti * SPLIT_SIZE, true, tmp);
+				if (numpieces == maxpieces)
+				{
+					maxpieces = maxpieces ? maxpieces * 2 : 256;
+					pieces = realloc (pieces, maxpieces * sizeof(*pieces));
+				}
+				sp = &pieces[numpieces];
+				m = Mod_ClipPoly (tmp, m, vec, (ti+1) * SPLIT_SIZE, false, sp->verts);
+				if (m < 3)
+					continue;
+				sp->parent = i;
+				sp->numverts = m;
+				newpolyverts += m;
+				numpieces++;
+			}
+		}
+	}
+
+	if (!split)
+	{
+		for (i=0 ; i<=numorig ; i++)
+			mod_surfmap[i] = i;
+		return;
+	}
+
+	// room for the pieces, and for the sky's six faces after them
+	total = numorig - split + numpieces;
+	newsurfs = Hunk_Alloc ((total + 6) * sizeof(msurface_t));
+	newverts = Hunk_Alloc ((loadmodel->numvertexes + newpolyverts + 8) * sizeof(mvertex_t));
+	newedges = Hunk_Alloc ((loadmodel->numedges + newpolyverts + 13) * sizeof(medge_t));
+	newsurfedges = Hunk_Alloc ((loadmodel->numsurfedges + newpolyverts + 24) * sizeof(int));
+	memcpy (newverts, loadmodel->vertexes, loadmodel->numvertexes * sizeof(mvertex_t));
+	memcpy (newedges, loadmodel->edges, loadmodel->numedges * sizeof(medge_t));
+	memcpy (newsurfedges, loadmodel->surfedges, loadmodel->numsurfedges * sizeof(int));
+	loadmodel->vertexes = newverts;
+	loadmodel->edges = newedges;
+	loadmodel->surfedges = newsurfedges;
+
+	for (i=0, j=0, k=0 ; i<numorig ; i++)
+	{
+		mod_surfmap[i] = k;
+		if (!Mod_NeedsSplit (&oldsurfs[i]))
+		{
+			newsurfs[k++] = oldsurfs[i];
+			continue;
+		}
+		surf = &oldsurfs[i];
+		for (styles=0 ; styles<MAXLIGHTMAPS && surf->styles[styles] != 255 ; styles++)
+			;
+		smax = (surf->extents[0]>>4)+1;
+		tmax = (surf->extents[1]>>4)+1;
+		for ( ; j<numpieces && pieces[j].parent == i ; j++)
+		{
+			splitpiece_t	*sp = &pieces[j];
+			int				v0 = loadmodel->numvertexes, e0 = loadmodel->numedges;
+
+			piece = &newsurfs[k++];
+			*piece = *surf;
+			piece->firstedge = loadmodel->numsurfedges;
+			piece->numedges = sp->numverts;
+			for (e=0 ; e<sp->numverts ; e++)
+			{
+				VectorCopy (sp->verts[e], newverts[v0 + e].position);
+				newedges[e0 + e].v[0] = v0 + e;
+				newedges[e0 + e].v[1] = v0 + (e + 1) % sp->numverts;
+				newedges[e0 + e].cachededgeoffset = 0;
+				newsurfedges[loadmodel->numsurfedges + e] = e0 + e;
+			}
+			loadmodel->numvertexes += sp->numverts;
+			loadmodel->numedges += sp->numverts;
+			loadmodel->numsurfedges += sp->numverts;
+			CalcSurfaceExtents (piece);
+
+			// its part of the face's lightmap, on the same grid
+			piece->samples = piece->samplesrgb = NULL;
+			if (!surf->samples || !styles)
+				continue;
+			psmax = (piece->extents[0]>>4)+1;
+			ptmax = (piece->extents[1]>>4)+1;
+			ds = (piece->texturemins[0] - surf->texturemins[0]) >> 4;
+			dt = (piece->texturemins[1] - surf->texturemins[1]) >> 4;
+			if (ds < 0 || dt < 0 || ds + psmax > smax || dt + ptmax > tmax)
+				continue;		// cannot happen: a piece is inside its face
+			piece->samples = Hunk_Alloc (psmax * ptmax * styles);
+			if (surf->samplesrgb)
+				piece->samplesrgb = Hunk_Alloc (psmax * ptmax * styles * 3);
+			for (style=0 ; style<styles ; style++)
+				for (row=0 ; row<ptmax ; row++)
+				{
+					memcpy (piece->samples + (style*ptmax + row)*psmax,
+						surf->samples + (style*tmax + dt + row)*smax + ds, psmax);
+					if (surf->samplesrgb)
+						memcpy (piece->samplesrgb + ((style*ptmax + row)*psmax)*3,
+							surf->samplesrgb + ((style*tmax + dt + row)*smax + ds)*3, psmax*3);
+				}
+		}
+	}
+	mod_surfmap[numorig] = k;
+	loadmodel->surfaces = newsurfs;
+	loadmodel->numsurfaces = k;
+	free (pieces);
+
+	ri.Con_Printf (PRINT_DEVELOPER, "%s: %i faces wider than the surface cache takes, cut into %i\n",
+		loadmodel->name, split, numpieces);
+}
+
 /*
 =================
 Mod_LoadBrushModel
@@ -1186,6 +1529,7 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer)
 	i = LittleLong (header->version);
 	if (i != BSPVERSION)
 		ri.Sys_Error (ERR_DROP,"Mod_LoadBrushModel: %s has wrong version number (%i should be %i)", mod->name, i, BSPVERSION);
+	mod_qbsp = LittleLong (header->ident) == IDQBSPHEADER;
 
 // swap all the lumps
 	mod_base = (byte *)header;
@@ -1204,6 +1548,7 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer)
 	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]);
 	Mod_LoadFaces (&header->lumps[LUMP_FACES]);
 	Mod_LoadDecoupledLightmaps (header, modfilelen);
+	Mod_SplitSurfaces ();
 	Mod_MarkColoredSurfaces ();
 	Mod_LoadMarksurfaces (&header->lumps[LUMP_LEAFFACES]);
 	Mod_LoadVisibility (&header->lumps[LUMP_VISIBILITY]);
@@ -1225,8 +1570,10 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer)
 
 		*starmod = *loadmodel;
 		
-		starmod->firstmodelsurface = bm->firstface;
-		starmod->nummodelsurfaces = bm->numfaces;
+		if (bm->firstface < 0 || bm->numfaces < 0 || bm->firstface > mod_numfaces - bm->numfaces)
+			ri.Sys_Error (ERR_DROP, "Inline model %i has bad faces", i);
+		starmod->firstmodelsurface = mod_surfmap[bm->firstface];
+		starmod->nummodelsurfaces = mod_surfmap[bm->firstface + bm->numfaces] - mod_surfmap[bm->firstface];
 		starmod->firstnode = bm->headnode;
 		if (starmod->firstnode >= loadmodel->numnodes)
 			ri.Sys_Error (ERR_DROP, "Inline model %i has bad firstnode", i);
@@ -1237,6 +1584,11 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer)
 		if (i == 0)
 			*loadmodel = *starmod;
 	}
+
+	free (mod_surfmap);
+	mod_surfmap = NULL;
+	free (mod_leaffacemap);
+	mod_leaffacemap = NULL;
 
 	R_InitSkyBox ();
 }

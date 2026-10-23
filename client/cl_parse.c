@@ -536,15 +536,17 @@ void CL_ParseConfigString (void)
 		if (cl.refresh_prepped)
 			CDAudio_Play (atoi(cl.configstrings[CS_CDTRACK]), true);
 	}
-	else if (i >= CS_MODELS && i < CS_MODELS+MAX_MODELS)
+	else if ((i >= CS_MODELS && i < CS_MODELS+MAX_MODELS) || i >= CS_MODELS_EXT)
 	{
+		int		m = i < CS_MODELS_EXT ? i - CS_MODELS : i - CS_MODELS_EXT + MAX_MODELS;
+
 		if (cl.refresh_prepped)
 		{
-			cl.model_draw[i-CS_MODELS] = re.RegisterModel (cl.configstrings[i]);
+			cl.model_draw[m] = re.RegisterModel (cl.configstrings[i]);
 			if (cl.configstrings[i][0] == '*')
-				cl.model_clip[i-CS_MODELS] = CM_InlineModel (cl.configstrings[i]);
+				cl.model_clip[m] = CM_InlineModel (cl.configstrings[i]);
 			else
-				cl.model_clip[i-CS_MODELS] = NULL;
+				cl.model_clip[m] = NULL;
 		}
 	}
 	else if (i >= CS_SOUNDS && i < CS_SOUNDS+MAX_MODELS)

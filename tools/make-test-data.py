@@ -437,6 +437,36 @@ def make_bsp(sky=None, texture=b"smoke/wall"):
     return bytes(out)
 
 
+def to_qbsp(bsp):
+    """The same map in the extended QBSP format the 2023 re-release's maps
+    use: its nodes, faces, leafs, leaf lists, edges and brush sides with
+    ints for shorts, and their bounds floats."""
+    def lump(i):
+        ofs, length = struct.unpack_from("<ii", bsp, 8 + i * 8)
+        return bsp[ofs:ofs + length]
+
+    def recast(data, size, src, dst):
+        return b"".join(struct.pack(dst, *struct.unpack_from(src, data, o))
+                        for o in range(0, len(data), size))
+
+    lumps = [lump(i) for i in range(LUMPS)]
+    lumps[4] = recast(lumps[4], 28, "<3i6h2H", "<3i6f2I")       # nodes
+    lumps[6] = recast(lumps[6], 20, "<Hhihh4si", "<Iiiii4si")   # faces
+    lumps[8] = recast(lumps[8], 28, "<ihh6h4H", "<3i6f4I")      # leafs
+    lumps[9] = recast(lumps[9], 2, "<H", "<I")                  # leaf faces
+    lumps[10] = recast(lumps[10], 2, "<H", "<I")                # leaf brushes
+    lumps[11] = recast(lumps[11], 4, "<HH", "<II")              # edges
+    lumps[15] = recast(lumps[15], 4, "<Hh", "<Ii")              # brush sides
+
+    out = bytearray(b"QBSP" + struct.pack("<i", 38) + bytes(LUMPS * 8))
+    for i, data in enumerate(lumps):
+        while len(out) % 4:
+            out.append(0)
+        struct.pack_into("<ii", out, 8 + i * 8, len(out), len(data))
+        out += data
+    return bytes(out)
+
+
 def build_pak(files):
     """A PACK: the directory at the end, 64 bytes an entry, names of 56."""
     body = bytearray()
@@ -530,15 +560,16 @@ def main():
 
     # A stand-in for the 2023 re-release's pak, which goes on top of the
     # one above as baseq2/pak9.pak (docker/entrypoint.sh): the same paths in
-    # forms this engine cannot read -- the map in the extended QBSP format, a
-    # 24-bit picture -- no console font, a default.cfg for its own engine,
-    # one map of its own that is fine, and a demo in its protocol, 2022, on
+    # forms this engine cannot read -- a map with a QBSP header on an IBSP's
+    # lumps, a 24-bit picture -- no console font, a default.cfg for its own
+    # engine, one map of its own in the extended QBSP format the re-release's
+    # are in, and a demo in its protocol, 2022, on
     # that map, which the engine plays as 1997's (server/sv_rrdemo.c). That
     # map's sky and walls are ones only the re-release has, as 24-bit
     # targas, which the software renderer takes in place of the .pcx and
     # .wal it asks for (r_image.c).
     bsp = make_bsp()
-    rr_only = make_bsp(sky="rrsky", texture=b"rr/wall")
+    rr_only = to_qbsp(make_bsp(sky="rrsky", texture=b"rr/wall"))
     sky = [("env/rrsky%s.tga" % side, tga(64, 64, (200, 90, 30)))
            for side in ("rt", "bk", "lf", "ft", "up", "dn")]
     sky.append(("textures/rr/wall.tga", tga_checks(64, 64)))

@@ -86,6 +86,7 @@ typedef enum {false, true}	qboolean;
 #define	MAX_IMAGES			256
 #define	MAX_ITEMS			256
 #define MAX_GENERAL			(MAX_CLIENTS*2)	// general config strings
+#define	MAX_MODELS_EXT		1024	// with model numbers past 255 (CS_MODELS_EXT)
 
 
 // game print flags
@@ -1111,7 +1112,13 @@ ROGUE - VERSIONS
 #define	CS_ITEMS			(CS_LIGHTS+MAX_LIGHTSTYLES)
 #define	CS_PLAYERSKINS		(CS_ITEMS+MAX_ITEMS)
 #define CS_GENERAL			(CS_PLAYERSKINS+MAX_CLIENTS)
-#define	MAX_CONFIGSTRINGS	(CS_GENERAL+MAX_GENERAL)
+// Call of the Machine's biggest maps have more models than 255, their own
+// brush models alone up to 227: those past 255 are named here, after the
+// 1997 configstrings so that every one of those keeps its place, and
+// travel as shorts (U_MODEL16, PS_WEAPONINDEX16). CS_MODEL(i) is model i's.
+#define	CS_MODELS_EXT		(CS_GENERAL+MAX_GENERAL)
+#define	MAX_CONFIGSTRINGS	(CS_MODELS_EXT+MAX_MODELS_EXT-MAX_MODELS)
+#define	CS_MODEL(i)			((i) < MAX_MODELS ? CS_MODELS+(i) : CS_MODELS_EXT+(i)-MAX_MODELS)
 
 // the 2023 re-release's real-time lights, in the base game's general
 // configstrings, which it uses for nothing else (g_misc.c, cl_fx.c)

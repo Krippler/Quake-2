@@ -34,58 +34,53 @@ Each check is of the header and of the sizes the loader will trust; the
 loaders still make their own.
 */
 
-#include <math.h>
 #include "../game/q_shared.h"
 #include "qfiles.h"
 
-#define IDQBSPHEADER	(('P'<<24)+('S'<<16)+('B'<<8)+'Q')
 
 static int LL (const byte *p)
 {
 	return p[0] | (p[1] << 8) | (p[2] << 16) | ((unsigned)p[3] << 24);
 }
 
-static float LF (const byte *p)
-{
-	union { int i; float f; } u;
-
-	u.i = LL (p);
-	return u.f;
-}
-
 /*
 A map the collision code, the renderer and the 1997 network protocol can all
-take: IBSP 38, and every lump inside the file and within the limits the
-loaders enforce. How far the world reaches is not a limit: the 1997 game's
-own ware1 goes to 4408 units and fact3's bounds to 99999, past the 4096 a
-coordinate carries on the wire, and both play. MAX_MAP_LIGHTING is the 1997
-compiler's limit, not the loaders' -- the renderer sizes the lighting from
-the lump -- and the re-release's lighting lumps are past it, so it is not
-checked. BSPX lumps follow the 19 that are read; the renderer reads
-DECOUPLED_LM, the re-release's lighting, from them (r_model.c).
+take: IBSP 38, or the re-release's extended QBSP (qfiles.h), every lump
+inside the file and within the limits the loaders enforce, and every face's
+edges and every edge's vertices there. How far the world reaches is not a
+limit: the 1997 game's own ware1 goes to 4408 units and fact3's bounds to
+99999, past the 4096 a coordinate carries on the wire, and both play.
+MAX_MAP_LIGHTING is the 1997 compiler's limit, not the loaders' -- the
+renderer sizes the lighting from the lump -- and the re-release's lighting
+lumps are past it, so it is not checked. BSPX lumps follow the 19 that are
+read; the renderer reads DECOUPLED_LM, the re-release's lighting, from them
+(r_model.c). A face wider than the software renderer's surface cache takes
+is not a reason: the renderer cuts it up as the map loads (1.3.0 to 1.3.12
+turned such maps away, the Quake 64 maps among them).
 */
 qboolean BSP_Usable (const byte *buf, int len, char *why, int whysize)
 {
-	static const struct { int lump, size, max; } lumps[] = {
-		{ LUMP_PLANES,		sizeof(dplane_t),		MAX_MAP_PLANES },
-		{ LUMP_VERTEXES,	sizeof(dvertex_t),		MAX_MAP_VERTS },
-		{ LUMP_VISIBILITY,	1,						MAX_MAP_VISIBILITY },
-		{ LUMP_NODES,		sizeof(dnode_t),		MAX_MAP_NODES },
-		{ LUMP_TEXINFO,		sizeof(texinfo_t),		MAX_MAP_TEXINFO },
-		{ LUMP_FACES,		sizeof(dface_t),		MAX_MAP_FACES },
-		{ LUMP_LEAFS,		sizeof(dleaf_t),		MAX_MAP_LEAFS },
-		{ LUMP_LEAFFACES,	sizeof(short),			MAX_MAP_LEAFFACES },
-		{ LUMP_LEAFBRUSHES,	sizeof(short),			MAX_MAP_LEAFBRUSHES },
-		{ LUMP_EDGES,		sizeof(dedge_t),		MAX_MAP_EDGES },
-		{ LUMP_SURFEDGES,	sizeof(int),			MAX_MAP_SURFEDGES },
-		{ LUMP_MODELS,		sizeof(dmodel_t),		MAX_MAP_MODELS },
-		{ LUMP_BRUSHES,		sizeof(dbrush_t),		MAX_MAP_BRUSHES },
-		{ LUMP_BRUSHSIDES,	sizeof(dbrushside_t),	MAX_MAP_BRUSHSIDES },
-		{ LUMP_AREAS,		sizeof(darea_t),		MAX_MAP_AREAS },
-		{ LUMP_AREAPORTALS,	sizeof(dareaportal_t),	MAX_MAP_AREAPORTALS },
-		{ LUMP_ENTITIES,	1,						MAX_MAP_ENTSTRING - 1 },
+	static const struct { int lump, size, qsize, max; } lumps[] = {
+		{ LUMP_PLANES,		sizeof(dplane_t),		sizeof(dplane_t),		MAX_MAP_PLANES },
+		{ LUMP_VERTEXES,	sizeof(dvertex_t),		sizeof(dvertex_t),		MAX_MAP_VERTS },
+		{ LUMP_VISIBILITY,	1,						1,						MAX_MAP_VISIBILITY },
+		{ LUMP_NODES,		sizeof(dnode_t),		sizeof(dqnode_t),		MAX_MAP_NODES },
+		{ LUMP_TEXINFO,		sizeof(texinfo_t),		sizeof(texinfo_t),		MAX_MAP_TEXINFO },
+		{ LUMP_FACES,		sizeof(dface_t),		sizeof(dqface_t),		MAX_MAP_FACES },
+		{ LUMP_LEAFS,		sizeof(dleaf_t),		sizeof(dqleaf_t),		MAX_MAP_LEAFS },
+		{ LUMP_LEAFFACES,	sizeof(short),			sizeof(int),			MAX_MAP_LEAFFACES },
+		{ LUMP_LEAFBRUSHES,	sizeof(short),			sizeof(int),			MAX_MAP_LEAFBRUSHES },
+		{ LUMP_EDGES,		sizeof(dedge_t),		sizeof(dqedge_t),		MAX_MAP_EDGES },
+		{ LUMP_SURFEDGES,	sizeof(int),			sizeof(int),			MAX_MAP_SURFEDGES },
+		{ LUMP_MODELS,		sizeof(dmodel_t),		sizeof(dmodel_t),		MAX_MAP_MODELS },
+		{ LUMP_BRUSHES,		sizeof(dbrush_t),		sizeof(dbrush_t),		MAX_MAP_BRUSHES },
+		{ LUMP_BRUSHSIDES,	sizeof(dbrushside_t),	sizeof(dqbrushside_t),	MAX_MAP_BRUSHSIDES },
+		{ LUMP_AREAS,		sizeof(darea_t),		sizeof(darea_t),		MAX_MAP_AREAS },
+		{ LUMP_AREAPORTALS,	sizeof(dareaportal_t),	sizeof(dareaportal_t),	MAX_MAP_AREAPORTALS },
+		{ LUMP_ENTITIES,	1,						1,						MAX_MAP_ENTSTRING - 1 },
 	};
-	int		i, ofs, size, count, ident;
+	int		i, ofs, size, count, ident, unit;
+	qboolean	qbsp;
 
 	if (len < (int)sizeof(dheader_t))
 	{
@@ -93,14 +88,10 @@ qboolean BSP_Usable (const byte *buf, int len, char *why, int whysize)
 		return false;
 	}
 	ident = LL (buf);
-	if (ident == IDQBSPHEADER)
+	qbsp = ident == IDQBSPHEADER;
+	if ((ident != IDBSPHEADER && !qbsp) || LL (buf + 4) != BSPVERSION)
 	{
-		Com_sprintf (why, whysize, "is in the re-release's extended QBSP format");
-		return false;
-	}
-	if (ident != IDBSPHEADER || LL (buf + 4) != BSPVERSION)
-	{
-		Com_sprintf (why, whysize, "is not an IBSP version %i map", BSPVERSION);
+		Com_sprintf (why, whysize, "is not an IBSP or QBSP version %i map", BSPVERSION);
 		return false;
 	}
 
@@ -108,17 +99,18 @@ qboolean BSP_Usable (const byte *buf, int len, char *why, int whysize)
 	{
 		ofs = LL (buf + 8 + lumps[i].lump * 8);
 		size = LL (buf + 12 + lumps[i].lump * 8);
+		unit = qbsp ? lumps[i].qsize : lumps[i].size;
 		if (ofs < 0 || size < 0 || ofs > len || size > len - ofs)
 		{
 			Com_sprintf (why, whysize, "has lump %i outside the file", lumps[i].lump);
 			return false;
 		}
-		if (size % lumps[i].size)
+		if (size % unit)
 		{
 			Com_sprintf (why, whysize, "has lump %i of an odd size", lumps[i].lump);
 			return false;
 		}
-		count = size / lumps[i].size;
+		count = size / unit;
 		if (count > lumps[i].max)
 		{
 			Com_sprintf (why, whysize, "has %i in lump %i, past the limit of %i",
@@ -133,75 +125,58 @@ qboolean BSP_Usable (const byte *buf, int len, char *why, int whysize)
 		return false;
 	}
 
-	// The software renderer's surface cache takes a face no more than 256
-	// units across its texture (CalcSurfaceExtents in ref_soft): the 1997
-	// compiler split faces to that, and some of the re-release's maps --
-	// the N64 campaign's, a few others -- have wider ones. Measured as the
-	// renderer measures them.
+	// every face's texinfo and edges there, and every edge's vertices
 	{
 		const byte	*faces = buf + LL (buf + 8 + LUMP_FACES * 8);
-		const byte	*texinfo = buf + LL (buf + 8 + LUMP_TEXINFO * 8);
-		const byte	*verts = buf + LL (buf + 8 + LUMP_VERTEXES * 8);
 		const byte	*edges = buf + LL (buf + 8 + LUMP_EDGES * 8);
 		const byte	*surfedges = buf + LL (buf + 8 + LUMP_SURFEDGES * 8);
-		int		numfaces = LL (buf + 12 + LUMP_FACES * 8) / sizeof(dface_t);
+		int		facesize = qbsp ? sizeof(dqface_t) : sizeof(dface_t);
+		int		edgesize = qbsp ? sizeof(dqedge_t) : sizeof(dedge_t);
+		int		numfaces = LL (buf + 12 + LUMP_FACES * 8) / facesize;
 		int		numtexinfo = LL (buf + 12 + LUMP_TEXINFO * 8) / sizeof(texinfo_t);
 		int		numverts = LL (buf + 12 + LUMP_VERTEXES * 8) / sizeof(dvertex_t);
-		int		numedges = LL (buf + 12 + LUMP_EDGES * 8) / sizeof(dedge_t);
+		int		numedges = LL (buf + 12 + LUMP_EDGES * 8) / edgesize;
 		int		numsurfedges = LL (buf + 12 + LUMP_SURFEDGES * 8) / sizeof(int);
-		int		f, e, j, first, n, ti, se, vi, ext;
-		const byte	*face, *tex, *vert;
-		float	mins[2], maxs[2], val;
+		int		f, e, first, n, ti, se, v0, v1;
+		const byte	*face, *edge;
 
+		for (e = 0 ; e < numedges ; e++)
+		{
+			edge = edges + e * edgesize;
+			v0 = qbsp ? LL (edge) : edge[0] | (edge[1] << 8);
+			v1 = qbsp ? LL (edge + 4) : edge[2] | (edge[3] << 8);
+			if (v0 < 0 || v1 < 0 || v0 >= numverts || v1 >= numverts)
+			{
+				Com_sprintf (why, whysize, "has a vertex out of range");
+				return false;
+			}
+		}
 		for (f = 0 ; f < numfaces ; f++)
 		{
-			face = faces + f * sizeof(dface_t);
-			first = LL (face + 4);
-			n = (short)(face[8] | (face[9] << 8));
-			ti = (short)(face[10] | (face[11] << 8));
-			if (ti < 0 || ti >= numtexinfo || n < 0 || first < 0 || first > numsurfedges - n)
+			face = faces + f * facesize;
+			if (qbsp)
+			{
+				first = LL (face + 8);
+				n = LL (face + 12);
+				ti = LL (face + 16);
+			}
+			else
+			{
+				first = LL (face + 4);
+				n = (short)(face[8] | (face[9] << 8));
+				ti = (short)(face[10] | (face[11] << 8));
+			}
+			if (ti < 0 || ti >= numtexinfo || n < 3 || first < 0 || first > numsurfedges - n)
 			{
 				Com_sprintf (why, whysize, "has a face out of range");
 				return false;
 			}
-			tex = texinfo + ti * sizeof(texinfo_t);
-			if (LL (tex + 32) & (SURF_WARP|SURF_SKY))
-				continue;
-			mins[0] = mins[1] = 999999;
-			maxs[0] = maxs[1] = -99999;
 			for (e = 0 ; e < n ; e++)
 			{
 				se = LL (surfedges + (first + e) * 4);
 				if (se <= -numedges || se >= numedges)
 				{
 					Com_sprintf (why, whysize, "has an edge out of range");
-					return false;
-				}
-				vert = edges + (se >= 0 ? se : -se) * sizeof(dedge_t) + (se >= 0 ? 0 : 2);
-				vi = vert[0] | (vert[1] << 8);
-				if (vi >= numverts)
-				{
-					Com_sprintf (why, whysize, "has a vertex out of range");
-					return false;
-				}
-				vert = verts + vi * sizeof(dvertex_t);
-				for (j = 0 ; j < 2 ; j++)
-				{
-					val = LF (vert) * LF (tex + j*16) + LF (vert + 4) * LF (tex + j*16 + 4)
-						+ LF (vert + 8) * LF (tex + j*16 + 8) + LF (tex + j*16 + 12);
-					if (val < mins[j])
-						mins[j] = val;
-					if (val > maxs[j])
-						maxs[j] = val;
-				}
-			}
-			for (j = 0 ; j < 2 ; j++)
-			{
-				ext = ((int)ceil (maxs[j] / 16) - (int)floor (mins[j] / 16)) * 16;
-				if (ext > 256)
-				{
-					Com_sprintf (why, whysize, "has faces wider than the 256 units the "
-						"software renderer draws");
 					return false;
 				}
 			}

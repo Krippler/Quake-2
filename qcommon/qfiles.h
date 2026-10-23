@@ -221,31 +221,44 @@ typedef struct miptex_s
 
 #define BSPVERSION	38
 
+/*
+The extended format the 2023 re-release's compiler writes when a map is
+past those limits (Call of the Machine's): the same lumps, with 32-bit
+numbers where IBSP has 16-bit ones and floats for the bounds -- the nodes,
+faces, leafs, edges, leaf faces, leaf brushes and brush sides below. The
+collision code and the renderer read both.
+*/
+#define IDQBSPHEADER	(('P'<<24)+('S'<<16)+('B'<<8)+'Q')
+		// little-endian "QBSP"
+
 
 // upper design bounds
 // leaffaces, leafbrushes, planes, and verts are still bounded by
-// 16 bit short limits
+// 16 bit short limits in IBSP. Raised past id's where Call of the
+// Machine's maps need it -- their texinfos, brushes, brush sides,
+// vertices, faces, edges and visibility: these are the loaders' bounds,
+// and an IBSP map's own short numbers bound it as before.
 #define	MAX_MAP_MODELS		1024
-#define	MAX_MAP_BRUSHES		8192
+#define	MAX_MAP_BRUSHES		16384
 #define	MAX_MAP_ENTITIES	2048
 #define	MAX_MAP_ENTSTRING	0x40000
-#define	MAX_MAP_TEXINFO		8192
+#define	MAX_MAP_TEXINFO		65536
 
 #define	MAX_MAP_AREAS		256
 #define	MAX_MAP_AREAPORTALS	1024
 #define	MAX_MAP_PLANES		65536
 #define	MAX_MAP_NODES		65536
-#define	MAX_MAP_BRUSHSIDES	65536
+#define	MAX_MAP_BRUSHSIDES	262144
 #define	MAX_MAP_LEAFS		65536
-#define	MAX_MAP_VERTS		65536
-#define	MAX_MAP_FACES		65536
-#define	MAX_MAP_LEAFFACES	65536
-#define	MAX_MAP_LEAFBRUSHES 65536
+#define	MAX_MAP_VERTS		262144
+#define	MAX_MAP_FACES		262144
+#define	MAX_MAP_LEAFFACES	262144
+#define	MAX_MAP_LEAFBRUSHES 262144
 #define	MAX_MAP_PORTALS		65536
-#define	MAX_MAP_EDGES		128000
-#define	MAX_MAP_SURFEDGES	256000
+#define	MAX_MAP_EDGES		524288
+#define	MAX_MAP_SURFEDGES	1048576
 #define	MAX_MAP_LIGHTING	0x200000
-#define	MAX_MAP_VISIBILITY	0x100000
+#define	MAX_MAP_VISIBILITY	0x800000
 
 // key / value pair sizes
 
@@ -443,6 +456,52 @@ typedef struct
 	unsigned short	planenum;		// facing out of the leaf
 	short	texinfo;
 } dbrushside_t;
+
+// QBSP's
+typedef struct
+{
+	int			planenum;
+	int			children[2];
+	float		mins[3];
+	float		maxs[3];
+	unsigned	firstface;
+	unsigned	numfaces;
+} dqnode_t;
+
+typedef struct
+{
+	unsigned	v[2];
+} dqedge_t;
+
+typedef struct
+{
+	unsigned	planenum;
+	int			side;
+	int			firstedge;
+	int			numedges;
+	int			texinfo;
+	byte		styles[MAXLIGHTMAPS];
+	int			lightofs;
+} dqface_t;
+
+typedef struct
+{
+	int			contents;
+	int			cluster;
+	int			area;
+	float		mins[3];
+	float		maxs[3];
+	unsigned	firstleafface;
+	unsigned	numleaffaces;
+	unsigned	firstleafbrush;
+	unsigned	numleafbrushes;
+} dqleaf_t;
+
+typedef struct
+{
+	unsigned	planenum;
+	int			texinfo;
+} dqbrushside_t;
 
 typedef struct
 {

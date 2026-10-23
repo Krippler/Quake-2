@@ -263,6 +263,7 @@ enum clc_ops_e
 #define	PS_WEAPONINDEX		(1<<12)
 #define	PS_WEAPONFRAME		(1<<13)
 #define	PS_RDFLAGS			(1<<14)
+#define	PS_WEAPONINDEX16	(1<<15)		// the gun's model number is a short
 
 //==============================================
 
@@ -310,6 +311,7 @@ enum clc_ops_e
 #define	U_ANGLE1	(1<<10)
 #define	U_MODEL		(1<<11)
 #define U_RENDERFX8	(1<<12)		// fullbright, etc
+#define	U_MODEL16	(1<<13)		// the model numbers sent are shorts: past 255
 #define	U_EFFECTS8	(1<<14)		// autorotate, trails, etc
 #define	U_MOREBITS2	(1<<15)		// read one additional byte
 
