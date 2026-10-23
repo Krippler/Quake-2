@@ -471,6 +471,14 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_INFANTRY_MACHINEGUN_11:
 	case MZ2_INFANTRY_MACHINEGUN_12:
 	case MZ2_INFANTRY_MACHINEGUN_13:
+	case MZ2_INFANTRY_MACHINEGUN_14:		// the re-release's run-attack
+	case MZ2_INFANTRY_MACHINEGUN_15:
+	case MZ2_INFANTRY_MACHINEGUN_16:
+	case MZ2_INFANTRY_MACHINEGUN_17:
+	case MZ2_INFANTRY_MACHINEGUN_18:
+	case MZ2_INFANTRY_MACHINEGUN_19:
+	case MZ2_INFANTRY_MACHINEGUN_20:
+	case MZ2_INFANTRY_MACHINEGUN_21:
 		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
 		CL_ParticleEffect (origin, vec3_origin, 0, 40);
 		CL_SmokeAndFlash(origin);
@@ -503,6 +511,14 @@ void CL_ParseMuzzleFlash2 (void)
 		CL_ParticleEffect (origin, vec3_origin, 0, 40);
 		CL_SmokeAndFlash(origin);
 		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("gunner/gunatck2.wav"), 1, ATTN_NORM, 0);
+		break;
+
+	case MZ2_GUNCMDR_CHAINGUN_1:		// the re-release's gunner commander
+	case MZ2_GUNCMDR_CHAINGUN_2:
+		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
+		CL_ParticleEffect (origin, vec3_origin, 0, 40);
+		CL_SmokeAndFlash(origin);
+		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("guncmdr/gcdratck2.wav"), 1, ATTN_NORM, 0);
 		break;
 
 	case MZ2_ACTOR_MACHINEGUN_1:
@@ -650,7 +666,24 @@ void CL_ParseMuzzleFlash2 (void)
 		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("gunner/gunatck3.wav"), 1, ATTN_NORM, 0);
 		break;
 
+	case MZ2_GUNCMDR_GRENADE_MORTAR_1:	// the re-release's gunner commander
+	case MZ2_GUNCMDR_GRENADE_MORTAR_2:
+	case MZ2_GUNCMDR_GRENADE_MORTAR_3:
+	case MZ2_GUNCMDR_GRENADE_FRONT_1:
+	case MZ2_GUNCMDR_GRENADE_FRONT_2:
+	case MZ2_GUNCMDR_GRENADE_FRONT_3:
+	case MZ2_GUNCMDR_GRENADE_CROUCH_1:
+	case MZ2_GUNCMDR_GRENADE_CROUCH_2:
+	case MZ2_GUNCMDR_GRENADE_CROUCH_3:
+		dl->color[0] = 1;dl->color[1] = 0.5;dl->color[2] = 0;
+		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("guncmdr/gcdratck3.wav"), 1, ATTN_NORM, 0);
+		break;
+
 	case MZ2_GLADIATOR_RAILGUN_1:
+	case MZ2_ARACHNID_RAIL1:			// the re-release's arachnid
+	case MZ2_ARACHNID_RAIL2:
+	case MZ2_ARACHNID_RAIL_UP1:
+	case MZ2_ARACHNID_RAIL_UP2:
 	// PMM
 	case MZ2_CARRIER_RAILGUN:
 	case MZ2_WIDOW_RAIL:

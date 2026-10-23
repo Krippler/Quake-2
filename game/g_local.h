@@ -488,6 +488,8 @@ typedef struct
 	// monster, and how many more a summoner may have
 	edict_t		*commander;
 	int			monster_slots;
+
+	float		melee_debounce_time;	// the re-release's: no melee till then
 } monsterinfo_t;
 
 
@@ -699,6 +701,12 @@ void SpawnGrow_Spawn (vec3_t startpos, int size);
 edict_t *PickCoopTarget (edict_t *self);
 float realrange (edict_t *self, edict_t *other);
 void ED_CallSpawn (edict_t *ent);
+
+// g_rr.c: the re-release's
+#define	MELEE_DISTANCE_RR	50
+float distance_between_boxes (vec3_t absminsa, vec3_t absmaxsa, vec3_t absminsb, vec3_t absmaxsb);
+float range_to (edict_t *self, edict_t *other);
+qboolean fire_hit_rr (edict_t *self, vec3_t aim, int damage, int kick);
 void monster_fire_heat (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype);
 void fire_plasma (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void G_HealthTarget (edict_t *self);

@@ -551,7 +551,6 @@ static standin_t	standins[] =
 	{"monster_carrier",				"monster_boss2"},
 	{"monster_guncmdr",				"monster_gunner"},		// the re-release's
 	{"monster_shambler",			"monster_berserk"},
-	{"monster_arachnid",			"monster_gladiator"},
 
 	// weapons
 	{"weapon_chainfist",			"weapon_supershotgun"},
