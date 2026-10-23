@@ -158,6 +158,11 @@ field_t fields[] = {
 	{"shadowlightresolution", 0, F_IGNORE, FFL_SPAWNTEMP},
 	{"shadowlight", FOFS(shadowlight), F_LSTRING, FFL_NOSPAWN},
 	{"item", STOFS(item), F_LSTRING, FFL_SPAWNTEMP},
+	{"radius", STOFS(radius), F_FLOAT, FFL_SPAWNTEMP},
+	{"health_multiplier", STOFS(health_multiplier), F_FLOAT, FFL_SPAWNTEMP},
+	{"healthtarget", FOFS(healthtarget), F_LSTRING},
+	{"goals", STOFS(goals), F_LSTRING, FFL_SPAWNTEMP},
+	{"rgba", FOFS(s.skinnum), F_INT},
 
 //need for item field in edict struct, FFL_SPAWNTEMP item will be skipped on saves
 	{"item", FOFS(item), F_ITEM},
@@ -179,6 +184,7 @@ field_t fields[] = {
 field_t		levelfields[] =
 {
 	{"changemap", LLOFS(changemap), F_LSTRING},
+	{"goals", LLOFS(goals), F_LSTRING},
                    
 	{"sight_client", LLOFS(sight_client), F_EDICT},
 	{"sight_entity", LLOFS(sight_entity), F_EDICT},

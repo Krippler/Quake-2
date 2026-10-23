@@ -242,6 +242,45 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     that 1997's items keep the numbers saved games hold. Its planted
     charges keep `ITEM_TRIGGER_SPAWN|ITEM_NO_TOUCH`, which `SpawnItem`
     clears from 1997's keys.
+  - The rest of the re-release's Quake 64 entities, from its game source
+    (id's quake2-rerelease-dll, GPL): `target_gravity`,
+    `target_killplayers`, `target_soundfx`, `target_light`,
+    `misc_hologram`, `misc_lavaball`, `monster_tank_stand`,
+    `item_invisibility`; `target_poi` (its compass) and `misc_flare` (its
+    renderer's) are dropped. `target_light` is a light carried by an
+    entity, `RF_CUSTOMLIGHT` (`q_shared.h`), radius in `frame` and colour
+    in `skinnum`, which the client adds as a dynamic light and does not
+    draw (`cl_ents.c`); the game keeps the light styles, `g_lightstyles`,
+    to fade it by, with the re-release's N64 styles 12 to 14.
+    `level.is_n64` for a map in `q64/`: powerups used when picked up,
+    `misc_teleporter_dest` not shown, no `G_TouchTriggers` from a monster
+    in the first frame. Worldspawn's `goals` are the help computer's
+    message, one tab-separated `$key` after another, each `target_goal`
+    going on to the next (`G_SetGoal`, `G_SetClientSound`).
+  - `game/g_cotm.c` (new): Call of the Machine's targets and triggers,
+    from the re-release's source and Ground Zero's:
+    `target_crossunit_trigger`/`_target` (the hub's unit locks, in
+    `game.cross_unit_flags`), `trigger_health_relay` with a monster's
+    `healthtarget` (used from `T_Damage` each time it is hurt) and
+    `health_multiplier` (`monster_start`), `target_anger`, `target_music`,
+    `target_sky` (the client takes up a sky changed mid-level,
+    `cl_parse.c`), `target_story` (centre-printed), `target_steam`,
+    `func_eye`, The Reckoning's `misc_nuke`, and `monster_makron` in the
+    spawn table; `target_healthbar`, `target_autosave`, `trigger_fog` and
+    `trigger_flashlight` are dropped, `func_animation` is a still brush.
+    A class with no spawn function that `G_StandIn` has a stand-in for is
+    spawned as that, from `ED_CallSpawn`.
+  - `game/g_xatrix.c` (new): The Reckoning's weapons its monsters fire,
+    from its code -- the ion ripper (`MOVETYPE_WALLBOUNCE`, in
+    `g_phys.c`), the blue hyperblaster, the laser soldier's beam
+    (`monster_dabeam`), the phalanx's plasma. `m_soldier.c` has its
+    ripper, hyperblaster and laser soldiers as the re-release does: style
+    1, skins 6 to 11 of the soldier model, `SOLDIER_SKIN` giving each as
+    the soldier it takes after for what goes by skin; `m_gladiator.c` its
+    phalanx gladiator, skin 2. `MAX_FRAMES` is 1024 (`qfiles.h`): the
+    re-release's soldier has 575 frames, its gunner 799; every 1997
+    monster's frames are the first of its re-release model's, so the 1997
+    code drives them as it did.
   - `client/cl_loc.c`: the re-release's key hints, `%bind:cmd:text%`
     before a message's words, are left out.
   - `server/sv_ccmds.c`: a level's files in `save/current` are named by

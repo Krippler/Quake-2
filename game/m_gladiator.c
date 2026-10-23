@@ -33,6 +33,7 @@ static int	sound_pain1;
 static int	sound_pain2;
 static int	sound_die;
 static int	sound_gun;
+static int	sound_gunb;		// The Reckoning's phalanx gladiator's
 static int	sound_cleaver_swing;
 static int	sound_cleaver_hit;
 static int	sound_cleaver_miss;
@@ -195,6 +196,56 @@ mframe_t gladiator_frames_attack_gun [] =
 };
 mmove_t gladiator_move_attack_gun = {FRAME_attack1, FRAME_attack9, gladiator_frames_attack_gun, gladiator_run};
 
+/*
+The Reckoning's phalanx gladiator (style 1), as the re-release has it: two
+balls of plasma for the railgun's slug, a third on nightmare, each aimed
+where the enemy was at the one before
+*/
+void gladbGun (edict_t *self)
+{
+	vec3_t	start, dir, forward, right;
+	int		damage = 35, radius_damage = 45;
+
+	AngleVectors (self->s.angles, forward, right, NULL);
+	G_ProjectSource (self->s.origin, monster_flash_offset[MZ2_GLADIATOR_RAILGUN_1], forward, right, start);
+
+	VectorSubtract (self->pos1, start, dir);
+	VectorNormalize (dir);
+
+	if (self->s.frame > FRAME_attack3)
+	{
+		damage /= 2;
+		radius_damage /= 2;
+	}
+	fire_plasma (self, start, dir, damage, 725, radius_damage, radius_damage);
+
+	if (self->enemy)
+	{
+		VectorCopy (self->enemy->s.origin, self->pos1);
+		self->pos1[2] += self->enemy->viewheight;
+	}
+}
+
+void gladbGun_check (edict_t *self)
+{
+	if (skill->value >= 3)
+		gladbGun (self);
+}
+
+mframe_t gladb_frames_attack_gun [] =
+{
+	ai_charge, 0, NULL,
+	ai_charge, 0, NULL,
+	ai_charge, 0, gladbGun,
+	ai_charge, 0, NULL,
+	ai_charge, 0, NULL,
+	ai_charge, 0, gladbGun,
+	ai_charge, 0, NULL,
+	ai_charge, 0, NULL,
+	ai_charge, 0, gladbGun_check
+};
+mmove_t gladb_move_attack_gun = {FRAME_attack1, FRAME_attack9, gladb_frames_attack_gun, gladiator_run};
+
 void gladiator_attack(edict_t *self)
 {
 	float	range;
@@ -207,9 +258,15 @@ void gladiator_attack(edict_t *self)
 		return;
 
 	// charge up the railgun
-	gi.sound (self, CHAN_WEAPON, sound_gun, 1, ATTN_NORM, 0);
 	VectorCopy (self->enemy->s.origin, self->pos1);	//save for aiming the shot
 	self->pos1[2] += self->enemy->viewheight;
+	if (self->style == 1)
+	{
+		gi.sound (self, CHAN_WEAPON, sound_gunb, 1, ATTN_NORM, 0);
+		self->monsterinfo.currentmove = &gladb_move_attack_gun;
+		return;
+	}
+	gi.sound (self, CHAN_WEAPON, sound_gun, 1, ATTN_NORM, 0);
 	self->monsterinfo.currentmove = &gladiator_move_attack_gun;
 }
 
@@ -241,7 +298,7 @@ void gladiator_pain (edict_t *self, edict_t *other, float kick, int damage)
 {
 
 	if (self->health < (self->max_health / 2))
-		self->s.skinnum = 1;
+		self->s.skinnum |= 1;	// the phalanx one's 2 too
 
 	if (level.time < self->pain_debounce_time)
 	{
@@ -384,4 +441,29 @@ void SP_monster_gladiator (edict_t *self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	walkmonster_start (self);
+}
+
+/*QUAKED monster_gladb (1 .5 0) (-32 -32 -24) (32 32 64) Ambush Trigger_Spawn Sight
+The Reckoning's phalanx gladiator: skin 2 of the re-release's gladiator,
+with a power shield.
+*/
+void SP_monster_gladb (edict_t *self)
+{
+	if (deathmatch->value)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+	SP_monster_gladiator (self);
+	if (!self->inuse)
+		return;
+	sound_gunb = gi.soundindex ("weapons/plasshot.wav");
+	gi.modelindex ("sprites/s_photon.sp2");
+	self->style = 1;
+	self->s.skinnum = 2;
+	self->health = 250 * (st.health_multiplier > 0 ? st.health_multiplier : 1);
+	self->max_health = self->health;
+	self->mass = 350;
+	self->monsterinfo.power_armor_type = POWER_ARMOR_SHIELD;
+	self->monsterinfo.power_armor_power = 250;
 }

@@ -781,6 +781,9 @@ void G_SetClientEffects (edict_t *ent)
 			ent->s.effects |= EF_PENT;
 	}
 
+	if (ent->client->invisible_framenum > level.framenum)
+		ent->s.renderfx |= RF_TRANSLUCENT;
+
 	// show cheaters!!!
 	if (ent->flags & FL_GODMODE)
 	{
@@ -820,6 +823,13 @@ void G_SetClientSound (edict_t *ent)
 	{
 		ent->client->pers.game_helpchanged = game.helpchanged;
 		ent->client->pers.helpchanged = 1;
+		// a Quake 64 objective is told, as the re-release does, not beeped
+		if (level.goals && game.helpmessage1[0])
+		{
+			gi.centerprintf (ent, "%s", game.helpmessage1);
+			gi.sound (ent, CHAN_AUTO, gi.soundindex ("misc/talk.wav"), 1, ATTN_NONE, 0);
+			ent->client->pers.helpchanged = 4;	// the icon flashes; no beeps
+		}
 	}
 
 	// help beep (no more than three times)

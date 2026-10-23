@@ -290,6 +290,18 @@ qboolean visible (edict_t *self, edict_t *other)
 	vec3_t	spot2;
 	trace_t	trace;
 
+	// a player with the re-release's invisibility is seen only just after
+	// a shot, and then not always
+	if (other->client && other->client->invisible_framenum > level.framenum)
+	{
+		if (!other->solid)
+			return false;	// at an intermission
+		if (other->client->invisibility_fade_framenum <= level.framenum)
+			return false;
+		if (random() * 20 > other->client->invisibility_fade_framenum - level.framenum)
+			return false;
+	}
+
 	VectorCopy (self->s.origin, spot1);
 	spot1[2] += self->viewheight;
 	VectorCopy (other->s.origin, spot2);

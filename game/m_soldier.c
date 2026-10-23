@@ -28,6 +28,15 @@ SOLDIER
 #include "g_local.h"
 #include "m_soldier.h"
 
+/*
+The Reckoning's ripper, hyperblaster and laser soldiers, as the 2023
+re-release has them: on this soldier model, with its skins 6 to 11
+(style 1). SOLDIER_SKIN gives theirs as the soldiers' they take after, 0
+to 5 -- the ripper fires as the blaster soldier does, the hyperblaster as
+the shotgun's, the laser as the machinegun's -- for what goes by the skin.
+*/
+#define SOLDIER_SKIN(self)	((self)->style == 1 ? (self)->s.skinnum - 6 : (self)->s.skinnum)
+
 
 static int	sound_idle;
 static int	sound_sight1;
@@ -423,7 +432,7 @@ void soldier_pain (edict_t *self, edict_t *other, float kick, int damage)
 
 	self->pain_debounce_time = level.time + 3;
 
-	n = self->s.skinnum | 1;
+	n = SOLDIER_SKIN(self) | 1;
 	if (n == 1)
 		gi.sound (self, CHAN_VOICE, sound_pain_light, 1, ATTN_NORM, 0);
 	else if (n == 3)
@@ -459,6 +468,57 @@ static int blaster_flash [] = {MZ2_SOLDIER_BLASTER_1, MZ2_SOLDIER_BLASTER_2, MZ2
 static int shotgun_flash [] = {MZ2_SOLDIER_SHOTGUN_1, MZ2_SOLDIER_SHOTGUN_2, MZ2_SOLDIER_SHOTGUN_3, MZ2_SOLDIER_SHOTGUN_4, MZ2_SOLDIER_SHOTGUN_5, MZ2_SOLDIER_SHOTGUN_6, MZ2_SOLDIER_SHOTGUN_7, MZ2_SOLDIER_SHOTGUN_8};
 static int machinegun_flash [] = {MZ2_SOLDIER_MACHINEGUN_1, MZ2_SOLDIER_MACHINEGUN_2, MZ2_SOLDIER_MACHINEGUN_3, MZ2_SOLDIER_MACHINEGUN_4, MZ2_SOLDIER_MACHINEGUN_5, MZ2_SOLDIER_MACHINEGUN_6, MZ2_SOLDIER_MACHINEGUN_7, MZ2_SOLDIER_MACHINEGUN_8};
 
+/*
+The Reckoning's soldiers' weapons: an ion ripper, a blue hyperblaster, a
+laser held on the enemy
+*/
+void soldierh_laserbeam (edict_t *self, int flash_index)
+{
+	vec3_t	forward, right, up, start, dir, angles, tempvec;
+	edict_t	*ent;
+
+	if (random() > 0.8)
+		gi.sound (self, CHAN_AUTO, gi.soundindex ("misc/lasfly.wav"), 1, ATTN_STATIC, 0);
+
+	VectorSubtract (self->enemy->s.origin, self->s.origin, dir);
+	vectoangles (dir, angles);
+	VectorCopy (monster_flash_offset[flash_index], tempvec);
+
+	ent = G_Spawn ();
+	VectorCopy (angles, ent->s.angles);
+	AngleVectors (angles, forward, right, up);
+	VectorCopy (self->s.origin, start);
+	VectorMA (start, tempvec[0] + 2, right, start);
+	VectorMA (start, tempvec[2] + 8, up, start);
+	VectorMA (start, tempvec[1], forward, start);
+	VectorCopy (start, ent->s.origin);
+	ent->enemy = self->enemy;
+	ent->owner = self;
+	ent->dmg = 1;
+	ent->classname = "laser";
+	monster_dabeam (ent);
+}
+
+void soldierh_fire (edict_t *self, vec3_t start, vec3_t aim, int flash_index)
+{
+	if (SOLDIER_SKIN(self) <= 1)
+		monster_fire_ionripper (self, start, aim, 5, 600, flash_index, EF_IONRIPPER);
+	else if (SOLDIER_SKIN(self) <= 3)
+		monster_fire_blueblaster (self, start, aim, 1, 600, flash_index, EF_BLUEHYPERBLASTER);
+	else
+	{
+		if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
+			self->monsterinfo.pausetime = level.time + (3 + rand() % 8) * FRAMETIME;
+
+		soldierh_laserbeam (self, flash_index);
+
+		if (level.time >= self->monsterinfo.pausetime)
+			self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
+		else
+			self->monsterinfo.aiflags |= AI_HOLD_FRAME;
+	}
+}
+
 void soldier_fire (edict_t *self, int flash_number)
 {
 	vec3_t	start;
@@ -469,9 +529,9 @@ void soldier_fire (edict_t *self, int flash_number)
 	float	r, u;
 	int		flash_index;
 
-	if (self->s.skinnum < 2)
+	if (SOLDIER_SKIN(self) < 2)
 		flash_index = blaster_flash[flash_number];
-	else if (self->s.skinnum < 4)
+	else if (SOLDIER_SKIN(self) < 4)
 		flash_index = shotgun_flash[flash_number];
 	else
 		flash_index = machinegun_flash[flash_number];
@@ -491,8 +551,8 @@ void soldier_fire (edict_t *self, int flash_number)
 		vectoangles (aim, dir);
 		AngleVectors (dir, forward, right, up);
 
-		r = crandom()*1000;
-		u = crandom()*500;
+		r = crandom() * (self->style == 1 ? 100 : 1000);
+		u = crandom() * (self->style == 1 ? 50 : 500);
 		VectorMA (start, 8192, forward, end);
 		VectorMA (end, r, right, end);
 		VectorMA (end, u, up, end);
@@ -501,11 +561,17 @@ void soldier_fire (edict_t *self, int flash_number)
 		VectorNormalize (aim);
 	}
 
-	if (self->s.skinnum <= 1)
+	if (self->style == 1)
+	{
+		soldierh_fire (self, start, aim, flash_index);
+		return;
+	}
+
+	if (SOLDIER_SKIN(self) <= 1)
 	{
 		monster_fire_blaster (self, start, aim, 5, 600, flash_index, EF_BLASTER);
 	}
-	else if (self->s.skinnum <= 3)
+	else if (SOLDIER_SKIN(self) <= 3)
 	{
 		monster_fire_shotgun (self, start, aim, 2, 1, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SHOTGUN_COUNT, flash_index);
 	}
@@ -532,7 +598,7 @@ void soldier_fire1 (edict_t *self)
 
 void soldier_attack1_refire1 (edict_t *self)
 {
-	if (self->s.skinnum > 1)
+	if (SOLDIER_SKIN(self) > 1)
 		return;
 
 	if (self->enemy->health <= 0)
@@ -546,7 +612,7 @@ void soldier_attack1_refire1 (edict_t *self)
 
 void soldier_attack1_refire2 (edict_t *self)
 {
-	if (self->s.skinnum < 2)
+	if (SOLDIER_SKIN(self) < 2)
 		return;
 
 	if (self->enemy->health <= 0)
@@ -582,7 +648,7 @@ void soldier_fire2 (edict_t *self)
 
 void soldier_attack2_refire1 (edict_t *self)
 {
-	if (self->s.skinnum > 1)
+	if (SOLDIER_SKIN(self) > 1)
 		return;
 
 	if (self->enemy->health <= 0)
@@ -596,7 +662,7 @@ void soldier_attack2_refire1 (edict_t *self)
 
 void soldier_attack2_refire2 (edict_t *self)
 {
-	if (self->s.skinnum < 2)
+	if (SOLDIER_SKIN(self) < 2)
 		return;
 
 	if (self->enemy->health <= 0)
@@ -769,14 +835,94 @@ mframe_t soldier_frames_attack6 [] =
 };
 mmove_t soldier_move_attack6 = {FRAME_runs01, FRAME_runs14, soldier_frames_attack6, soldier_run};
 
+// The Reckoning's: the ripper fires twice more, the hyperblaster goes on
+
+void soldierh_hyper_sound (edict_t *self)
+{
+	if (SOLDIER_SKIN(self) >= 2 && SOLDIER_SKIN(self) < 4)
+		gi.sound (self, CHAN_AUTO, gi.soundindex ("weapons/hyprbl1a.wav"), 1, ATTN_NORM, 0);
+}
+
+void soldierh_hyper_refire (edict_t *self, int frame)
+{
+	if (SOLDIER_SKIN(self) < 2 || SOLDIER_SKIN(self) >= 4)
+		return;
+	if (random() < 0.7)
+		self->s.frame = frame;
+	else
+		gi.sound (self, CHAN_AUTO, gi.soundindex ("weapons/hyprbd1a.wav"), 1, ATTN_NORM, 0);
+}
+
+void soldierh_hyper_refire1 (edict_t *self)
+{
+	soldierh_hyper_refire (self, FRAME_attak103);
+}
+
+void soldierh_hyper_refire2 (edict_t *self)
+{
+	soldierh_hyper_refire (self, FRAME_attak205);
+}
+
+void soldierh_ripper1 (edict_t *self)
+{
+	if (SOLDIER_SKIN(self) < 4)
+		soldier_fire (self, 0);
+}
+
+void soldierh_ripper2 (edict_t *self)
+{
+	if (SOLDIER_SKIN(self) < 4)
+		soldier_fire (self, 1);
+}
+
+mframe_t soldierh_frames_attack1 [] =
+{
+	ai_charge, 0,  NULL,
+	ai_charge, 0,  soldierh_hyper_sound,
+	ai_charge, 0,  soldier_fire1,
+	ai_charge, 0,  soldierh_ripper1,
+	ai_charge, 0,  soldierh_ripper1,
+	ai_charge, 0,  soldier_attack1_refire1,
+	ai_charge, 0,  soldierh_hyper_refire1,
+	ai_charge, 0,  soldier_cock,
+	ai_charge, 0,  soldier_attack1_refire2,
+	ai_charge, 0,  NULL,
+	ai_charge, 0,  NULL,
+	ai_charge, 0,  NULL
+};
+mmove_t soldierh_move_attack1 = {FRAME_attak101, FRAME_attak112, soldierh_frames_attack1, soldier_run};
+
+mframe_t soldierh_frames_attack2 [] =
+{
+	ai_charge, 0, NULL,
+	ai_charge, 0, NULL,
+	ai_charge, 0, NULL,
+	ai_charge, 0, soldierh_hyper_sound,
+	ai_charge, 0, soldier_fire2,
+	ai_charge, 0, soldierh_ripper2,
+	ai_charge, 0, soldierh_ripper2,
+	ai_charge, 0, soldier_attack2_refire1,
+	ai_charge, 0, soldierh_hyper_refire2,
+	ai_charge, 0, NULL,
+	ai_charge, 0, NULL,
+	ai_charge, 0, NULL,
+	ai_charge, 0, soldier_cock,
+	ai_charge, 0, NULL,
+	ai_charge, 0, soldier_attack2_refire2,
+	ai_charge, 0, NULL,
+	ai_charge, 0, NULL,
+	ai_charge, 0, NULL
+};
+mmove_t soldierh_move_attack2 = {FRAME_attak201, FRAME_attak218, soldierh_frames_attack2, soldier_run};
+
 void soldier_attack(edict_t *self)
 {
-	if (self->s.skinnum < 4)
+	if (SOLDIER_SKIN(self) < 4)
 	{
 		if (random() < 0.5)
-			self->monsterinfo.currentmove = &soldier_move_attack1;
+			self->monsterinfo.currentmove = self->style == 1 ? &soldierh_move_attack1 : &soldier_move_attack1;
 		else
-			self->monsterinfo.currentmove = &soldier_move_attack2;
+			self->monsterinfo.currentmove = self->style == 1 ? &soldierh_move_attack2 : &soldier_move_attack2;
 	}
 	else
 	{
@@ -1165,9 +1311,9 @@ void soldier_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 	self->takedamage = DAMAGE_YES;
 	self->s.skinnum |= 1;
 
-	if (self->s.skinnum == 1)
+	if (SOLDIER_SKIN(self) == 1)
 		gi.sound (self, CHAN_VOICE, sound_death_light, 1, ATTN_NORM, 0);
-	else if (self->s.skinnum == 3)
+	else if (SOLDIER_SKIN(self) == 3)
 		gi.sound (self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
 	else // (self->s.skinnum == 5)
 		gi.sound (self, CHAN_VOICE, sound_death_ss, 1, ATTN_NORM, 0);
@@ -1296,4 +1442,67 @@ void SP_monster_soldier_ss (edict_t *self)
 	self->s.skinnum = 4;
 	self->health = 40;
 	self->gib_health = -30;
+}
+
+/*
+The Reckoning's, as the re-release has them: skins 6, 8 and 10 of this
+model.
+*/
+void SP_monster_soldier_xatrix (edict_t *self, int skin, int health)
+{
+	SP_monster_soldier_x (self);
+	self->style = 1;
+	self->s.skinnum = skin;
+	self->health = health;
+	self->gib_health = -30;
+	gi.soundindex ("misc/lasfly.wav");
+}
+
+/*QUAKED monster_soldier_ripper (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
+*/
+void SP_monster_soldier_ripper (edict_t *self)
+{
+	if (deathmatch->value)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+	sound_pain_light = gi.soundindex ("soldier/solpain2.wav");
+	sound_death_light = gi.soundindex ("soldier/soldeth2.wav");
+	gi.modelindex ("models/objects/boomrang/tris.md2");
+	gi.soundindex ("soldier/solatck2.wav");
+	SP_monster_soldier_xatrix (self, 6, 50);
+}
+
+/*QUAKED monster_soldier_hypergun (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
+*/
+void SP_monster_soldier_hypergun (edict_t *self)
+{
+	if (deathmatch->value)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+	sound_pain = gi.soundindex ("soldier/solpain1.wav");
+	sound_death = gi.soundindex ("soldier/soldeth1.wav");
+	gi.modelindex ("models/objects/blaser/tris.md2");
+	gi.soundindex ("soldier/solatck1.wav");
+	gi.soundindex ("weapons/hyprbl1a.wav");
+	gi.soundindex ("weapons/hyprbd1a.wav");
+	SP_monster_soldier_xatrix (self, 8, 60);
+}
+
+/*QUAKED monster_soldier_lasergun (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
+*/
+void SP_monster_soldier_lasergun (edict_t *self)
+{
+	if (deathmatch->value)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+	sound_pain_ss = gi.soundindex ("soldier/solpain3.wav");
+	sound_death_ss = gi.soundindex ("soldier/soldeth3.wav");
+	gi.soundindex ("soldier/solatck3.wav");
+	SP_monster_soldier_xatrix (self, 10, 70);
 }

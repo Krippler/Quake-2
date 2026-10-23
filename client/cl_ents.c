@@ -945,6 +945,21 @@ void CL_AddPacketEntities (frame_t *frame)
 			}
 		}
 
+		// the re-release's target_light: a light of radius frame, its
+		// colour in skinnum, and nothing to draw
+		if (renderfx & RF_CUSTOMLIGHT)
+		{
+			unsigned	rgb = (unsigned)s1->skinnum;
+			float		r = ((rgb >> 24) & 255) / 255.0f;
+			float		g = ((rgb >> 16) & 255) / 255.0f;
+			float		b = ((rgb >> 8) & 255) / 255.0f;
+			float		bright = r > g ? (r > b ? r : b) : (g > b ? g : b);
+
+			if (bright > 0 && s1->frame > 0)
+				V_AddLight (ent.origin, s1->frame * bright, r, g, b);
+			continue;
+		}
+
 		// create a new entity
 	
 		// tweak the color of beams

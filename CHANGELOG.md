@@ -5,6 +5,47 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.18] — 2026-10-23
+
+### Added
+
+- **The Reckoning's ripper, hyperblaster and laser soldiers and its
+  phalanx gladiator**, as Call of the Machine has them, in place of their
+  stand-ins: the ion ripper that goes off the walls, the blue hyperblaster
+  that keeps firing, the laser held on its target, the gladiator's balls
+  of plasma and its power shield.
+- The re-release's soldier and gunner models are used, with their skins
+  for these: they have more frames than a 1997 engine took (575 and 799),
+  and are now let through.
+- **The rest of Quake 64's own entities**, as the re-release has them:
+  Orbital Station's low gravity; Space Station's failure that kills the
+  player; the levels' alarms and machinery sounds; their coloured lamp
+  lights that flicker and pulse; Cargo Bay's ship hologram; Geothermal
+  Station's lava balls; Reactor Core's tank that teleports away; and the
+  invisibility powerup, which hides the player from monsters for 30
+  seconds but for a moment after each shot.
+- **Quake 64's mission objectives**: each level's is printed as it starts
+  and as it changes, and the help computer shows the current one.
+- On Quake 64 maps, as on the N64: powerups take effect when picked up,
+  teleporter pads show no destination marker, and monsters standing in
+  triggers do not set them off in the level's first moment.
+
+Its lens flares are not drawn: the lamps they sit on are.
+
+- **Call of the Machine plays through.** The hub's units unlock as each
+  is finished, and its boss's door once all six are; the bosses call their
+  reinforcements as their health falls, and take their health from the
+  skill as the re-release has it; its music changes, its steam, its sky
+  changes and the hub's watching eyes are there, and the standalone
+  Makron fights.
+- Its monsters, weapons and items from the mission packs and the
+  re-release that this game has not got **stand in as the nearest it
+  has** -- The Reckoning's gekk as a mutant, Ground Zero's stalker as a
+  parasite, its carrier as the Hornet, the re-release's shambler as a
+  berserker, and so on (`game/g_cotm.c` has the list) -- so that every
+  level is peopled and can be finished, though not yet as it was made.
+  The log names each stand-in. Mgu5m3's wall turrets are left out.
+
 ## [1.3.17] — 2026-10-23
 
 ### Fixed

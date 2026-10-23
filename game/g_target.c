@@ -33,6 +33,9 @@ void Use_Target_Tent (edict_t *ent, edict_t *other, edict_t *activator)
 
 void SP_target_temp_entity (edict_t *ent)
 {
+	// the N64's teleport effect is its 27
+	if (level.is_n64 && ent->style == 27)
+		ent->style = TE_TELEPORT_EFFECT;
 	ent->use = Use_Target_Tent;
 }
 
@@ -115,6 +118,32 @@ void SP_target_speaker (edict_t *ent)
 
 //==========================================================
 
+/*
+The re-release's Quake 64 maps have no target_help: worldspawn's "goals" is
+the help computer's message, a $key of the localization file for each of
+the level's objectives with a tab between, and each target_goal used goes
+on to the next. G_SetClientSound prints each to the player as it comes.
+*/
+void G_SetGoal (void)
+{
+	char	*s, *e;
+	int		i, len;
+
+	s = level.goals;
+	for (i=0 ; i<level.goal_num && s ; i++)
+		s = (s = strchr (s, '\t')) ? s + 1 : NULL;
+	if (!s || !*s)
+		return;		// none past the last
+	e = strchr (s, '\t');
+	len = e ? e - s : strlen (s);
+	if (len > (int)sizeof(game.helpmessage1) - 1)
+		len = sizeof(game.helpmessage1) - 1;
+	memcpy (game.helpmessage1, s, len);
+	game.helpmessage1[len] = 0;
+	game.helpmessage2[0] = 0;
+	game.helpchanged++;
+}
+
 void Use_Target_Help (edict_t *ent, edict_t *other, edict_t *activator)
 {
 	if (ent->spawnflags & 1)
@@ -194,6 +223,13 @@ void use_target_goal (edict_t *ent, edict_t *other, edict_t *activator)
 
 	if (level.found_goals == level.total_goals)
 		gi.configstring (CS_CDTRACK, "0");
+
+	// a Quake 64 map's: on to its next objective
+	if (level.goals)
+	{
+		level.goal_num++;
+		G_SetGoal ();
+	}
 
 	G_UseTargets (ent, activator);
 	G_FreeEdict (ent);
@@ -963,4 +999,219 @@ void SP_target_earthquake (edict_t *self)
 	self->use = target_earthquake_use;
 
 	self->noise_index = gi.soundindex ("world/quake.wav");
+}
+
+/*
+==============================================================================
+
+The 2023 re-release's targets for its Quake 64 maps
+
+==============================================================================
+*/
+
+/*QUAKED target_gravity (1 0 0) (-8 -8 -8) (8 8 8)
+Sets the gravity, "gravity", when used: Orbital Station's low gravity.
+SP_worldspawn puts the map's own back at the next map.
+*/
+void use_target_gravity (edict_t *self, edict_t *other, edict_t *activator)
+{
+	gi.cvar_set ("sv_gravity", va("%g", self->gravity));
+}
+
+void SP_target_gravity (edict_t *self)
+{
+	self->use = use_target_gravity;
+	self->gravity = st.gravity ? atof (st.gravity) : 800;
+	self->svflags = SVF_NOCLIENT;
+}
+
+/*QUAKED target_soundfx (1 0 0) (-8 -8 -8) (8 8 8)
+One of the N64's sounds, "noise" 1 2 4 5 or 7, played "delay" after it is
+used.
+*/
+void target_soundfx_think (edict_t *self)
+{
+	gi.positioned_sound (self->s.origin, self, CHAN_VOICE, self->noise_index,
+		self->volume, self->attenuation, 0);
+}
+
+void use_target_soundfx (edict_t *self, edict_t *other, edict_t *activator)
+{
+	self->think = target_soundfx_think;
+	self->nextthink = level.time + self->delay;
+}
+
+void SP_target_soundfx (edict_t *self)
+{
+	char	*sound;
+
+	if (!self->volume)
+		self->volume = 1.0;
+	if (!self->attenuation)
+		self->attenuation = 1.0;
+	else if (self->attenuation == -1)	// -1 so that 0 is the default 1
+		self->attenuation = 0;
+
+	switch (st.noise ? atoi (st.noise) : 0)
+	{
+	case 1:	sound = "world/x_alarm.wav"; break;
+	case 2:	sound = "world/flyby1.wav"; break;
+	case 4:	sound = "world/amb12.wav"; break;
+	case 5:	sound = "world/amb17.wav"; break;
+	case 7:	sound = "world/bigpump2.wav"; break;
+	default:
+		gi.dprintf ("target_soundfx at %s has unknown noise %s\n",
+			vtos(self->s.origin), st.noise ? st.noise : "");
+		G_FreeEdict (self);
+		return;
+	}
+	self->noise_index = gi.soundindex (sound);
+	self->use = use_target_soundfx;
+	self->svflags = SVF_NOCLIENT;
+}
+
+/*QUAKED target_light (1 0 0) (-8 -8 -8) (8 8 8) START_ON NO_LERP FLICKER
+A light of "radius" and colour "rgba" (0xRRGGBBAA) that is switched by being
+used. Given a "target", another target_light, it goes from its colour to
+that one's and back by its light "style", at "speed"; FLICKER flickers it.
+The client draws it as a dynamic light (RF_CUSTOMLIGHT, cl_ents.c).
+*/
+#define TARGET_LIGHT_START_ON	1
+#define TARGET_LIGHT_NO_LERP	2
+#define TARGET_LIGHT_FLICKER	4
+
+void target_light_flicker_think (edict_t *self)
+{
+	if (rand () & 1)
+		self->svflags ^= SVF_NOCLIENT;
+	self->nextthink = level.time + FRAMETIME;
+}
+
+void target_light_think (edict_t *self)
+{
+	char	*style;
+	int		len, index, next, my, to, r, g, b;
+	float	lerp, cur, nxt, f;
+
+	if (self->spawnflags & TARGET_LIGHT_FLICKER)
+		target_light_flicker_think (self);
+
+	style = self->style >= 0 && self->style < G_NUMLIGHTSTYLES
+		? g_lightstyles[self->style] : "m";
+	len = strlen (style);
+	self->delay += self->speed;
+	index = (int)self->delay % len;
+	cur = (style[index] - 'a') / (float)('z' - 'a');
+	if (!(self->spawnflags & TARGET_LIGHT_NO_LERP))
+	{
+		next = (index + 1) % len;
+		nxt = (style[next] - 'a') / (float)('z' - 'a');
+		f = self->delay - (int)self->delay;
+		lerp = nxt * f + cur * (1 - f);
+	}
+	else
+		lerp = cur;
+
+	my = self->count;
+	to = self->chain->count;
+	b = ((to >> 8) & 255) * lerp + ((my >> 8) & 255) * (1 - lerp);
+	g = ((to >> 16) & 255) * lerp + ((my >> 16) & 255) * (1 - lerp);
+	r = ((to >> 24) & 255) * lerp + ((my >> 24) & 255) * (1 - lerp);
+	self->s.skinnum = (b << 8) | (g << 16) | (r << 24);
+	self->nextthink = level.time + FRAMETIME;
+}
+
+void target_light_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	self->health = !self->health;
+	if (self->health)
+		self->svflags &= ~SVF_NOCLIENT;
+	else
+		self->svflags |= SVF_NOCLIENT;
+
+	self->think = NULL;
+	self->nextthink = 0;
+	if (!self->health)
+		return;
+	if (self->chain)
+		self->think = target_light_think;
+	else if (self->spawnflags & TARGET_LIGHT_FLICKER)
+		self->think = target_light_flicker_think;
+	if (self->think)
+		self->nextthink = level.time + FRAMETIME;
+}
+
+// once all are spawned: the one each goes to and from
+void target_light_start (edict_t *self)
+{
+	self->chain = self->target ? G_PickTarget (self->target) : NULL;
+	self->think = NULL;
+	if (self->spawnflags & TARGET_LIGHT_START_ON)
+		target_light_use (self, self, self);
+}
+
+void SP_target_light (edict_t *self)
+{
+	self->s.modelindex = 1;		// sent, though nothing of it is drawn
+	self->s.renderfx = RF_CUSTOMLIGHT;
+	self->s.frame = st.radius ? st.radius : 150;
+	self->count = self->s.skinnum;	// "rgba"
+	self->svflags |= SVF_NOCLIENT;
+	self->health = 0;
+	self->speed = self->speed ? 0.1 / self->speed : 1.0;
+	if (level.is_n64)
+		self->style += 10;
+	self->use = target_light_use;
+	self->think = target_light_start;
+	self->nextthink = level.time + FRAMETIME;
+	gi.linkentity (self);
+}
+
+/*QUAKED target_poi (1 0 0) (-4 -4 -4) (4 4 4)
+The re-release's point of interest, which its compass points the player to.
+There is no compass here.
+*/
+void SP_target_poi (edict_t *self)
+{
+	G_FreeEdict (self);
+}
+
+/*QUAKED target_killplayers (1 0 0) (-8 -8 -8) (8 8 8)
+Kills every player when used, and the monsters they can see: Space
+Station's failure.
+*/
+void target_killplayers_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	edict_t	*ent, *player;
+	int		i, j;
+
+	for (i=1+game.maxclients ; i<globals.num_edicts ; i++)
+	{
+		ent = g_edicts + i;
+		if (!ent->inuse || !(ent->svflags & SVF_MONSTER) || ent->health < 1 || !ent->takedamage)
+			continue;
+		for (j=0 ; j<game.maxclients ; j++)
+		{
+			player = g_edicts + 1 + j;
+			if (player->inuse && gi.inPVS (player->s.origin, ent->s.origin))
+			{
+				T_Damage (ent, self, self, vec3_origin, ent->s.origin, vec3_origin,
+					ent->health, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+				break;
+			}
+		}
+	}
+	for (j=0 ; j<game.maxclients ; j++)
+	{
+		player = g_edicts + 1 + j;
+		if (player->inuse && player->health > 0)
+			T_Damage (player, self, self, vec3_origin, self->s.origin, vec3_origin,
+				100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+	}
+}
+
+void SP_target_killplayers (edict_t *self)
+{
+	self->use = target_killplayers_use;
+	self->svflags = SVF_NOCLIENT;
 }

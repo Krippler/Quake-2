@@ -61,6 +61,11 @@ void PlayerNoise(edict_t *who, vec3_t where, int type)
 
 	if (type == PNOISE_WEAPON)
 	{
+		// an invisible player's shot shows them, for two seconds (less
+		// with the silencer)
+		if (who->client)
+			who->client->invisibility_fade_framenum = level.framenum
+				+ (who->client->silencer_shots ? 4 : 20);
 		if (who->client->silencer_shots)
 		{
 			who->client->silencer_shots--;

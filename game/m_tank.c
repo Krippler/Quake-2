@@ -854,3 +854,41 @@ void SP_monster_tank (edict_t *self)
 	if (strcmp(self->classname, "monster_tank_commander") == 0)
 		self->s.skinnum = 2;
 }
+
+
+/*QUAKED monster_tank_stand (1 .5 0) (-32 -32 0) (32 32 90)
+The re-release's, for Quake 64's Reactor Core: a tank that stands where it
+is, going through its standing frames, until it is used, and then
+teleports away as the Makron's figure does (Use_Boss3).
+*/
+void Use_Boss3 (edict_t *ent, edict_t *other, edict_t *activator);
+
+void tank_stand_think (edict_t *self)
+{
+	if (self->s.frame == FRAME_stand30)
+		self->s.frame = FRAME_stand01;
+	else
+		self->s.frame++;
+	self->nextthink = level.time + FRAMETIME;
+}
+
+void SP_monster_tank_stand (edict_t *self)
+{
+	if (deathmatch->value)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+	self->movetype = MOVETYPE_STEP;
+	self->solid = SOLID_BBOX;
+	self->s.modelindex = gi.modelindex ("models/monsters/tank/tris.md2");
+	self->s.frame = FRAME_stand01;
+	self->s.skinnum = 2;
+	gi.soundindex ("misc/bigtele.wav");
+	VectorSet (self->mins, -32, -32, -16);
+	VectorSet (self->maxs, 32, 32, 64);
+	self->use = Use_Boss3;
+	self->think = tank_stand_think;
+	self->nextthink = level.time + FRAMETIME;
+	gi.linkentity (self);
+}

@@ -493,6 +493,14 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 
 
 		targ->health = targ->health - take;
+
+		// the re-release's: a monster's healthtarget, used as it is hurt
+		if (targ->healthtarget && (targ->svflags & SVF_MONSTER))
+		{
+			G_HealthTarget (targ);
+			if (!targ->inuse)
+				return;
+		}
 			
 		if (targ->health <= 0)
 		{
