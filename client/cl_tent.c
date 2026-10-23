@@ -1035,6 +1035,12 @@ void CL_ParseTEnt (void)
 
 //=============
 //PGM
+	case TE_BERSERK_SLAM:		// the re-release's slam
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadDir (&net_message, dir);
+		CL_SlamParticles (pos, dir);
+		break;
+
 		// PMM -following code integrated for flechette (different color)
 	case TE_BLASTER2:			// green blaster hitting wall
 	case TE_FLECHETTE:			// flechette

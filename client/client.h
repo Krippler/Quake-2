@@ -420,6 +420,7 @@ void CL_ParseFrame (void);
 
 void CL_ParseTEnt (void);
 void CL_ModelBeam (struct model_s *model, int entnum, vec3_t start, vec3_t end);
+void CL_SlamParticles (vec3_t org, vec3_t dir);
 void CL_ParseConfigString (void);
 void CL_ParseMuzzleFlash (void);
 void CL_ParseMuzzleFlash2 (void);

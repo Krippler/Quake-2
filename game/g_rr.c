@@ -227,3 +227,309 @@ void monster_dead (edict_t *self)
 	self->nextthink = 0;
 	gi.linkentity (self);
 }
+
+void monster_muzzleflash (edict_t *self, vec3_t start, int flashtype)
+{
+	gi.WriteByte (svc_muzzleflash2);
+	gi.WriteShort (self - g_edicts);
+	gi.WriteByte (flashtype);
+	gi.multicast (start, MULTICAST_PVS);
+}
+
+// would a step of dist straight ahead succeed?
+qboolean ai_check_move (edict_t *self, float dist)
+{
+	float	yaw = self->s.angles[YAW] * M_PI * 2 / 360;
+	vec3_t	move, old_origin;
+
+	move[0] = cos(yaw) * dist;
+	move[1] = sin(yaw) * dist;
+	move[2] = 0;
+
+	VectorCopy (self->s.origin, old_origin);
+	if (!SV_movestep (self, move, false))
+		return false;
+
+	VectorCopy (old_origin, self->s.origin);
+	gi.linkentity (self);
+	return true;
+}
+
+/*
+A pitch that will at some point land a lob on or near the target: each
+is tried by simulating the lob for time_remaining.  aim is set to it.
+*/
+qboolean M_CalculatePitchToFire (edict_t *self, vec3_t target, vec3_t start, vec3_t aim, float speed, float time_remaining, qboolean mortar, qboolean destroy_on_touch)
+{
+	static const float	pitches[] = { -80, -70, -60, -50, -40, -30, -20, -10, -5 };
+	const float	sim_time = 0.1;
+	float		best_pitch = 0, best_dist = -1, t, dist;
+	vec3_t		pitched_aim, fwd, velocity, origin, end, v;
+	trace_t		tr;
+	int			i;
+
+	vectoangles2 (aim, pitched_aim);
+
+	for (i = 0; i < (int)(sizeof(pitches) / sizeof(pitches[0])); i++)
+	{
+		if (mortar && pitches[i] >= -30)
+			break;
+
+		pitched_aim[PITCH] = pitches[i];
+		AngleVectors (pitched_aim, fwd, NULL, NULL);
+
+		VectorScale (fwd, speed, velocity);
+		VectorCopy (start, origin);
+
+		for (t = time_remaining; t > 0; t -= sim_time)
+		{
+			velocity[2] -= sv_gravity->value * sim_time;
+
+			VectorMA (origin, sim_time, velocity, end);
+			tr = gi.trace (origin, NULL, NULL, end, NULL, MASK_SHOT);
+			VectorCopy (tr.endpos, origin);
+
+			if (tr.fraction < 1.0)
+			{
+				if (tr.surface && (tr.surface->flags & SURF_SKY))
+					break;
+
+				VectorAdd (origin, tr.plane.normal, origin);
+				ClipVelocity (velocity, tr.plane.normal, velocity, 1.6);
+
+				VectorSubtract (origin, target, v);
+				dist = DotProduct (v, v);
+
+				if (tr.ent == self->enemy || tr.ent->client
+					|| (tr.plane.normal[2] >= 0.7 && dist < 128*128 && (best_dist < 0 || dist < best_dist)))
+				{
+					best_pitch = pitches[i];
+					best_dist = dist;
+				}
+
+				if (destroy_on_touch || (tr.contents & (CONTENTS_MONSTER|CONTENTS_DEADMONSTER)))
+					break;
+			}
+		}
+	}
+
+	if (best_dist >= 0)
+	{
+		pitched_aim[PITCH] = best_pitch;
+		AngleVectors (pitched_aim, aim, NULL, NULL);
+		return true;
+	}
+
+	return false;
+}
+
+/*
+The re-release's slam: damage and a knock up to all on the ground about
+the point, falling off with the square of distance.
+*/
+void T_SlamRadiusDamage (vec3_t point, edict_t *inflictor, edict_t *attacker, float damage, float kick, edict_t *ignore, float radius, int mod)
+{
+	edict_t	*ent = NULL;
+	vec3_t	v, dir, mins, maxs, closest;
+	float	amount, points;
+	int		i;
+
+	while ((ent = findradius (ent, inflictor->s.origin, radius * 2)) != NULL)
+	{
+		if (ent == ignore)
+			continue;
+		if (!ent->takedamage)
+			continue;
+		if (!CanDamage (ent, inflictor))
+			continue;
+		// not players in mid air
+		if (ent->client && !ent->groundentity)
+			continue;
+
+		VectorAdd (ent->s.origin, ent->mins, mins);
+		VectorAdd (ent->s.origin, ent->maxs, maxs);
+		for (i = 0; i < 3; i++)
+			closest[i] = point[i] < mins[i] ? mins[i] : point[i] > maxs[i] ? maxs[i] : point[i];
+		VectorSubtract (closest, point, v);
+
+		amount = 1 - VectorLength (v) / radius;
+		if (amount > 1)
+			amount = 1;
+		if (amount <= 0)
+			continue;		// too far away
+		amount *= amount;
+
+		points = damage * amount;
+		if (points < 1)
+			points = 1;
+
+		VectorSubtract (ent->s.origin, point, dir);
+		VectorNormalize (dir);
+
+		// the point at their feet, so they're always knocked up
+		point[2] = ent->absmin[2];
+		T_Damage (ent, inflictor, attacker, dir, point, dir, (int)points, (int)(kick * amount), DAMAGE_RADIUS, mod);
+
+		if (ent->client && ent->velocity[2] < 270)
+			ent->velocity[2] = 270;
+	}
+}
+
+/*
+The re-release's (and Ground Zero's) ducking
+*/
+#define	DUCK_INTERVAL	5
+
+void monster_duck_down (edict_t *self)
+{
+	self->monsterinfo.aiflags |= AI_DUCKED;
+
+	self->maxs[2] = self->monsterinfo.base_height - 32;
+	self->takedamage = DAMAGE_AIM;
+	self->monsterinfo.next_duck_time = level.time + DUCK_INTERVAL;
+	gi.linkentity (self);
+}
+
+void monster_duck_hold (edict_t *self)
+{
+	if (level.time >= self->monsterinfo.duck_wait_time)
+		self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
+	else
+		self->monsterinfo.aiflags |= AI_HOLD_FRAME;
+}
+
+void monster_duck_up (edict_t *self)
+{
+	if (!(self->monsterinfo.aiflags & AI_DUCKED))
+		return;
+
+	self->monsterinfo.aiflags &= ~AI_DUCKED;
+	self->maxs[2] = self->monsterinfo.base_height;
+	self->takedamage = DAMAGE_AIM;
+	// a duck up done: the time till the next halved
+	if (self->monsterinfo.next_duck_time > level.time)
+		self->monsterinfo.next_duck_time = level.time + (self->monsterinfo.next_duck_time - level.time) / 2;
+	gi.linkentity (self);
+}
+
+// the re-release's per-skill chance: easy, normal, hard, nightmare
+static qboolean G_SkillCheck (float easy, float normal, float hard, float nightmare)
+{
+	float	chance;
+	int		s = (int)skill->value;
+
+	chance = s <= 0 ? easy : s == 1 ? normal : s == 2 ? hard : nightmare;
+	return chance == 1.0 ? true : random() < chance;
+}
+
+/*
+The re-release's dodge: sidestep, or duck a shot that will hit high, by
+what the monster has for each.  tr is where the shot will hit, if known.
+*/
+void M_MonsterDodge (edict_t *self, edict_t *attacker, float eta, trace_t *tr)
+{
+	float		r = random();
+	float		height;
+	qboolean	ducker = false, dodger = false;
+
+	// it may have "died" already
+	if (self->health < 1)
+		return;
+
+	if (self->monsterinfo.duck && self->monsterinfo.unduck)
+		ducker = true;
+	if (self->monsterinfo.sidestep && !(self->monsterinfo.aiflags & AI_STAND_GROUND))
+		dodger = true;
+
+	if (!ducker && !dodger)
+		return;
+
+	if (!self->enemy)
+	{
+		self->enemy = attacker;
+		FoundTarget (self);
+	}
+
+	// not if it will hit anyway, or is far off
+	if (eta < FRAMETIME || eta > 2.5)
+		return;
+
+	// skill level determination
+	if (r > 0.5)
+		return;
+
+	if (ducker && tr)
+	{
+		height = self->absmax[2] - 32 - 1;		// absmax is s.origin + maxs + 1
+
+		if (!dodger && (tr->endpos[2] <= height || (self->monsterinfo.aiflags & AI_DUCKED)))
+			return;
+	}
+	else
+		height = self->absmax[2];
+
+	if (dodger)
+	{
+		// already dodging: finish that
+		if (self->monsterinfo.aiflags & AI_DODGING)
+			return;
+
+		// ducked already, or the shot is at its knees
+		if (!ducker || !tr || tr->endpos[2] <= height || (self->monsterinfo.aiflags & AI_DUCKED))
+		{
+			// not as often on easy and normal
+			if (!G_SkillCheck (0.25, 0.5, 1, 1))
+			{
+				self->monsterinfo.dodge_time = level.time + 0.8 + random() * 0.6;
+				return;
+			}
+
+			if (tr)
+			{
+				vec3_t	right, diff;
+
+				AngleVectors (self->s.angles, NULL, right, NULL);
+				VectorSubtract (tr->endpos, self->s.origin, diff);
+				self->monsterinfo.lefty = DotProduct (right, diff) >= 0;
+			}
+			else
+				self->monsterinfo.lefty = rand() & 1;
+
+			if (self->monsterinfo.sidestep (self))
+			{
+				if (ducker && (self->monsterinfo.aiflags & AI_DUCKED))
+					self->monsterinfo.unduck (self);
+
+				self->monsterinfo.aiflags |= AI_DODGING;
+				self->monsterinfo.attack_state = AS_SLIDING;
+				self->monsterinfo.dodge_time = level.time + 0.4 + random() * 1.6;
+			}
+			return;
+		}
+	}
+
+	// duck only shots about to hit
+	if (ducker && tr && eta < 0.5)
+	{
+		if (self->monsterinfo.next_duck_time > level.time)
+			return;
+
+		monster_done_dodge (self);
+
+		if (self->monsterinfo.duck (self, eta))
+		{
+			if (self->monsterinfo.duck_wait_time < level.time)
+				self->monsterinfo.duck_wait_time = level.time + eta;
+
+			monster_duck_down (self);
+
+			// on easy and normal, longer
+			if (skill->value == 0)
+				self->monsterinfo.duck_wait_time += 0.5 + random() * 0.5;
+			else if (skill->value == 1)
+				self->monsterinfo.duck_wait_time += 0.1 + random() * 0.25;
+		}
+
+		self->monsterinfo.dodge_time = level.time + 0.2 + random() * 0.5;
+	}
+}

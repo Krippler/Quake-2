@@ -490,6 +490,16 @@ typedef struct
 	int			monster_slots;
 
 	float		melee_debounce_time;	// the re-release's: no melee till then
+
+	// the re-release's ducking and dodging (its gunner commander)
+	qboolean	(*duck)(edict_t *self, float eta);
+	void		(*unduck)(edict_t *self);
+	qboolean	(*sidestep)(edict_t *self);
+	float		duck_wait_time;		// ducked till then
+	float		next_duck_time;		// no duck again till then
+	float		dodge_time;			// no dodge again till then
+	float		base_height;		// maxs[2], not ducked
+	qboolean	can_jump;
 } monsterinfo_t;
 
 
@@ -549,6 +559,7 @@ extern	int	body_armor_index;
 #define MOD_BLASTER2		37		// Ground Zero's
 #define MOD_TESLA			38		// the shambler's lightning
 #define MOD_CHAINFIST		39		// Ground Zero's
+#define MOD_ETF_RIFLE		40		// Ground Zero's flechettes
 #define MOD_FRIENDLY_FIRE	0x8000000
 
 extern	int	meansOfDeath;
@@ -689,6 +700,7 @@ void G_SetGoal (void);
 // g_xatrix.c
 void monster_fire_blueblaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
 void monster_fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
+void fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
 void monster_dabeam (edict_t *self);
 
 // g_rogue.c
@@ -712,6 +724,24 @@ qboolean fire_hit_rr (edict_t *self, vec3_t aim, int damage, int kick);
 void PredictAim (edict_t *self, edict_t *target, vec3_t start, float bolt_speed, qboolean eye_height, float offset, vec3_t aimdir, vec3_t aimpoint);
 qboolean M_CheckClearShot (edict_t *self, vec3_t offset, vec3_t start);
 void monster_dead (edict_t *self);
+qboolean ai_check_move (edict_t *self, float dist);
+void vectoangles2 (vec3_t value, vec3_t angles);
+qboolean M_CalculatePitchToFire (edict_t *self, vec3_t target, vec3_t start, vec3_t aim, float speed, float time_remaining, qboolean mortar, qboolean destroy_on_touch);
+void T_SlamRadiusDamage (vec3_t point, edict_t *inflictor, edict_t *attacker, float damage, float kick, edict_t *ignore, float radius, int mod);
+void monster_duck_down (edict_t *self);
+void monster_duck_up (edict_t *self);
+void monster_duck_hold (edict_t *self);
+void M_MonsterDodge (edict_t *self, edict_t *attacker, float eta, trace_t *tr);
+void monster_muzzleflash (edict_t *self, vec3_t start, int flashtype);
+void monster_done_dodge (edict_t *self);
+void fire_flechette (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int kick);
+void monster_fire_flechette (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype);
+qboolean blocked_checkplat (edict_t *self, float dist);
+qboolean blocked_checkjump (edict_t *self, float dist, float maxDown, float maxUp);
+qboolean monster_jump_finished (edict_t *self);
+void monster_jump_start (edict_t *self);
+qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink);
+int ClipVelocity (vec3_t in, vec3_t normal, vec3_t out, float overbounce);
 void monster_fire_heat (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype);
 void fire_plasma (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void G_HealthTarget (edict_t *self);
@@ -752,6 +782,7 @@ void T_RadiusDamage (edict_t *inflictor, edict_t *attacker, float damage, edict_
 #define DAMAGE_NO_KNOCKBACK		0x00000008	// do not affect velocity, just view angles
 #define DAMAGE_BULLET			0x00000010  // damage is from a bullet (used for ricochets)
 #define DAMAGE_NO_PROTECTION	0x00000020  // armor, shields, invulnerability, and godmode have no effect
+#define DAMAGE_NO_REG_ARMOR		0x00000040	// Ground Zero's: armour, but not power armour, does not protect
 
 #define DEFAULT_BULLET_HSPREAD	300
 #define DEFAULT_BULLET_VSPREAD	500
@@ -788,7 +819,7 @@ void M_CheckGround (edict_t *ent);
 //
 void ThrowHead (edict_t *self, char *gibname, int damage, int type);
 void ThrowClientHead (edict_t *self, int damage);
-void ThrowGib (edict_t *self, char *gibname, int damage, int type);
+edict_t *ThrowGib (edict_t *self, char *gibname, int damage, int type);
 void BecomeExplosion1(edict_t *self);
 void G_ClearShadowLights (void);
 void G_SetupShadowLights (void);
@@ -820,6 +851,7 @@ void fire_bullet (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int ki
 void fire_shotgun (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int mod);
 void fire_blaster (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, int effect, qboolean hyper);
 void fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius);
+void fire_grenade_adjust (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, float right_adjust, float up_adjust);
 void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, qboolean held);
 void fire_rocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void fire_rail (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick);

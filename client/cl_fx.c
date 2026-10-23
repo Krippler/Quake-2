@@ -1022,6 +1022,49 @@ void CL_ParticleEffect2 (vec3_t org, vec3_t dir, int color, int count)
 }
 
 
+/*
+===============
+CL_SlamParticles
+
+The re-release's slam (its gunner commander's counter): a ring of dust
+thrown out along the ground from the point
+===============
+*/
+void CL_SlamParticles (vec3_t org, vec3_t dir)
+{
+	int			i;
+	cparticle_t	*p;
+	float		a;
+
+	for (i=0 ; i<96 ; i++)
+	{
+		if (!free_particles)
+			return;
+		p = free_particles;
+		free_particles = p->next;
+		p->next = active_particles;
+		active_particles = p;
+
+		p->time = cl.time;
+		p->color = 0x04 + (rand()&7);	// greys and browns
+
+		a = i * (2*M_PI/96);
+		p->org[0] = org[0] + cos(a)*8;
+		p->org[1] = org[1] + sin(a)*8;
+		p->org[2] = org[2] + 2;
+		p->vel[0] = cos(a)*(160 + crand()*40);
+		p->vel[1] = sin(a)*(160 + crand()*40);
+		p->vel[2] = 40 + frand()*60;
+
+		p->accel[0] = p->accel[1] = 0;
+		p->accel[2] = -PARTICLE_GRAVITY;
+		p->alpha = 1.0;
+
+		p->alphavel = -1.0 / (0.6 + frand()*0.3);
+	}
+}
+
+
 // RAFAEL
 /*
 ===============

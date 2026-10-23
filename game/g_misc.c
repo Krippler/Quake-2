@@ -132,7 +132,7 @@ void gib_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, 
 	G_FreeEdict (self);
 }
 
-void ThrowGib (edict_t *self, char *gibname, int damage, int type)
+edict_t *ThrowGib (edict_t *self, char *gibname, int damage, int type)
 {
 	edict_t *gib;
 	vec3_t	vd;
@@ -178,6 +178,7 @@ void ThrowGib (edict_t *self, char *gibname, int damage, int type)
 	gib->nextthink = level.time + 10 + random()*10;
 
 	gi.linkentity (gib);
+	return gib;		// the re-release's: for its gunner commander to skin and aim
 }
 
 void ThrowHead (edict_t *self, char *gibname, int damage, int type)

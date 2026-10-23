@@ -1005,7 +1005,8 @@ typedef enum
 	TE_WIDOWSPLASH,
 	TE_EXPLOSION1_BIG,
 	TE_EXPLOSION1_NP,
-	TE_FLECHETTE
+	TE_FLECHETTE,
+	TE_BERSERK_SLAM			// the re-release's: a slam's shockwave
 //ROGUE
 } temp_event_t;
 

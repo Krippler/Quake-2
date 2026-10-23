@@ -967,6 +967,10 @@ void ai_run (edict_t *self, float dist)
 		return;
 	}
 
+	// the re-release's: a ducked monster running stands up
+	if ((self->monsterinfo.aiflags & AI_DUCKED) && self->monsterinfo.unduck)
+		self->monsterinfo.unduck (self);
+
 	if (self->monsterinfo.aiflags & AI_SOUND_TARGET)
 	{
 		VectorSubtract (self->s.origin, self->enemy->s.origin, v);

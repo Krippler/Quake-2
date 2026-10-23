@@ -674,4 +674,86 @@ qboolean blocked_checkjump (edict_t *self, float dist, float maxDown, float maxU
 void monster_done_dodge (edict_t *self)
 {
 	self->monsterinfo.aiflags &= ~AI_DODGING;
+	// the re-release's: a sidestep's slide is over with it
+	if (self->monsterinfo.attack_state == AS_SLIDING)
+		self->monsterinfo.attack_state = AS_STRAIGHT;
+}
+
+/*
+ * Ground Zero's flechettes (its ETF rifle's, and the re-release's gunner
+ * commander's chaingun)
+ */
+static void flechette_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+	vec3_t	dir, normal;
+
+	if (other == self->owner)
+		return;
+
+	if (surf && (surf->flags & SURF_SKY))
+	{
+		G_FreeEdict (self);
+		return;
+	}
+
+	if (self->owner && self->owner->client)
+		PlayerNoise (self->owner, self->s.origin, PNOISE_IMPACT);
+
+	if (plane)
+		VectorCopy (plane->normal, normal);
+	else
+		VectorClear (normal);
+
+	if (other->takedamage)
+		T_Damage (other, self, self->owner, self->velocity, self->s.origin,
+			normal, self->dmg, self->dmg_radius, DAMAGE_NO_REG_ARMOR, MOD_ETF_RIFLE);
+	else
+	{
+		VectorScale (normal, 256, dir);
+		gi.WriteByte (svc_temp_entity);
+		gi.WriteByte (TE_FLECHETTE);
+		gi.WritePosition (self->s.origin);
+		gi.WriteDir (dir);
+		gi.multicast (self->s.origin, MULTICAST_PVS);
+	}
+
+	G_FreeEdict (self);
+}
+
+void fire_flechette (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int kick)
+{
+	edict_t	*flechette;
+
+	VectorNormalize (dir);
+
+	flechette = G_Spawn ();
+	VectorCopy (start, flechette->s.origin);
+	VectorCopy (start, flechette->s.old_origin);
+	vectoangles2 (dir, flechette->s.angles);
+	VectorScale (dir, speed, flechette->velocity);
+	flechette->movetype = MOVETYPE_FLYMISSILE;
+	flechette->clipmask = MASK_SHOT;
+	flechette->solid = SOLID_BBOX;
+	flechette->s.renderfx = RF_FULLBRIGHT;
+	VectorClear (flechette->mins);
+	VectorClear (flechette->maxs);
+	flechette->s.modelindex = gi.modelindex ("models/proj/flechette/tris.md2");
+	flechette->owner = self;
+	flechette->touch = flechette_touch;
+	flechette->nextthink = level.time + 8000.0 / speed;
+	flechette->think = G_FreeEdict;
+	flechette->dmg = damage;
+	flechette->dmg_radius = kick;
+	flechette->classname = "flechette";
+	gi.linkentity (flechette);
+}
+
+void monster_fire_flechette (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype)
+{
+	fire_flechette (self, start, dir, damage, speed, damage / 2);
+
+	gi.WriteByte (svc_muzzleflash2);
+	gi.WriteShort (self - g_edicts);
+	gi.WriteByte (flashtype);
+	gi.multicast (start, MULTICAST_PVS);
 }

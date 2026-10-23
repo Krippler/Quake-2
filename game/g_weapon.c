@@ -48,7 +48,10 @@ static void check_dodge (edict_t *self, vec3_t start, vec3_t dir, int speed)
 	{
 		VectorSubtract (tr.endpos, start, v);
 		eta = (VectorLength(v) - tr.ent->maxs[0]) / speed;
-		tr.ent->monsterinfo.dodge (tr.ent, self, eta);
+		if (tr.ent->monsterinfo.dodge == (void *)M_MonsterDodge)
+			M_MonsterDodge (tr.ent, self, eta, &tr);	// the re-release's, with where it will hit
+		else
+			tr.ent->monsterinfo.dodge (tr.ent, self, eta);
 	}
 }
 
@@ -485,6 +488,13 @@ static void Grenade_Touch (edict_t *ent, edict_t *other, cplane_t *plane, csurfa
 
 void fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius)
 {
+	fire_grenade_adjust (self, start, aimdir, damage, speed, timer, damage_radius,
+		crandom() * 10.0, 200 + crandom() * 10.0);
+}
+
+// the re-release's: its lob up and drift right given (its gunner commander's)
+void fire_grenade_adjust (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, float right_adjust, float up_adjust)
+{
 	edict_t	*grenade;
 	vec3_t	dir;
 	vec3_t	forward, right, up;
@@ -495,8 +505,8 @@ void fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
 	grenade = G_Spawn();
 	VectorCopy (start, grenade->s.origin);
 	VectorScale (aimdir, speed, grenade->velocity);
-	VectorMA (grenade->velocity, 200 + crandom() * 10.0, up, grenade->velocity);
-	VectorMA (grenade->velocity, crandom() * 10.0, right, grenade->velocity);
+	VectorMA (grenade->velocity, up_adjust, up, grenade->velocity);
+	VectorMA (grenade->velocity, right_adjust, right, grenade->velocity);
 	VectorSet (grenade->avelocity, 300, 300, 300);
 	grenade->movetype = MOVETYPE_BOUNCE;
 	grenade->clipmask = MASK_SHOT;
