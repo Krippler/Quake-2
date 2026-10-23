@@ -103,7 +103,10 @@ typedef enum
 	AMMO_ROCKETS,
 	AMMO_GRENADES,
 	AMMO_CELLS,
-	AMMO_SLUGS
+	AMMO_SLUGS,
+	AMMO_MAGSLUG,		// The Reckoning's phalanx
+	AMMO_TESLA,			// Ground Zero's tesla mines
+	AMMO_DISRUPTOR		// Ground Zero's disruptor rounds
 } ammo_t;
 
 
@@ -250,6 +253,10 @@ typedef struct
 #define WEAP_HYPERBLASTER		9 
 #define WEAP_RAILGUN			10
 #define WEAP_BFG				11
+#define WEAP_CHAINFIST			12		// the mission packs'
+#define WEAP_DISRUPTOR			13
+#define WEAP_PHALANX			14
+#define WEAP_PLASMA				15		// the heatbeam
 
 typedef struct gitem_s
 {
@@ -578,6 +585,9 @@ extern	int	body_armor_index;
 #define MOD_TESLA			38		// the shambler's lightning
 #define MOD_CHAINFIST		39		// Ground Zero's
 #define MOD_ETF_RIFLE		40		// Ground Zero's flechettes
+#define MOD_TRACKER			41		// Ground Zero's disruptor
+#define MOD_HEATBEAM		42		// Ground Zero's plasma beam
+#define MOD_TESLA_MINE		43		// Ground Zero's tesla mine
 #define MOD_FRIENDLY_FIRE	0x8000000
 
 extern	int	meansOfDeath;
@@ -759,6 +769,8 @@ void M_MonsterDodge (edict_t *self, edict_t *attacker, float eta, trace_t *tr);
 void monster_muzzleflash (edict_t *self, vec3_t start, int flashtype);
 void monster_done_dodge (edict_t *self);
 void fire_flechette (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int kick);
+void check_dodge (edict_t *self, vec3_t start, vec3_t dir, int speed);
+void fire_tracker (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, edict_t *enemy);
 void monster_fire_flechette (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype);
 qboolean blocked_checkplat (edict_t *self, float dist);
 qboolean blocked_checkjump (edict_t *self, float dist, float maxDown, float maxUp);
@@ -807,6 +819,8 @@ void T_RadiusDamage (edict_t *inflictor, edict_t *attacker, float damage, edict_
 #define DAMAGE_BULLET			0x00000010  // damage is from a bullet (used for ricochets)
 #define DAMAGE_NO_PROTECTION	0x00000020  // armor, shields, invulnerability, and godmode have no effect
 #define DAMAGE_NO_REG_ARMOR		0x00000040	// Ground Zero's: armour, but not power armour, does not protect
+#define DAMAGE_DESTROY_ARMOR	0x00000080	// Ground Zero's chainfist: to armour and health both
+#define DAMAGE_NO_POWER_ARMOR	0x00000100	// Ground Zero's tracker: power armour does not protect
 
 #define DEFAULT_BULLET_HSPREAD	300
 #define DEFAULT_BULLET_VSPREAD	500
@@ -998,6 +1012,9 @@ typedef struct
 	int			max_grenades;
 	int			max_cells;
 	int			max_slugs;
+	int			max_magslug;	// the mission packs'
+	int			max_tesla;
+	int			max_rounds;
 
 	gitem_t		*weapon;
 	gitem_t		*lastweapon;
@@ -1087,6 +1104,8 @@ struct gclient_s
 
 	// powerup timers
 	float		quad_framenum;
+	float		double_framenum;			// Ground Zero's double damage
+	float		quadfire_framenum;			// The Reckoning's DualFire
 	float		invincible_framenum;
 	float		breather_framenum;
 	float		enviro_framenum;

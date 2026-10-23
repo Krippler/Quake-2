@@ -284,6 +284,45 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     acid gibs, and its super tank `monster_boss5` in `m_supertank.c`: a
     power shield and `fire_heat`'s seeking rockets. `AI_IGNORE_PAIN`
     keeps a leaping gekk from its pain (`T_Damage`).
+  - `game/g_rogue.c` (new): Ground Zero's, from its code (Yamagi's GPL
+    port): blaster2, flechettes, the tracker, the heat beam, the tesla
+    mine and its bad areas, `fire_player_melee`, summoning
+    (`FindSpawnPoint`, `CheckGroundSpawnPoint`, `CreateGroundMonster`,
+    `CreateFlyMonster`, `SpawnGrow_Spawn`), the stationary monster start,
+    and the plat and jump checks for a monster's `monsterinfo.blocked`,
+    which `SV_NewChaseDir` calls before it turns aside (`m_move.c`). Its
+    monsters: the daedalus (`m_hover.c`, style 1), the wall turret
+    (`m_turret.c`), the medic commander (`m_medic.c`, by mass), the
+    stalker (`m_stalker.c`) and the carrier (`m_carrier.c`), with the
+    kamikaze flyer and the circle strafe in `m_flyer.c`. The AI takes up
+    what they need and nothing else changes for 1997's monsters: blind
+    fire (`AS_BLIND`, `ai_checkattack`), `AI_MANUAL_STEERING` (the yaw is
+    set, not sought), `AI_IGNORE_SHOTS`, `AI_DO_NOT_COUNT`, `AI_CHARGING`
+    and `AI_CIRCLE_STRAFE` (`ai_charge`, which only Ground Zero's
+    monsters set), and `gravityVector` for the stalker's ceilings in the
+    step physics, ground checks and `M_droptofloor` -- unset, it is down.
+    A tesla's field becomes a bad area once it zaps a monster
+    (`M_ReactToDamage`), which `SV_movestep` keeps monsters out of.
+  - `game/g_rr.c` (new): the re-release's (GPL, ZeniMax) for its monsters,
+    ported to the 1997 API: box-to-box reach (`range_to`, `fire_hit_rr`),
+    `PredictAim`, `M_CheckClearShot`, the lob pitch search, the slam,
+    ducking and dodging (`M_MonsterDodge`, given where a shot will hit by
+    `check_dodge`), and the reinforcements its summoners use (a map's
+    `reinforcements` and `monster_slots`, held inline in `monsterinfo` so
+    that saved games keep them). Its monsters: the arachnid
+    (`m_arachnid.c`), the shambler (`m_shambler.c`) and the gunner
+    commander (`m_guncmdr.c`, drawn at the gunner's size, as this
+    protocol has no scale). Its muzzle flashes 211 to 250 are in
+    `m_flash.c` and the client's; the shambler's model beam the client
+    draws as tiled model segments (`CL_ModelBeam`), and its slam is
+    `TE_BERSERK_SLAM`.
+  - The mission packs' weapons and powerups, at the end of the item list:
+    the phalanx and mag slugs (The Reckoning's), the chainfist, the
+    disruptor and rounds, the plasma beam and the tesla mine (Ground
+    Zero's, with the re-release's one view model for the beam and the
+    tesla), double damage and DualFire. Weapons multiply their damage by
+    `damage_multiplier` (quad 4, double damage 2), and under DualFire
+    `Weapon_Generic` runs a weapon's frames twice a frame.
   - `ref_soft/r_image.c`: a skin is allocated with two rows and more
     either side of it (`R_AllocPixels`): drawing an alias model steps a
     texture pointer along each span, and where a triangle is clipped at

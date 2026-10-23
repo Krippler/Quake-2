@@ -1036,6 +1036,10 @@ void SP_worldspawn (edict_t *ent)
 	gi.modelindex ("#w_hyperblaster.md2");
 	gi.modelindex ("#w_railgun.md2");
 	gi.modelindex ("#w_bfg.md2");
+	gi.modelindex ("#w_chainfist.md2");		// the mission packs'
+	gi.modelindex ("#w_disrupt.md2");
+	gi.modelindex ("#w_phalanx.md2");
+	gi.modelindex ("#w_plasma.md2");
 
 	//-------------------
 

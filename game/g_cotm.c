@@ -550,18 +550,9 @@ static standin_t	standins[] =
 	// monsters (The Reckoning's are all here as they were made)
 
 	// weapons
-	{"weapon_chainfist",			"weapon_supershotgun"},
-	{"weapon_heatbeam",				"weapon_hyperblaster"},
-	{"weapon_plasmabeam",			"weapon_hyperblaster"},
-	{"weapon_disintegrator",		"weapon_railgun"},
-	{"weapon_phalanx",				"weapon_rocketlauncher"},
+	{"weapon_heatbeam",				"weapon_plasmabeam"},	// Ground Zero's other name for it
 
 	// ammunition and items
-	{"ammo_tesla",					"ammo_grenades"},
-	{"ammo_magslug",				"ammo_rockets"},
-	{"ammo_disruptor",				"ammo_slugs"},
-	{"item_double",					"item_quad"},
-	{"item_quadfire",				"item_quad"},
 	{"item_legacy_head",			"item_ancient_head"},
 
 	{NULL, NULL}

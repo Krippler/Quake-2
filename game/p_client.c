@@ -550,6 +550,8 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 	// remove powerups
 	self->client->quad_framenum = 0;
 	self->client->invincible_framenum = 0;
+	self->client->double_framenum = 0;
+	self->client->quadfire_framenum = 0;
 	self->client->breather_framenum = 0;
 	self->client->enviro_framenum = 0;
 	self->flags &= ~FL_POWER_ARMOR;
@@ -632,6 +634,9 @@ void InitClientPersistant (gclient_t *client)
 	client->pers.max_grenades	= 50;
 	client->pers.max_cells		= 200;
 	client->pers.max_slugs		= 50;
+	client->pers.max_magslug	= 50;
+	client->pers.max_tesla		= 50;
+	client->pers.max_rounds		= 100;
 
 	client->pers.connected = true;
 }

@@ -14,6 +14,26 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   bursts into green gibs; the super tank wears a power shield and its
   rockets seek their target. All of The Reckoning's monsters are now its
   own.
+- **Ground Zero's monsters in Call of the Machine, as they were made**:
+  - the daedalus and the wall turrets, which blind-fire where they last
+    saw you;
+  - the medic commander, which summons reinforcements;
+  - the stalker, which walks on ceilings, drops and pounces;
+  - the carrier, which launches flyers and kamikaze flyers.
+- **The re-release's arachnid, shambler and gunner commander**, ported
+  from its game source: rail volleys, hand-to-hand lightning, and a
+  commander that runs and guns, lobs mortars, ducks with a counter slam
+  and sidesteps.
+- **Summoners' reinforcements as the re-release has them**: a map can
+  name what a medic commander or carrier summons, as most of Call of the
+  Machine's do (mgu4m3's carriers launch stalkers).
+- **The mission packs' weapons and powerups**: the phalanx, the
+  chainfist, the disruptor, the plasma beam and the tesla mine, with mag
+  slugs and disruptor rounds; double damage and DualFire. Monsters zapped
+  by a tesla go for it and keep out of its field.
+- No more stand-ins: every mission-pack and re-release monster, weapon
+  and item Call of the Machine places is now its own, except the legacy
+  head, which stays the ancient head.
 
 ### Fixed
 

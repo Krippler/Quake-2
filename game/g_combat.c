@@ -208,7 +208,7 @@ static int CheckPowerArmor (edict_t *ent, vec3_t point, vec3_t normal, int damag
 
 	client = ent->client;
 
-	if (dflags & DAMAGE_NO_ARMOR)
+	if (dflags & (DAMAGE_NO_ARMOR|DAMAGE_NO_POWER_ARMOR))
 		return 0;
 
 	if (client)
@@ -316,10 +316,22 @@ static int CheckArmor (edict_t *ent, vec3_t point, vec3_t normal, int damage, in
 	return save;
 }
 
-void M_ReactToDamage (edict_t *targ, edict_t *attacker)
+qboolean MarkTeslaArea (edict_t *self, edict_t *tesla);
+void TargetTesla (edict_t *self, edict_t *tesla);
+
+void M_ReactToDamage (edict_t *targ, edict_t *attacker, edict_t *inflictor)
 {
 	if (!(attacker->client) && !(attacker->svflags & SVF_MONSTER))
 		return;
+
+	// Ground Zero's: zapped by a tesla, it marks its field, and goes for
+	// it if new, or it has no enemy
+	if (inflictor && inflictor->classname && !strcmp (inflictor->classname, "tesla"))
+	{
+		if (MarkTeslaArea (targ, inflictor) || !targ->enemy)
+			TargetTesla (targ, inflictor);
+		return;
+	}
 
 	if (attacker == targ || attacker == targ->enemy)
 		return;
@@ -507,6 +519,11 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	//treat cheat/powerup savings the same as armor
 	asave += save;
 
+	// Ground Zero's: damage to the armour and the health both (its chainfist)
+	if ((dflags & DAMAGE_DESTROY_ARMOR) && !(targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION)
+		&& !(client && client->invincible_framenum > level.framenum))
+		take = damage;
+
 	// team damage avoidance
 	if (!(dflags & DAMAGE_NO_PROTECTION) && CheckTeamDamage (targ, attacker))
 		return;
@@ -514,7 +531,9 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 // do the damage
 	if (take)
 	{
-		if ((targ->svflags & SVF_MONSTER) || (client))
+		if (((targ->svflags & SVF_MONSTER) || (client)) && mod == MOD_CHAINFIST)
+			SpawnDamage (TE_MOREBLOOD, point, normal, take);	// Ground Zero's: more for the chainfist
+		else if ((targ->svflags & SVF_MONSTER) || (client))
 			SpawnDamage (TE_BLOOD, point, normal, take);
 		else
 			SpawnDamage (te_sparks, point, normal, take);
@@ -541,7 +560,7 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 
 	if (targ->svflags & SVF_MONSTER)
 	{
-		M_ReactToDamage (targ, attacker);
+		M_ReactToDamage (targ, attacker, inflictor);
 		if (!(targ->monsterinfo.aiflags & (AI_DUCKED|AI_IGNORE_PAIN)) && (take))
 		{
 			targ->pain (targ, attacker, knockback, take);
