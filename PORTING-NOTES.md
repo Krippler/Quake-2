@@ -232,9 +232,14 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     it targets, at each one's speed and after each one's wait, facing its
     `pathtarget`; then it uses -- not removes -- what its `killtarget`
     names, the level's `target_changelevel`, whose intermission keeps the
-    camera's last view. A button after two seconds skips the flight. The
+    camera's last view. A button after two seconds skips the flight, and a
+    figure of each player -- their entity state, standing -- is left
+    where they were for the camera to see. The
     `.cin` each changelevel names first is not in the re-release; the
     client finds none and goes straight on to the map after the `+`.
+  - `server/sv_ccmds.c`: a level's files in `save/current` are named by
+    `SV_LevelFileName`, with `#` for the `/` of `q64/outpost`: the save
+    slots are flat directories, copied and wiped by `*.sav`.
   - `qcommon/cmd.c`: on the command line `-` starts another command only
     where an argument would, not inside `q64/geo-stat`.
 - **`server/sv_game.c`**: `PF_setmodel` given no model leaves the entity

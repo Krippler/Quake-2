@@ -277,6 +277,7 @@ void SV_ExecuteClientMessage (client_t *cl);
 // sv_ccmds.c
 //
 void SV_ReadLevelFile (void);
+char *SV_LevelFileName (void);
 void SV_Status_f (void);
 
 //

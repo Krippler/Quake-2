@@ -5,6 +5,19 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **The player vanished from the Quake 64 levels' closing fly-over.** The
+  camera takes the player out of the world, as an intermission does, and
+  left nothing in their place; a figure of them now stands where they
+  were, as in the re-release.
+- **A Quake 64 level's state was not kept** for coming back to it: its
+  name has a directory in it, `q64/outpost`, and its level file could not
+  be written under `save/current` ("Failed to open"). Level files are
+  named `q64#outpost` now.
+
 ## [1.3.15] — 2026-10-23
 
 ### Fixed
