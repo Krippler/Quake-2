@@ -226,6 +226,15 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     outside, to free them; but pmove snaps to an eighth of a unit, which
     then could leave a player exactly on a wall, and a trace starting there
     along or into it is all solid: they stuck on walls, corners and ladders.
+  - `game/g_target.c`: the re-release's `target_camera`, which ends every
+    Quake 64 level and mgu6m3: used, it holds the players in an
+    intermission (`level.camera`) and flies their view through the points
+    it targets, at each one's speed and after each one's wait, facing its
+    `pathtarget`; then it uses -- not removes -- what its `killtarget`
+    names, the level's `target_changelevel`, whose intermission keeps the
+    camera's last view. A button after two seconds skips the flight. The
+    `.cin` each changelevel names first is not in the re-release; the
+    client finds none and goes straight on to the map after the `+`.
   - `qcommon/cmd.c`: on the command line `-` starts another command only
     where an argument would, not inside `q64/geo-stat`.
 - **`server/sv_game.c`**: `PF_setmodel` given no model leaves the entity
