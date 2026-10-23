@@ -110,3 +110,120 @@ qboolean fire_hit_rr (edict_t *self, vec3_t aim, int damage, int kick)
 		self->enemy->groundentity = NULL;
 	return true;
 }
+
+/*
+The re-release's (and Ground Zero's) aim: where the target will be when a
+bolt of bolt_speed reaches it (0 is instant), less offset seconds; at its
+eyes, or its origin when the other is blocked.
+*/
+void PredictAim (edict_t *self, edict_t *target, vec3_t start, float bolt_speed, qboolean eye_height, float offset, vec3_t aimdir, vec3_t aimpoint)
+{
+	vec3_t	dir, vec, a, b;
+	float	dist, time;
+	trace_t	tr;
+
+	if (!target || !target->inuse)
+	{
+		if (aimdir)
+			VectorClear (aimdir);
+		return;
+	}
+
+	VectorSubtract (target->s.origin, start, dir);
+	if (eye_height)
+		dir[2] += target->viewheight;
+	dist = VectorLength (dir);
+
+	// if this one is blocked, try the other
+	VectorAdd (start, dir, vec);
+	tr = gi.trace (start, NULL, NULL, vec, self, MASK_SHOT);
+	if (tr.ent != target)
+	{
+		eye_height = !eye_height;
+		VectorSubtract (target->s.origin, start, dir);
+		if (eye_height)
+			dir[2] += target->viewheight;
+		dist = VectorLength (dir);
+	}
+
+	time = bolt_speed ? dist / bolt_speed : 0;
+
+	VectorMA (target->s.origin, time - offset, target->velocity, vec);
+
+	// went backwards...
+	VectorCopy (dir, a);
+	VectorNormalize (a);
+	VectorSubtract (vec, start, b);
+	VectorNormalize (b);
+	if (DotProduct (a, b) < 0)
+		VectorCopy (target->s.origin, vec);
+	else
+	{
+		// a shot the prediction puts into a nearby wall goes straight
+		tr = gi.trace (start, NULL, NULL, vec, NULL, MASK_SOLID);
+		if (tr.fraction < 0.9)
+			VectorCopy (target->s.origin, vec);
+	}
+
+	if (eye_height)
+		vec[2] += target->viewheight;
+
+	if (aimdir)
+	{
+		VectorSubtract (vec, start, aimdir);
+		VectorNormalize (aimdir);
+	}
+	if (aimpoint)
+		VectorCopy (vec, aimpoint);
+}
+
+// would a shot from the offset reach its enemy?  start is where it's from
+qboolean M_CheckClearShot (edict_t *self, vec3_t offset, vec3_t start)
+{
+	vec3_t	f, r, real_angles, target;
+	trace_t	tr;
+	qboolean	is_blind;
+
+	if (!self->enemy)
+		return false;
+
+	real_angles[0] = self->s.angles[0];
+	real_angles[1] = self->ideal_yaw;
+	real_angles[2] = 0;
+	AngleVectors (real_angles, f, r, NULL);
+	G_ProjectSource (self->s.origin, offset, f, r, start);
+
+	is_blind = self->monsterinfo.attack_state == AS_BLIND
+		|| (self->monsterinfo.aiflags & (AI_MANUAL_STEERING|AI_LOST_SIGHT));
+
+	if (is_blind)
+		VectorCopy (self->monsterinfo.blind_fire_target, target);
+	else
+	{
+		VectorCopy (self->enemy->s.origin, target);
+		target[2] += self->enemy->viewheight;
+	}
+
+	tr = gi.trace (start, NULL, NULL, target, self, MASK_SHOT & ~CONTENTS_DEADMONSTER);
+	if (tr.ent == self->enemy || tr.ent->client || (tr.fraction > 0.8 && !tr.startsolid))
+		return true;
+
+	if (!is_blind)
+	{
+		VectorCopy (self->enemy->s.origin, target);
+		tr = gi.trace (start, NULL, NULL, target, self, MASK_SHOT & ~CONTENTS_DEADMONSTER);
+		if (tr.ent == self->enemy || tr.ent->client || (tr.fraction > 0.8 && !tr.startsolid))
+			return true;
+	}
+
+	return false;
+}
+
+// the re-release's end of a death animation
+void monster_dead (edict_t *self)
+{
+	self->movetype = MOVETYPE_TOSS;
+	self->svflags |= SVF_DEADMONSTER;
+	self->nextthink = 0;
+	gi.linkentity (self);
+}

@@ -472,6 +472,45 @@ int CL_ParsePlayerBeam (struct model_s *model)
 CL_ParseLightning
 =================
 */
+/*
+=================
+CL_ModelBeam
+
+The re-release's beam drawn as a model tiled from start to end (its
+shambler's lightning): an entity of RF_BEAM with a model of its own.
+It lasts the frame it is added for.
+=================
+*/
+void CL_ModelBeam (struct model_s *model, int entnum, vec3_t start, vec3_t end)
+{
+	beam_t	*b, *use = NULL;
+	int		i;
+
+	for (i=0, b=cl_beams ; i< MAX_BEAMS ; i++, b++)
+		if (b->model && b->entity == entnum && b->dest_entity == -2)
+		{
+			use = b;
+			break;
+		}
+	if (!use)
+		for (i=0, b=cl_beams ; i< MAX_BEAMS ; i++, b++)
+			if (!b->model || b->endtime < cl.time)
+			{
+				use = b;
+				break;
+			}
+	if (!use)
+		return;
+
+	use->entity = entnum;
+	use->dest_entity = -2;
+	use->model = model;
+	use->endtime = cl.time;
+	VectorCopy (start, use->start);
+	VectorCopy (end, use->end);
+	VectorClear (use->offset);
+}
+
 int CL_ParseLightning (struct model_s *model)
 {
 	int		srcEnt, destEnt;

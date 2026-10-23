@@ -550,7 +550,6 @@ static standin_t	standins[] =
 	// monsters (The Reckoning's are all here as they were made)
 	{"monster_carrier",				"monster_boss2"},
 	{"monster_guncmdr",				"monster_gunner"},		// the re-release's
-	{"monster_shambler",			"monster_berserk"},
 
 	// weapons
 	{"weapon_chainfist",			"weapon_supershotgun"},

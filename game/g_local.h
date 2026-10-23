@@ -547,6 +547,8 @@ extern	int	body_armor_index;
 #define MOD_PHALANX			35
 #define MOD_GEKK			36
 #define MOD_BLASTER2		37		// Ground Zero's
+#define MOD_TESLA			38		// the shambler's lightning
+#define MOD_CHAINFIST		39		// Ground Zero's
 #define MOD_FRIENDLY_FIRE	0x8000000
 
 extern	int	meansOfDeath;
@@ -707,6 +709,9 @@ void ED_CallSpawn (edict_t *ent);
 float distance_between_boxes (vec3_t absminsa, vec3_t absmaxsa, vec3_t absminsb, vec3_t absmaxsb);
 float range_to (edict_t *self, edict_t *other);
 qboolean fire_hit_rr (edict_t *self, vec3_t aim, int damage, int kick);
+void PredictAim (edict_t *self, edict_t *target, vec3_t start, float bolt_speed, qboolean eye_height, float offset, vec3_t aimdir, vec3_t aimpoint);
+qboolean M_CheckClearShot (edict_t *self, vec3_t offset, vec3_t start);
+void monster_dead (edict_t *self);
 void monster_fire_heat (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype);
 void fire_plasma (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void G_HealthTarget (edict_t *self);
@@ -1106,6 +1111,7 @@ struct edict_s
 	char		*pathtarget;
 	char		*deathtarget;
 	char		*healthtarget;	// used as it is hurt (g_cotm.c)
+	edict_t		*beam;			// the re-release's: its shambler's lightning
 	char		*combattarget;
 	edict_t		*target_ent;
 

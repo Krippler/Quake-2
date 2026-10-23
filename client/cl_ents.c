@@ -960,6 +960,13 @@ void CL_AddPacketEntities (frame_t *frame)
 			continue;
 		}
 
+		// the re-release's model beam: a model tiled between its origins
+		if ((renderfx & RF_BEAM) && s1->modelindex > 1 && cl.model_draw[s1->modelindex])
+		{
+			CL_ModelBeam (cl.model_draw[s1->modelindex], s1->number, ent.origin, ent.oldorigin);
+			continue;
+		}
+
 		// create a new entity
 	
 		// tweak the color of beams

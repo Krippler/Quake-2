@@ -140,6 +140,7 @@ field_t fields[] = {
 	{"checkattack", FOFS(monsterinfo.checkattack), F_FUNCTION, FFL_NOSPAWN},
 	{"currentmove", FOFS(monsterinfo.currentmove), F_MMOVE, FFL_NOSPAWN},
 	{"commander", FOFS(monsterinfo.commander), F_EDICT, FFL_NOSPAWN},
+	{"beam", FOFS(beam), F_EDICT, FFL_NOSPAWN},
 
 	{"endfunc", FOFS(moveinfo.endfunc), F_FUNCTION, FFL_NOSPAWN},
 
