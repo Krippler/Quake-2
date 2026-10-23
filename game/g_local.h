@@ -311,6 +311,7 @@ typedef struct
 	float		intermissiontime;		// time the intermission was started
 	char		*changemap;
 	int			exitintermission;
+	int			camera;		// a target_camera holds the view (g_target.c): 2 once skipped
 	vec3_t		intermission_origin;
 	vec3_t		intermission_angle;
 

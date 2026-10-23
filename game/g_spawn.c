@@ -72,6 +72,7 @@ void SP_target_temp_entity (edict_t *ent);
 void SP_target_speaker (edict_t *ent);
 void SP_target_explosion (edict_t *ent);
 void SP_target_changelevel (edict_t *ent);
+void SP_target_camera (edict_t *ent);
 void SP_target_secret (edict_t *ent);
 void SP_target_goal (edict_t *ent);
 void SP_target_splash (edict_t *ent);
@@ -197,6 +198,7 @@ spawn_t	spawns[] = {
 	{"target_speaker", SP_target_speaker},
 	{"target_explosion", SP_target_explosion},
 	{"target_changelevel", SP_target_changelevel},
+	{"target_camera", SP_target_camera},
 	{"target_secret", SP_target_secret},
 	{"target_goal", SP_target_goal},
 	{"target_splash", SP_target_splash},

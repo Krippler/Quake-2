@@ -122,9 +122,11 @@ void BeginIntermission (edict_t *targ)
 
 	level.exitintermission = 0;
 
-	// find an intermission spot
-	ent = G_Find (NULL, FOFS(classname), "info_player_intermission");
-	if (!ent)
+	// find an intermission spot: after a target_camera, its last view
+	ent = NULL;
+	if (level.camera < 0)
+		;
+	else if (!(ent = G_Find (NULL, FOFS(classname), "info_player_intermission")))
 	{	// the map creator forgot to put in an intermission point...
 		ent = G_Find (NULL, FOFS(classname), "info_player_start");
 		if (!ent)
@@ -141,8 +143,11 @@ void BeginIntermission (edict_t *targ)
 		}
 	}
 
-	VectorCopy (ent->s.origin, level.intermission_origin);
-	VectorCopy (ent->s.angles, level.intermission_angle);
+	if (ent)
+	{
+		VectorCopy (ent->s.origin, level.intermission_origin);
+		VectorCopy (ent->s.angles, level.intermission_angle);
+	}
 
 	// move all clients to the intermission point
 	for (i=0 ; i<maxclients->value ; i++)

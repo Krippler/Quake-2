@@ -1613,6 +1613,15 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	if (level.intermissiontime)
 	{
 		client->ps.pmove.pm_type = PM_FREEZE;
+		// a target_camera's flight can be skipped after two seconds; there
+		// is no level to exit to until it ends
+		if (level.camera)
+		{
+			if (level.time > level.intermissiontime + 2.0
+				&& (ucmd->buttons & BUTTON_ANY) )
+				level.camera = 2;
+			return;
+		}
 		// can exit intermission after five seconds
 		if (level.time > level.intermissiontime + 5.0 
 			&& (ucmd->buttons & BUTTON_ANY) )

@@ -5,6 +5,18 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **The Quake 64 levels did not end**: the lift at the end of Strogg
+  Outpost, and each level's exit after it, went nowhere. They end with
+  the N64's camera flying over the level -- the re-release's
+  `target_camera`, which the 1997 game had not got -- and it is that which
+  goes on to the next level. It flies now, a button skips it, and the next
+  level loads (the N64's cutscenes between them are not in the re-release
+  and are passed over).
+
 ## [1.3.14] — 2026-10-23
 
 ### Fixed

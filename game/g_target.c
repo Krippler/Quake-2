@@ -264,6 +264,124 @@ void SP_target_explosion (edict_t *ent)
 
 //==========================================================
 
+/*QUAKED target_camera (1 0 0) (-8 -8 -8) (8 8 8)
+The 2023 re-release's, for its Quake 64 maps' ends: when used, the players'
+view flies from here through the path of points it targets -- at the speed
+of each, else its own, waiting at each its "wait" -- looking at its
+"pathtarget", and then the entities its "killtarget" names are used (not
+removed): the level's target_changelevel. Any button after two seconds
+skips to that.
+*/
+void target_camera_view (edict_t *self)
+{
+	edict_t	*look, *client;
+	vec3_t	dir;
+	int		i;
+
+	VectorCopy (self->s.origin, level.intermission_origin);
+	look = self->pathtarget ? G_PickTarget (self->pathtarget) : NULL;
+	if (look)
+	{
+		VectorSubtract (look->s.origin, self->s.origin, dir);
+		vectoangles (dir, level.intermission_angle);
+		level.intermission_angle[PITCH] = -level.intermission_angle[PITCH];
+	}
+	else
+		VectorCopy (self->s.angles, level.intermission_angle);
+
+	for (i=0 ; i<maxclients->value ; i++)
+	{
+		client = g_edicts + 1 + i;
+		if (client->inuse && client->client)
+			MoveClientToIntermission (client);
+	}
+}
+
+void target_camera_end (edict_t *self)
+{
+	edict_t	*t;
+
+	self->think = NULL;
+	level.camera = -1;				// the intermission keeps its view
+	level.intermissiontime = 0;		// so the changelevel begins one
+	t = NULL;
+	while ((t = G_Find (t, FOFS(targetname), self->killtarget)) != NULL)
+		if (t->use)
+			t->use (t, self, self->activator);
+	level.camera = 0;
+}
+
+void target_camera_think (edict_t *self)
+{
+	edict_t	*next;
+	vec3_t	dir;
+	float	step, dist;
+
+	if (level.camera == 2 || !self->movetarget)
+	{
+		target_camera_end (self);
+		return;
+	}
+
+	VectorSubtract (self->movetarget->s.origin, self->s.origin, dir);
+	dist = VectorNormalize (dir);
+	step = self->moveinfo.speed * FRAMETIME;
+	if (dist > step)
+	{
+		VectorMA (self->s.origin, step, dir, self->s.origin);
+		target_camera_view (self);
+		self->nextthink = level.time + FRAMETIME;
+		return;
+	}
+
+	// there: on to the next, after its wait
+	VectorCopy (self->movetarget->s.origin, self->s.origin);
+	target_camera_view (self);
+	next = self->movetarget->target ? G_PickTarget (self->movetarget->target) : NULL;
+	self->nextthink = level.time + (self->movetarget->wait > FRAMETIME ? self->movetarget->wait : FRAMETIME);
+	self->movetarget = next;
+	if (next && next->speed)
+		self->moveinfo.speed = next->speed;
+}
+
+void use_target_camera (edict_t *self, edict_t *other, edict_t *activator)
+{
+	if (level.intermissiontime)
+		return;
+	self->activator = activator;
+
+	// nothing to fly to: just the ending
+	self->movetarget = self->target ? G_PickTarget (self->target) : NULL;
+	if (!self->movetarget || deathmatch->value)
+	{
+		target_camera_end (self);
+		return;
+	}
+	if (self->movetarget->speed)
+		self->moveinfo.speed = self->movetarget->speed;
+
+	level.intermissiontime = level.time;
+	level.exitintermission = 0;
+	level.camera = 1;
+	target_camera_view (self);
+	self->think = target_camera_think;
+	self->nextthink = level.time + (self->wait > FRAMETIME ? self->wait : FRAMETIME);
+}
+
+void SP_target_camera (edict_t *self)
+{
+	if (!self->killtarget)
+	{	// with nothing to end on, it would leave the players frozen
+		G_FreeEdict (self);
+		return;
+	}
+	self->use = use_target_camera;
+	self->moveinfo.speed = self->speed ? self->speed : 75;
+	self->svflags = SVF_NOCLIENT;
+}
+
+//==========================================================
+
 /*QUAKED target_changelevel (1 0 0) (-8 -8 -8) (8 8 8)
 Changes level to "map" when fired
 */
