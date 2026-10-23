@@ -269,9 +269,18 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     spawn table; `target_healthbar`, `target_autosave`, `trigger_fog` and
     `trigger_flashlight` are dropped, `func_animation` is a still brush.
     A class with no spawn function that `G_StandIn` has a stand-in for is
-    spawned as that, from `ED_CallSpawn`. The faithful monsters need more
-    than their code: the re-release folds The Reckoning's soldiers into a
-    soldier model of 575 frames, past the 512 `usable.c` lets through.
+    spawned as that, from `ED_CallSpawn`.
+  - `game/g_xatrix.c` (new): The Reckoning's weapons its monsters fire,
+    from its code -- the ion ripper (`MOVETYPE_WALLBOUNCE`, in
+    `g_phys.c`), the blue hyperblaster, the laser soldier's beam
+    (`monster_dabeam`), the phalanx's plasma. `m_soldier.c` has its
+    ripper, hyperblaster and laser soldiers as the re-release does: style
+    1, skins 6 to 11 of the soldier model, `SOLDIER_SKIN` giving each as
+    the soldier it takes after for what goes by skin; `m_gladiator.c` its
+    phalanx gladiator, skin 2. `MAX_FRAMES` is 1024 (`qfiles.h`): the
+    re-release's soldier has 575 frames, its gunner 799; every 1997
+    monster's frames are the first of its re-release model's, so the 1997
+    code drives them as it did.
   - `client/cl_loc.c`: the re-release's key hints, `%bind:cmd:text%`
     before a message's words, are left out.
   - `server/sv_ccmds.c`: a level's files in `save/current` are named by

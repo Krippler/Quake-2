@@ -5,6 +5,19 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Added
+
+- **The Reckoning's ripper, hyperblaster and laser soldiers and its
+  phalanx gladiator**, as Call of the Machine has them, in place of their
+  stand-ins: the ion ripper that goes off the walls, the blue hyperblaster
+  that keeps firing, the laser held on its target, the gladiator's balls
+  of plasma and its power shield.
+- The re-release's soldier and gunner models are used, with their skins
+  for these: they have more frames than a 1997 engine took (575 and 799),
+  and are now let through.
+
 ## [1.3.18] — 2026-10-23
 
 ### Added

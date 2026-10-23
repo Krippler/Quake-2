@@ -548,11 +548,7 @@ typedef struct
 static standin_t	standins[] =
 {
 	// monsters
-	{"monster_soldier_hypergun",	"monster_soldier"},		// The Reckoning's
-	{"monster_soldier_lasergun",	"monster_soldier_ss"},
-	{"monster_soldier_ripper",		"monster_soldier"},
-	{"monster_gladb",				"monster_gladiator"},
-	{"monster_gekk",				"monster_mutant"},
+	{"monster_gekk",				"monster_mutant"},		// The Reckoning's
 	{"monster_boss5",				"monster_supertank"},
 	{"monster_stalker",				"monster_parasite"},	// Ground Zero's
 	{"monster_medic_commander",		"monster_medic"},

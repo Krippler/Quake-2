@@ -82,6 +82,10 @@ void SP_misc_flare (edict_t *ent);
 void SP_misc_hologram (edict_t *ent);
 void SP_misc_lavaball (edict_t *ent);
 void SP_monster_tank_stand (edict_t *ent);
+void SP_monster_gladb (edict_t *ent);
+void SP_monster_soldier_ripper (edict_t *ent);
+void SP_monster_soldier_hypergun (edict_t *ent);
+void SP_monster_soldier_lasergun (edict_t *ent);
 void SP_target_crossunit_trigger (edict_t *ent);
 void SP_target_crossunit_target (edict_t *ent);
 void SP_trigger_health_relay (edict_t *ent);
@@ -230,6 +234,10 @@ spawn_t	spawns[] = {
 	{"misc_hologram", SP_misc_hologram},
 	{"misc_lavaball", SP_misc_lavaball},
 	{"monster_tank_stand", SP_monster_tank_stand},
+	{"monster_gladb", SP_monster_gladb},
+	{"monster_soldier_ripper", SP_monster_soldier_ripper},
+	{"monster_soldier_hypergun", SP_monster_soldier_hypergun},
+	{"monster_soldier_lasergun", SP_monster_soldier_lasergun},
 	{"target_crossunit_trigger", SP_target_crossunit_trigger},
 	{"target_crossunit_target", SP_target_crossunit_target},
 	{"trigger_health_relay", SP_trigger_health_relay},

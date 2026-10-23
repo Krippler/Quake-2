@@ -88,7 +88,7 @@ typedef struct
 
 #define	MAX_TRIANGLES	4096
 #define MAX_VERTS		2048
-#define MAX_FRAMES		512
+#define MAX_FRAMES		1024	// the re-release's soldier has 575, its gunner 799
 #define MAX_MD2SKINS	32
 #define	MAX_SKINNAME	64
 

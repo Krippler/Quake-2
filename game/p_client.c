@@ -355,6 +355,13 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 			case MOD_RAILGUN:
 				message = "was railed by";
 				break;
+			case MOD_RIPPER:
+				message = "ripped to shreds by";
+				message2 = "'s ripper gun";
+				break;
+			case MOD_PHALANX:
+				message = "was evaporated by";
+				break;
 			case MOD_BFG_LASER:
 				message = "saw the pretty lights from";
 				message2 = "'s BFG";
