@@ -140,9 +140,12 @@ typedef enum
 #define AI_MEDIC				0x00002000
 #define AI_RESURRECTING			0x00004000
 #define AI_IGNORE_PAIN			0x00008000	// The Reckoning's: its gekk leaping
-#define AI_MANUAL_STEERING		0x00010000	// Ground Zero's: it turns itself (its turret)
+#define AI_MANUAL_STEERING		0x00010000	// Ground Zero's: it sets its own yaw (turret, medic commander)
 #define AI_IGNORE_SHOTS			0x00200000	// not angered by a monster's shot
 #define AI_DO_NOT_COUNT			0x00400000	// not in the level's count of monsters
+#define AI_SPAWNED_CARRIER		0x00800000	// summoned by a carrier
+#define AI_SPAWNED_MEDIC_C		0x01000000	// summoned by a medic commander
+#define AI_BLOCKED				0x04000000	// the medic commander's signal to summon
 
 //monster attack state
 #define AS_STRAIGHT				1
@@ -474,6 +477,11 @@ typedef struct
 	float		blind_fire_delay;
 	vec3_t		blind_fire_target;
 	float		blind_sight_time;		// when it was
+
+	// Ground Zero's summoners (medic commander, carrier): who summoned a
+	// monster, and how many more a summoner may have
+	edict_t		*commander;
+	int			monster_slots;
 } monsterinfo_t;
 
 
@@ -675,6 +683,16 @@ void monster_dabeam (edict_t *self);
 
 // g_rogue.c
 void monster_fire_blaster2 (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
+qboolean FindSpawnPoint (vec3_t startpoint, vec3_t mins, vec3_t maxs, vec3_t spawnpoint, float maxMoveUp);
+qboolean CheckSpawnPoint (vec3_t origin, vec3_t mins, vec3_t maxs);
+qboolean CheckGroundSpawnPoint (vec3_t origin, vec3_t entMins, vec3_t entMaxs, float height, float gravity);
+edict_t *CreateMonster (vec3_t origin, vec3_t angles, char *classname);
+edict_t *CreateFlyMonster (vec3_t origin, vec3_t angles, vec3_t mins, vec3_t maxs, char *classname);
+edict_t *CreateGroundMonster (vec3_t origin, vec3_t angles, vec3_t entMins, vec3_t entMaxs, char *classname, int height);
+void SpawnGrow_Spawn (vec3_t startpos, int size);
+edict_t *PickCoopTarget (edict_t *self);
+float realrange (edict_t *self, edict_t *other);
+void ED_CallSpawn (edict_t *ent);
 void monster_fire_heat (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype);
 void fire_plasma (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void G_HealthTarget (edict_t *self);

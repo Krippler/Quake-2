@@ -121,7 +121,8 @@ void ai_stand (edict_t *self, float dist)
 				self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
 				self->monsterinfo.run (self);
 			}
-			M_ChangeYaw (self);
+			if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+				M_ChangeYaw (self);
 			ai_checkattack (self, 0);
 		}
 		else
@@ -195,8 +196,12 @@ void ai_charge (edict_t *self, float dist)
 {
 	vec3_t	v;
 
-	VectorSubtract (self->enemy->s.origin, self->s.origin, v);
-	self->ideal_yaw = vectoyaw(v);
+	// Ground Zero's manual steering keeps the yaw it was set
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+	{
+		VectorSubtract (self->enemy->s.origin, self->s.origin, v);
+		self->ideal_yaw = vectoyaw(v);
+	}
 	M_ChangeYaw (self);
 
 	if (dist)
@@ -220,7 +225,8 @@ void ai_turn (edict_t *self, float dist)
 	if (FindTarget (self))
 		return;
 	
-	M_ChangeYaw (self);
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+		M_ChangeYaw (self);
 }
 
 
@@ -576,7 +582,8 @@ qboolean FindTarget (edict_t *self)
 				return false;
 
 		self->ideal_yaw = vectoyaw(temp);
-		M_ChangeYaw (self);
+		if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+			M_ChangeYaw (self);
 
 		// hunt the sound for a bit; hopefully find the real player
 		self->monsterinfo.aiflags |= AI_SOUND_TARGET;
@@ -715,7 +722,8 @@ Turn and close until within an angle to launch a melee attack
 void ai_run_melee(edict_t *self)
 {
 	self->ideal_yaw = enemy_yaw;
-	M_ChangeYaw (self);
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+		M_ChangeYaw (self);
 
 	if (FacingIdeal(self))
 	{
@@ -735,7 +743,8 @@ Turn in place until within an angle to launch a missile attack
 void ai_run_missile(edict_t *self)
 {
 	self->ideal_yaw = enemy_yaw;
-	M_ChangeYaw (self);
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+		M_ChangeYaw (self);
 
 	if (FacingIdeal(self))
 	{
@@ -757,7 +766,8 @@ void ai_run_slide(edict_t *self, float distance)
 	float	ofs;
 	
 	self->ideal_yaw = enemy_yaw;
-	M_ChangeYaw (self);
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+		M_ChangeYaw (self);
 
 	if (self->monsterinfo.lefty)
 		ofs = 90;
@@ -917,7 +927,8 @@ qboolean ai_checkattack (edict_t *self, float dist)
 	if (!enemy_vis)
 	{
 		if (self->monsterinfo.blindfire && self->monsterinfo.checkattack (self)
-			&& self->monsterinfo.attack_state == AS_BLIND)
+			&& (self->monsterinfo.attack_state == AS_BLIND
+			|| self->monsterinfo.attack_state == AS_MISSILE))
 		{
 			ai_run_missile (self);
 			return true;

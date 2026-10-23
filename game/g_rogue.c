@@ -222,3 +222,294 @@ void stationarymonster_start (edict_t *self)
 	self->think = stationarymonster_start_go;
 	monster_start (self);
 }
+
+/*
+ * Ground Zero's summoning (its medic commander and carrier): finding room
+ * for a monster, the spawn-grow effect it appears in, and spawning it.
+ */
+#define	SPAWN_STEPSIZE		18
+#define	SPAWNGROW_LIFESPAN	0.3
+
+qboolean FindSpawnPoint (vec3_t startpoint, vec3_t mins, vec3_t maxs, vec3_t spawnpoint, float maxMoveUp)
+{
+	trace_t	tr;
+	vec3_t	top;
+
+	tr = gi.trace (startpoint, mins, maxs, startpoint, NULL, MASK_MONSTERSOLID|CONTENTS_PLAYERCLIP);
+	if (tr.startsolid || tr.allsolid || tr.ent != world)
+	{
+		VectorCopy (startpoint, top);
+		top[2] += maxMoveUp;
+
+		tr = gi.trace (top, mins, maxs, startpoint, NULL, MASK_MONSTERSOLID);
+		if (tr.startsolid || tr.allsolid)
+			return false;
+		VectorCopy (tr.endpos, spawnpoint);
+		return true;
+	}
+
+	VectorCopy (startpoint, spawnpoint);
+	return true;
+}
+
+qboolean CheckSpawnPoint (vec3_t origin, vec3_t mins, vec3_t maxs)
+{
+	trace_t	tr;
+
+	if (!mins || !maxs || VectorCompare (mins, vec3_origin) || VectorCompare (maxs, vec3_origin))
+		return false;
+
+	tr = gi.trace (origin, mins, maxs, origin, NULL, MASK_MONSTERSOLID);
+	if (tr.startsolid || tr.allsolid)
+		return false;
+	if (tr.ent != world)
+		return false;
+	return true;
+}
+
+// is there ground under it, near enough, flat enough and not water?
+qboolean CheckGroundSpawnPoint (vec3_t origin, vec3_t entMins, vec3_t entMaxs, float height, float gravity)
+{
+	trace_t	tr;
+	vec3_t	start, stop, mins, maxs;
+	int		x, y;
+	float	mid, bottom;
+
+	if (!CheckSpawnPoint (origin, entMins, entMaxs))
+		return false;
+
+	VectorCopy (origin, stop);
+	stop[2] = origin[2] + entMins[2] - height;
+
+	tr = gi.trace (origin, entMins, entMaxs, stop, NULL, MASK_MONSTERSOLID|MASK_WATER);
+	if (tr.fraction == 1 || !(tr.contents & MASK_MONSTERSOLID))
+		return false;		// water, or nothing near enough
+
+	VectorAdd (tr.endpos, entMins, mins);
+	VectorAdd (tr.endpos, entMaxs, maxs);
+
+	// the easy check: solid under all four corners
+	if (gravity > 0)
+		start[2] = maxs[2] + 1;
+	else
+		start[2] = mins[2] - 1;
+
+	for (x = 0; x <= 1; x++)
+		for (y = 0; y <= 1; y++)
+		{
+			start[0] = x ? maxs[0] : mins[0];
+			start[1] = y ? maxs[1] : mins[1];
+			if (gi.pointcontents (start) != CONTENTS_SOLID)
+				goto realcheck;
+		}
+	return true;
+
+realcheck:
+	start[0] = stop[0] = (mins[0] + maxs[0]) * 0.5;
+	start[1] = stop[1] = (mins[1] + maxs[1]) * 0.5;
+	start[2] = mins[2];
+
+	tr = gi.trace (start, vec3_origin, vec3_origin, stop, NULL, MASK_MONSTERSOLID);
+	if (tr.fraction == 1.0)
+		return false;
+
+	if (gravity < 0)
+	{
+		start[2] = mins[2];
+		stop[2] = start[2] - SPAWN_STEPSIZE - SPAWN_STEPSIZE;
+		mid = bottom = tr.endpos[2] + entMins[2];
+	}
+	else
+	{
+		start[2] = maxs[2];
+		stop[2] = start[2] + SPAWN_STEPSIZE + SPAWN_STEPSIZE;
+		mid = bottom = tr.endpos[2] - entMaxs[2];
+	}
+
+	for (x = 0; x <= 1; x++)
+		for (y = 0; y <= 1; y++)
+		{
+			start[0] = stop[0] = x ? maxs[0] : mins[0];
+			start[1] = stop[1] = y ? maxs[1] : mins[1];
+
+			tr = gi.trace (start, vec3_origin, vec3_origin, stop, NULL, MASK_MONSTERSOLID);
+			if (gravity > 0)
+			{
+				if (tr.fraction != 1.0 && tr.endpos[2] < bottom)
+					bottom = tr.endpos[2];
+				if (tr.fraction == 1.0 || tr.endpos[2] - mid > SPAWN_STEPSIZE)
+					return false;
+			}
+			else
+			{
+				if (tr.fraction != 1.0 && tr.endpos[2] > bottom)
+					bottom = tr.endpos[2];
+				if (tr.fraction == 1.0 || mid - tr.endpos[2] > SPAWN_STEPSIZE)
+					return false;
+			}
+		}
+
+	return true;		// it can land on it
+}
+
+// a monster's bounding box, from spawning one and freeing it
+static void DetermineBBox (char *classname, vec3_t mins, vec3_t maxs)
+{
+	edict_t	*ent;
+
+	ent = G_Spawn ();
+	ent->classname = classname;
+	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+	ED_CallSpawn (ent);
+	VectorCopy (ent->mins, mins);
+	VectorCopy (ent->maxs, maxs);
+	G_FreeEdict (ent);
+}
+
+edict_t *CreateMonster (vec3_t origin, vec3_t angles, char *classname)
+{
+	edict_t	*ent;
+
+	ent = G_Spawn ();
+	VectorCopy (origin, ent->s.origin);
+	VectorCopy (angles, ent->s.angles);
+	ent->classname = classname;
+	ent->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+	ED_CallSpawn (ent);
+	ent->s.renderfx |= RF_IR_VISIBLE;
+	return ent;
+}
+
+edict_t *CreateFlyMonster (vec3_t origin, vec3_t angles, vec3_t mins, vec3_t maxs, char *classname)
+{
+	vec3_t	bmins, bmaxs;
+
+	if (!mins || !maxs || VectorCompare (mins, vec3_origin) || VectorCompare (maxs, vec3_origin))
+	{
+		DetermineBBox (classname, bmins, bmaxs);
+		mins = bmins;
+		maxs = bmaxs;
+	}
+	if (!CheckSpawnPoint (origin, mins, maxs))
+		return NULL;
+	return CreateMonster (origin, angles, classname);
+}
+
+edict_t *CreateGroundMonster (vec3_t origin, vec3_t angles, vec3_t entMins, vec3_t entMaxs, char *classname, int height)
+{
+	vec3_t	mins, maxs;
+
+	if (!entMins || !entMaxs || VectorCompare (entMins, vec3_origin) || VectorCompare (entMaxs, vec3_origin))
+		DetermineBBox (classname, mins, maxs);
+	else
+	{
+		VectorCopy (entMins, mins);
+		VectorCopy (entMaxs, maxs);
+	}
+
+	// ground under it, flat, and not toxic
+	if (!CheckGroundSpawnPoint (origin, mins, maxs, height, -1))
+		return NULL;
+	return CreateMonster (origin, angles, classname);
+}
+
+static void spawngrow_think (edict_t *self)
+{
+	self->s.angles[0] = rand() % 360;
+	self->s.angles[1] = rand() % 360;
+	self->s.angles[2] = rand() % 360;
+
+	if (level.time < self->wait && self->s.frame < 2)
+		self->s.frame++;
+	if (level.time >= self->wait)
+	{
+		if (self->s.effects & EF_SPHERETRANS)
+		{
+			G_FreeEdict (self);
+			return;
+		}
+		else if (self->s.frame > 0)
+			self->s.frame--;
+		else
+		{
+			G_FreeEdict (self);
+			return;
+		}
+	}
+	self->nextthink += FRAMETIME;
+}
+
+void SpawnGrow_Spawn (vec3_t startpos, int size)
+{
+	edict_t	*ent;
+	float	lifespan;
+
+	ent = G_Spawn ();
+	VectorCopy (startpos, ent->s.origin);
+	ent->s.angles[0] = rand() % 360;
+	ent->s.angles[1] = rand() % 360;
+	ent->s.angles[2] = rand() % 360;
+	ent->solid = SOLID_NOT;
+	ent->s.renderfx = RF_IR_VISIBLE;
+	ent->movetype = MOVETYPE_NONE;
+	ent->classname = "spawngro";
+
+	if (size <= 1)
+	{
+		lifespan = SPAWNGROW_LIFESPAN;
+		ent->s.modelindex = gi.modelindex ("models/items/spawngro2/tris.md2");
+	}
+	else if (size == 2)
+	{
+		ent->s.modelindex = gi.modelindex ("models/items/spawngro3/tris.md2");
+		lifespan = 2;
+	}
+	else
+	{
+		ent->s.modelindex = gi.modelindex ("models/items/spawngro/tris.md2");
+		lifespan = SPAWNGROW_LIFESPAN;
+	}
+
+	ent->think = spawngrow_think;
+	ent->wait = level.time + lifespan;
+	ent->nextthink = level.time + FRAMETIME;
+	if (size != 2)
+		ent->s.effects |= EF_SPHERETRANS;
+	gi.linkentity (ent);
+}
+
+// in coop, a visible player at random for a summoned monster to go for
+edict_t *PickCoopTarget (edict_t *self)
+{
+	edict_t	*targets[MAX_CLIENTS];
+	edict_t	*ent;
+	int		num_targets = 0, id, player;
+
+	if (!coop->value)
+		return NULL;
+
+	for (player = 1; player <= game.maxclients && num_targets < MAX_CLIENTS; player++)
+	{
+		ent = &g_edicts[player];
+		if (!ent->inuse || !ent->client)
+			continue;
+		if (visible (self, ent))
+			targets[num_targets++] = ent;
+	}
+	if (!num_targets)
+		return NULL;
+
+	id = random() * num_targets;
+	if (id == num_targets)
+		id--;
+	return targets[id];
+}
+
+// the distance between their origins
+float realrange (edict_t *self, edict_t *other)
+{
+	vec3_t	dir;
+
+	VectorSubtract (self->s.origin, other->s.origin, dir);
+	return VectorLength (dir);
+}

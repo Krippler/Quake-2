@@ -98,6 +98,14 @@ void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, v
 
 	if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEAD_DEAD))
 	{
+		// Ground Zero's summoned monsters free their summoner's slot
+		if ((targ->monsterinfo.aiflags & (AI_SPAWNED_CARRIER|AI_SPAWNED_MEDIC_C))
+			&& targ->monsterinfo.commander && targ->monsterinfo.commander->inuse
+			&& !strcmp(targ->monsterinfo.commander->classname,
+				(targ->monsterinfo.aiflags & AI_SPAWNED_CARRIER)
+				? "monster_carrier" : "monster_medic_commander"))
+			targ->monsterinfo.commander->monsterinfo.monster_slots++;
+
 //		targ->svflags |= SVF_DEADMONSTER;	// now treat as a different content type
 		if (!(targ->monsterinfo.aiflags & (AI_GOOD_GUY|AI_DO_NOT_COUNT)))
 		{
