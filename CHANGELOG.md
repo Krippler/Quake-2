@@ -5,6 +5,21 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **The re-release's lamp lights cast shadows.** A lamp lit every part of
+  a wall it could see any part of, so a pillar or ledge between them threw
+  no shadow, and where the compiler had split a wall into pieces, one piece
+  could be lit to its edge and the next not at all. Each lightmap sample
+  now has to see the lamp, as the baked lighting's do, and the edges are
+  as soft as theirs.
+- **No more "is not a field" for the re-release's fog, sky and button
+  keys, or "info_landmark doesn't have a spawn function"**, in all three
+  games. The software renderer draws no fog and turns no sky, and a player
+  comes into a level at its start, as in 1997.
+
 ## [1.3.19] — 2026-10-23
 
 ### Added
