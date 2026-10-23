@@ -5,7 +5,7 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
-## [Unreleased]
+## [1.3.18] — 2026-10-23
 
 ### Added
 
@@ -17,11 +17,6 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
 - The re-release's soldier and gunner models are used, with their skins
   for these: they have more frames than a 1997 engine took (575 and 799),
   and are now let through.
-
-## [1.3.18] — 2026-10-23
-
-### Added
-
 - **The rest of Quake 64's own entities**, as the re-release has them:
   Orbital Station's low gravity; Space Station's failure that kills the
   player; the levels' alarms and machinery sounds; their coloured lamp
@@ -45,9 +40,8 @@ Its lens flares are not drawn: the lamps they sit on are.
   Makron fights.
 - Its monsters, weapons and items from the mission packs and the
   re-release that this game has not got **stand in as the nearest it
-  has** -- The Reckoning's ripper, hyperblaster and laser soldiers as
-  soldiers, its phalanx gladiator as a gladiator, Ground Zero's stalker as
-  a parasite, its carrier as the Hornet, the re-release's shambler as a
+  has** -- The Reckoning's gekk as a mutant, Ground Zero's stalker as a
+  parasite, its carrier as the Hornet, the re-release's shambler as a
   berserker, and so on (`game/g_cotm.c` has the list) -- so that every
   level is peopled and can be finished, though not yet as it was made.
   The log names each stand-in. Mgu5m3's wall turrets are left out.
