@@ -121,7 +121,8 @@ void ai_stand (edict_t *self, float dist)
 				self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
 				self->monsterinfo.run (self);
 			}
-			M_ChangeYaw (self);
+			if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+				M_ChangeYaw (self);
 			ai_checkattack (self, 0);
 		}
 		else
@@ -195,12 +196,41 @@ void ai_charge (edict_t *self, float dist)
 {
 	vec3_t	v;
 
-	VectorSubtract (self->enemy->s.origin, self->s.origin, v);
-	self->ideal_yaw = vectoyaw(v);
+	// Ground Zero's: one may charge with no enemy (a kamikaze flyer)
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	// Ground Zero's manual steering keeps the yaw it was set
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+	{
+		VectorSubtract (self->enemy->s.origin, self->s.origin, v);
+		self->ideal_yaw = vectoyaw(v);
+	}
 	M_ChangeYaw (self);
 
-	if (dist)
-		M_walkmove (self, self->s.angles[YAW], dist);
+	if (!dist)
+		return;
+
+	// Ground Zero's charge: a kamikaze flyer chases its goal
+	if (self->monsterinfo.aiflags & AI_CHARGING)
+	{
+		M_MoveToGoal (self, dist);
+		return;
+	}
+
+	// and its circle strafe (the stalker's, the carrier's flyers')
+	if ((self->monsterinfo.aiflags & AI_CIRCLE_STRAFE) && self->monsterinfo.attack_state == AS_SLIDING)
+	{
+		float	ofs = self->monsterinfo.lefty ? 90 : -90;
+
+		if (M_walkmove (self, self->ideal_yaw + ofs, dist))
+			return;
+		self->monsterinfo.lefty = 1 - self->monsterinfo.lefty;
+		M_walkmove (self, self->ideal_yaw - ofs, dist);
+		return;
+	}
+
+	M_walkmove (self, self->s.angles[YAW], dist);
 }
 
 
@@ -220,7 +250,8 @@ void ai_turn (edict_t *self, float dist)
 	if (FindTarget (self))
 		return;
 	
-	M_ChangeYaw (self);
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+		M_ChangeYaw (self);
 }
 
 
@@ -576,7 +607,8 @@ qboolean FindTarget (edict_t *self)
 				return false;
 
 		self->ideal_yaw = vectoyaw(temp);
-		M_ChangeYaw (self);
+		if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+			M_ChangeYaw (self);
 
 		// hunt the sound for a bit; hopefully find the real player
 		self->monsterinfo.aiflags |= AI_SOUND_TARGET;
@@ -715,7 +747,8 @@ Turn and close until within an angle to launch a melee attack
 void ai_run_melee(edict_t *self)
 {
 	self->ideal_yaw = enemy_yaw;
-	M_ChangeYaw (self);
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+		M_ChangeYaw (self);
 
 	if (FacingIdeal(self))
 	{
@@ -735,7 +768,8 @@ Turn in place until within an angle to launch a missile attack
 void ai_run_missile(edict_t *self)
 {
 	self->ideal_yaw = enemy_yaw;
-	M_ChangeYaw (self);
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+		M_ChangeYaw (self);
 
 	if (FacingIdeal(self))
 	{
@@ -757,7 +791,8 @@ void ai_run_slide(edict_t *self, float distance)
 	float	ofs;
 	
 	self->ideal_yaw = enemy_yaw;
-	M_ChangeYaw (self);
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
+		M_ChangeYaw (self);
 
 	if (self->monsterinfo.lefty)
 		ofs = 90;
@@ -880,6 +915,10 @@ qboolean ai_checkattack (edict_t *self, float dist)
 	{
 		self->monsterinfo.search_time = level.time + 5;
 		VectorCopy (self->enemy->s.origin, self->monsterinfo.last_sighting);
+		// Ground Zero's blind fire: where it was, and when
+		self->monsterinfo.blind_sight_time = level.time;
+		VectorCopy (self->enemy->s.origin, self->monsterinfo.blind_fire_target);
+		self->monsterinfo.blind_fire_delay = 0;
 	}
 
 // look for other coop players here
@@ -908,9 +947,19 @@ qboolean ai_checkattack (edict_t *self, float dist)
 		return true;
 	}
 
-	// if enemy is not currently visible, we will never attack
+	// if enemy is not currently visible, we will never attack -- but a
+	// monster with Ground Zero's blind fire may at where it was
 	if (!enemy_vis)
+	{
+		if (self->monsterinfo.blindfire && self->monsterinfo.checkattack (self)
+			&& (self->monsterinfo.attack_state == AS_BLIND
+			|| self->monsterinfo.attack_state == AS_MISSILE))
+		{
+			ai_run_missile (self);
+			return true;
+		}
 		return false;
+	}
 
 	return self->monsterinfo.checkattack (self);
 }
@@ -942,6 +991,10 @@ void ai_run (edict_t *self, float dist)
 		M_MoveToGoal (self, dist);
 		return;
 	}
+
+	// the re-release's: a ducked monster running stands up
+	if ((self->monsterinfo.aiflags & AI_DUCKED) && self->monsterinfo.unduck)
+		self->monsterinfo.unduck (self);
 
 	if (self->monsterinfo.aiflags & AI_SOUND_TARGET)
 	{

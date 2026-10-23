@@ -103,7 +103,10 @@ typedef enum
 	AMMO_ROCKETS,
 	AMMO_GRENADES,
 	AMMO_CELLS,
-	AMMO_SLUGS
+	AMMO_SLUGS,
+	AMMO_MAGSLUG,		// The Reckoning's phalanx
+	AMMO_TESLA,			// Ground Zero's tesla mines
+	AMMO_DISRUPTOR		// Ground Zero's disruptor rounds
 } ammo_t;
 
 
@@ -123,6 +126,10 @@ typedef enum
 #define GIB_ORGANIC				0
 #define GIB_METALLIC			1
 
+// the re-release's summoned reinforcements
+#define	MAX_REINFORCEMENTS		5	// at once
+#define	MAX_REINFORCEMENT_TYPES	8	// to pick from
+
 //monster ai flags
 #define AI_STAND_GROUND			0x00000001
 #define AI_TEMP_STAND_GROUND	0x00000002
@@ -139,12 +146,27 @@ typedef enum
 #define AI_COMBAT_POINT			0x00001000
 #define AI_MEDIC				0x00002000
 #define AI_RESURRECTING			0x00004000
+#define AI_IGNORE_PAIN			0x00008000	// The Reckoning's: its gekk leaping
+#define AI_MANUAL_STEERING		0x00010000	// Ground Zero's: it sets its own yaw (turret, medic commander)
+#define AI_DODGING				0x00040000	// Ground Zero's: in a dodge
+#define AI_CHARGING				0x00080000	// Ground Zero's kamikaze flyer: chasing
+#define AI_IGNORE_SHOTS			0x00200000	// not angered by a monster's shot
+#define AI_DO_NOT_COUNT			0x00400000	// not in the level's count of monsters
+#define AI_SPAWNED_CARRIER		0x00800000	// summoned by a carrier
+#define AI_SPAWNED_MEDIC_C		0x01000000	// summoned by a medic commander
+#define AI_SPAWNED_WIDOW		0x02000000	// summoned by a widow (none here)
+#define AI_BLOCKED				0x04000000	// the medic commander's signal to summon
+#define AI_WALK_WALLS			0x08000000	// Ground Zero's stalker: it walks on ceilings
+#define AI_CIRCLE_STRAFE		0x10000000	// Ground Zero's: it circles as it charges, sliding
+// on a ceiling: Ground Zero's gravityVector, unset (zero) meaning down
+#define GRAVITY_UP(ent)			((ent)->gravityVector[2] > 0)
 
 //monster attack state
 #define AS_STRAIGHT				1
 #define AS_SLIDING				2
 #define	AS_MELEE				3
 #define	AS_MISSILE				4
+#define	AS_BLIND				5		// Ground Zero's: at where it was
 
 // armor types
 #define ARMOR_NONE				0
@@ -231,6 +253,10 @@ typedef struct
 #define WEAP_HYPERBLASTER		9 
 #define WEAP_RAILGUN			10
 #define WEAP_BFG				11
+#define WEAP_CHAINFIST			12		// the mission packs'
+#define WEAP_DISRUPTOR			13
+#define WEAP_PHALANX			14
+#define WEAP_PLASMA				15		// the heatbeam
 
 typedef struct gitem_s
 {
@@ -382,6 +408,8 @@ typedef struct
 	float		radius;			// the re-release's target_light
 	char		*goals;			// and worldspawn's Quake 64 objectives
 	float		health_multiplier;	// a monster's health, scaled
+	char		*reinforcements;	// the re-release's summoners': "classname strength;..."
+	int			monster_slots;		// and how much they may have summoned at once
 } spawn_temp_t;
 
 
@@ -444,6 +472,7 @@ typedef struct
 	void		(*walk)(edict_t *self);
 	void		(*run)(edict_t *self);
 	void		(*dodge)(edict_t *self, edict_t *other, float eta);
+	qboolean	(*blocked)(edict_t *self, float dist);	// Ground Zero's: when it can't go on
 	void		(*attack)(edict_t *self);
 	void		(*melee)(edict_t *self);
 	void		(*sight)(edict_t *self, edict_t *other);
@@ -463,6 +492,39 @@ typedef struct
 
 	int			power_armor_type;
 	int			power_armor_power;
+
+	// Ground Zero's blind fire, at where the enemy was last seen: its turret's
+	qboolean	blindfire;
+	float		blind_fire_delay;
+	vec3_t		blind_fire_target;
+	float		blind_sight_time;		// when it was
+
+	// Ground Zero's summoners (medic commander, carrier): who summoned a
+	// monster, and how many more a summoner may have
+	edict_t		*commander;
+	int			monster_slots;		// a summoner's total; a summoned monster's strength
+	int			monster_used;		// how much of a summoner's are out
+
+	// the re-release's reinforcements, parsed (inline, for save games)
+	struct {
+		char	classname[32];
+		int		strength;
+		vec3_t	mins, maxs;
+	}			reinforcements[MAX_REINFORCEMENT_TYPES];
+	int			num_reinforcements;
+	byte		chosen_reinforcements[MAX_REINFORCEMENTS];	// readied; 255 for none
+
+	float		melee_debounce_time;	// the re-release's: no melee till then
+
+	// the re-release's ducking and dodging (its gunner commander)
+	qboolean	(*duck)(edict_t *self, float eta);
+	void		(*unduck)(edict_t *self);
+	qboolean	(*sidestep)(edict_t *self);
+	float		duck_wait_time;		// ducked till then
+	float		next_duck_time;		// no duck again till then
+	float		dodge_time;			// no dodge again till then
+	float		base_height;		// maxs[2], not ducked
+	qboolean	can_jump;
 } monsterinfo_t;
 
 
@@ -518,6 +580,14 @@ extern	int	body_armor_index;
 #define MOD_TARGET_BLASTER	33
 #define MOD_RIPPER			34		// The Reckoning's
 #define MOD_PHALANX			35
+#define MOD_GEKK			36
+#define MOD_BLASTER2		37		// Ground Zero's
+#define MOD_TESLA			38		// the shambler's lightning
+#define MOD_CHAINFIST		39		// Ground Zero's
+#define MOD_ETF_RIFLE		40		// Ground Zero's flechettes
+#define MOD_TRACKER			41		// Ground Zero's disruptor
+#define MOD_HEATBEAM		42		// Ground Zero's plasma beam
+#define MOD_TESLA_MINE		43		// Ground Zero's tesla mine
 #define MOD_FRIENDLY_FIRE	0x8000000
 
 extern	int	meansOfDeath;
@@ -658,7 +728,57 @@ void G_SetGoal (void);
 // g_xatrix.c
 void monster_fire_blueblaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
 void monster_fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
+void fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
 void monster_dabeam (edict_t *self);
+
+// g_rogue.c
+void monster_fire_blaster2 (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
+qboolean FindSpawnPoint (vec3_t startpoint, vec3_t mins, vec3_t maxs, vec3_t spawnpoint, float maxMoveUp);
+qboolean CheckSpawnPoint (vec3_t origin, vec3_t mins, vec3_t maxs);
+qboolean CheckGroundSpawnPoint (vec3_t origin, vec3_t entMins, vec3_t entMaxs, float height, float gravity);
+edict_t *CreateMonster (vec3_t origin, vec3_t angles, char *classname);
+edict_t *CreateFlyMonster (vec3_t origin, vec3_t angles, vec3_t mins, vec3_t maxs, char *classname);
+edict_t *CreateGroundMonster (vec3_t origin, vec3_t angles, vec3_t entMins, vec3_t entMaxs, char *classname, int height);
+void SpawnGrow_Spawn (vec3_t startpos, int size);
+edict_t *PickCoopTarget (edict_t *self);
+float realrange (edict_t *self, edict_t *other);
+void ED_CallSpawn (edict_t *ent);
+
+// g_rr.c: the re-release's
+#define	MELEE_DISTANCE_RR	50
+float distance_between_boxes (vec3_t absminsa, vec3_t absmaxsa, vec3_t absminsb, vec3_t absmaxsb);
+float range_to (edict_t *self, edict_t *other);
+qboolean fire_hit_rr (edict_t *self, vec3_t aim, int damage, int kick);
+void PredictAim (edict_t *self, edict_t *target, vec3_t start, float bolt_speed, qboolean eye_height, float offset, vec3_t aimdir, vec3_t aimpoint);
+qboolean M_CheckClearShot (edict_t *self, vec3_t offset, vec3_t start);
+void monster_dead (edict_t *self);
+void M_SetupReinforcements (edict_t *self, char *reinforcements, int default_slots);
+int M_PickReinforcements (edict_t *self, int max_slots);
+int M_SlotsLeft (edict_t *self);
+qboolean ai_check_move (edict_t *self, float dist);
+void vectoangles2 (vec3_t value, vec3_t angles);
+float vectoyaw2 (vec3_t vec);
+qboolean inback (edict_t *self, edict_t *other);
+qboolean below (edict_t *self, edict_t *other);
+qboolean M_CalculatePitchToFire (edict_t *self, vec3_t target, vec3_t start, vec3_t aim, float speed, float time_remaining, qboolean mortar, qboolean destroy_on_touch);
+void T_SlamRadiusDamage (vec3_t point, edict_t *inflictor, edict_t *attacker, float damage, float kick, edict_t *ignore, float radius, int mod);
+void monster_duck_down (edict_t *self);
+void monster_duck_up (edict_t *self);
+void monster_duck_hold (edict_t *self);
+void M_MonsterDodge (edict_t *self, edict_t *attacker, float eta, trace_t *tr);
+void monster_muzzleflash (edict_t *self, vec3_t start, int flashtype);
+void monster_done_dodge (edict_t *self);
+void fire_flechette (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int kick);
+void check_dodge (edict_t *self, vec3_t start, vec3_t dir, int speed);
+void fire_tracker (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, edict_t *enemy);
+void monster_fire_flechette (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype);
+qboolean blocked_checkplat (edict_t *self, float dist);
+qboolean blocked_checkjump (edict_t *self, float dist, float maxDown, float maxUp);
+qboolean monster_jump_finished (edict_t *self);
+void monster_jump_start (edict_t *self);
+qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink);
+int ClipVelocity (vec3_t in, vec3_t normal, vec3_t out, float overbounce);
+void monster_fire_heat (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype);
 void fire_plasma (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void G_HealthTarget (edict_t *self);
 char *G_StandIn (char *classname);
@@ -698,6 +818,9 @@ void T_RadiusDamage (edict_t *inflictor, edict_t *attacker, float damage, edict_
 #define DAMAGE_NO_KNOCKBACK		0x00000008	// do not affect velocity, just view angles
 #define DAMAGE_BULLET			0x00000010  // damage is from a bullet (used for ricochets)
 #define DAMAGE_NO_PROTECTION	0x00000020  // armor, shields, invulnerability, and godmode have no effect
+#define DAMAGE_NO_REG_ARMOR		0x00000040	// Ground Zero's: armour, but not power armour, does not protect
+#define DAMAGE_DESTROY_ARMOR	0x00000080	// Ground Zero's chainfist: to armour and health both
+#define DAMAGE_NO_POWER_ARMOR	0x00000100	// Ground Zero's tracker: power armour does not protect
 
 #define DEFAULT_BULLET_HSPREAD	300
 #define DEFAULT_BULLET_VSPREAD	500
@@ -734,7 +857,7 @@ void M_CheckGround (edict_t *ent);
 //
 void ThrowHead (edict_t *self, char *gibname, int damage, int type);
 void ThrowClientHead (edict_t *self, int damage);
-void ThrowGib (edict_t *self, char *gibname, int damage, int type);
+edict_t *ThrowGib (edict_t *self, char *gibname, int damage, int type);
 void BecomeExplosion1(edict_t *self);
 void G_ClearShadowLights (void);
 void G_SetupShadowLights (void);
@@ -766,6 +889,7 @@ void fire_bullet (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int ki
 void fire_shotgun (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int mod);
 void fire_blaster (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, int effect, qboolean hyper);
 void fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius);
+void fire_grenade_adjust (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, float right_adjust, float up_adjust);
 void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, qboolean held);
 void fire_rocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void fire_rail (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick);
@@ -888,6 +1012,9 @@ typedef struct
 	int			max_grenades;
 	int			max_cells;
 	int			max_slugs;
+	int			max_magslug;	// the mission packs'
+	int			max_tesla;
+	int			max_rounds;
 
 	gitem_t		*weapon;
 	gitem_t		*lastweapon;
@@ -977,6 +1104,8 @@ struct gclient_s
 
 	// powerup timers
 	float		quad_framenum;
+	float		double_framenum;			// Ground Zero's double damage
+	float		quadfire_framenum;			// The Reckoning's DualFire
 	float		invincible_framenum;
 	float		breather_framenum;
 	float		enviro_framenum;
@@ -1057,6 +1186,8 @@ struct edict_s
 	char		*pathtarget;
 	char		*deathtarget;
 	char		*healthtarget;	// used as it is hurt (g_cotm.c)
+	edict_t		*beam;			// the re-release's: its shambler's lightning
+	edict_t		*bad_area;		// Ground Zero's: the tesla's area it stands in
 	char		*combattarget;
 	edict_t		*target_ent;
 
@@ -1069,6 +1200,7 @@ struct edict_s
 	int			mass;
 	float		air_finished;
 	float		gravity;		// per entity gravity multiplier (1.0 is normal)
+	vec3_t		gravityVector;	// Ground Zero's: +z on a ceiling (its stalker); else down
 								// use for lowgrav artifact, flares
 
 	edict_t		*goalentity;

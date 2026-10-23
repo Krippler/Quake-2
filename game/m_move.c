@@ -47,7 +47,7 @@ qboolean M_CheckBottom (edict_t *ent)
 // if all of the points under the corners are solid world, don't bother
 // with the tougher checks
 // the corners must be within 16 of the midpoint
-	start[2] = mins[2] - 1;
+	start[2] = GRAVITY_UP(ent) ? maxs[2] + 1 : mins[2] - 1;
 	for	(x=0 ; x<=1 ; x++)
 		for	(y=0 ; y<=1 ; y++)
 		{
@@ -71,6 +71,11 @@ realcheck:
 	start[0] = stop[0] = (mins[0] + maxs[0])*0.5;
 	start[1] = stop[1] = (mins[1] + maxs[1])*0.5;
 	stop[2] = start[2] - 2*STEPSIZE;
+	if (GRAVITY_UP(ent))		// Ground Zero's stalker: the ceiling
+	{
+		start[2] = maxs[2];
+		stop[2] = start[2] + 2*STEPSIZE;
+	}
 	trace = gi.trace (start, vec3_origin, vec3_origin, stop, ent, MASK_MONSTERSOLID);
 
 	if (trace.fraction == 1.0)
@@ -86,6 +91,14 @@ realcheck:
 			
 			trace = gi.trace (start, vec3_origin, vec3_origin, stop, ent, MASK_MONSTERSOLID);
 			
+			if (GRAVITY_UP(ent))
+			{
+				if (trace.fraction != 1.0 && trace.endpos[2] < bottom)
+					bottom = trace.endpos[2];
+				if (trace.fraction == 1.0 || trace.endpos[2] - mid > STEPSIZE)
+					return false;
+				continue;
+			}
 			if (trace.fraction != 1.0 && trace.endpos[2] > bottom)
 				bottom = trace.endpos[2];
 			if (trace.fraction == 1.0 || mid - trace.endpos[2] > STEPSIZE)
@@ -109,6 +122,31 @@ pr_global_struct->trace_normal is set to the normal of the blocking wall
 */
 //FIXME since we need to test end position contents here, can we avoid doing
 //it again later in catagorize position?
+edict_t *CheckForBadArea (edict_t *ent);
+void TargetTesla (edict_t *self, edict_t *tesla);
+
+// Ground Zero's: is the move toward the bad area, which is behind it?
+static qboolean IsBadAhead (edict_t *self, edict_t *bad, vec3_t move)
+{
+	vec3_t	dir, forward, move_copy;
+	float	dp_bad, dp_move;
+
+	VectorCopy (move, move_copy);
+	VectorSubtract (bad->s.origin, self->s.origin, dir);
+	VectorNormalize (dir);
+	AngleVectors (self->s.angles, forward, NULL, NULL);
+	dp_bad = DotProduct (forward, dir);
+
+	VectorNormalize (move_copy);
+	dp_move = DotProduct (forward, move_copy);
+
+	if (dp_bad < 0 && dp_move < 0)
+		return true;
+	if (dp_bad > 0 && dp_move > 0)
+		return true;
+	return false;
+}
+
 qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 {
 	float		dz;
@@ -118,6 +156,33 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 	float		stepsize;
 	vec3_t		test;
 	int			contents;
+	edict_t		*current_bad = NULL, *new_bad;
+
+	// Ground Zero's bad areas (a tesla's field)
+	if (ent->health > 0)
+	{
+		current_bad = CheckForBadArea (ent);
+		if (current_bad)
+		{
+			ent->bad_area = current_bad;
+
+			// facing the tesla in it: back up
+			if (ent->enemy && !strcmp (ent->enemy->classname, "tesla") && IsBadAhead (ent, current_bad, move))
+				VectorScale (move, -1, move);
+		}
+		else if (ent->bad_area)
+		{
+			// out of it: back to business
+			ent->bad_area = NULL;
+			if (ent->oldenemy)
+			{
+				ent->enemy = ent->oldenemy;
+				ent->goalentity = ent->oldenemy;
+				FoundTarget (ent);
+				return true;
+			}
+		}
+	}
 
 // try the move	
 	VectorCopy (ent->s.origin, oldorg);
@@ -188,12 +253,18 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 			if (trace.fraction == 1)
 			{
 				VectorCopy (trace.endpos, ent->s.origin);
-				if (relink)
+				// not into a bad area
+				if (!current_bad && CheckForBadArea (ent))
+					VectorCopy (oldorg, ent->s.origin);
+				else
 				{
-					gi.linkentity (ent);
-					G_TouchTriggers (ent);
+					if (relink)
+					{
+						gi.linkentity (ent);
+						G_TouchTriggers (ent);
+					}
+					return true;
 				}
-				return true;
 			}
 			
 			if (!ent->enemy)
@@ -209,9 +280,13 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 	else
 		stepsize = 1;
 
-	neworg[2] += stepsize;
+	// from a step above to a step below, "above" being down on a ceiling
+	if (GRAVITY_UP(ent))
+		neworg[2] -= stepsize;
+	else
+		neworg[2] += stepsize;
 	VectorCopy (neworg, end);
-	end[2] -= stepsize*2;
+	end[2] += GRAVITY_UP(ent) ? stepsize*2 : -stepsize*2;
 
 	trace = gi.trace (neworg, ent->mins, ent->maxs, end, ent, MASK_MONSTERSOLID);
 
@@ -232,7 +307,10 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 	{
 		test[0] = trace.endpos[0];
 		test[1] = trace.endpos[1];
-		test[2] = trace.endpos[2] + ent->mins[2] + 1;	
+		if (GRAVITY_UP(ent))
+			test[2] = trace.endpos[2] + ent->maxs[2] - 1;
+		else
+			test[2] = trace.endpos[2] + ent->mins[2] + 1;	
 		contents = gi.pointcontents(test);
 
 		if (contents & MASK_WATER)
@@ -259,6 +337,28 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 
 // check point traces down for dangling corners
 	VectorCopy (trace.endpos, ent->s.origin);
+
+	// Ground Zero's: not into a bad area, but at a tesla blocking it
+	if (ent->health > 0)
+	{
+		new_bad = CheckForBadArea (ent);
+		if (!current_bad && new_bad)
+		{
+			if (new_bad->owner && new_bad->owner->classname && !strcmp (new_bad->owner->classname, "tesla"))
+			{
+				// one already angry at a tesla is left alone
+				if (!ent->enemy || !ent->enemy->inuse
+					|| (strcmp (ent->enemy->classname, "tesla")
+					&& (!ent->enemy->client || !visible (ent, ent->enemy))))
+				{
+					TargetTesla (ent, new_bad->owner);
+					ent->monsterinfo.aiflags |= AI_BLOCKED;
+				}
+			}
+			VectorCopy (oldorg, ent->s.origin);
+			return false;
+		}
+	}
 	
 	if (!M_CheckBottom (ent))
 	{
@@ -455,6 +555,11 @@ void SV_NewChaseDir (edict_t *actor, edict_t *enemy, float dist)
 	if (d[2]!=DI_NODIR && d[2]!=turnaround
 	&& SV_StepDirection(actor, d[2], dist))
 			return;
+
+	// Ground Zero's: a monster that can do something else when blocked
+	if (actor->monsterinfo.blocked && actor->inuse && actor->health > 0
+		&& actor->monsterinfo.blocked (actor, dist))
+		return;
 
 /* there is no direct path to the player, so pick another direction */
 

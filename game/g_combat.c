@@ -91,6 +91,8 @@ Killed
 */
 void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
+	qboolean	summoned;
+
 	if (targ->health < -999)
 		targ->health = -999;
 
@@ -98,8 +100,17 @@ void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, v
 
 	if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEAD_DEAD))
 	{
+		// a carrier's flyers give it a slot back as they die (the re-release's)
+		if (targ->monsterinfo.aiflags & AI_SPAWNED_CARRIER)
+		{
+			if (targ->monsterinfo.commander && targ->monsterinfo.commander->inuse
+				&& !strcmp(targ->monsterinfo.commander->classname, "monster_carrier"))
+				targ->monsterinfo.commander->monsterinfo.monster_slots++;
+			targ->monsterinfo.commander = NULL;
+		}
+
 //		targ->svflags |= SVF_DEADMONSTER;	// now treat as a different content type
-		if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY))
+		if (!(targ->monsterinfo.aiflags & (AI_GOOD_GUY|AI_DO_NOT_COUNT)))
 		{
 			level.killed_monsters++;
 			if (coop->value && attacker->client)
@@ -116,6 +127,10 @@ void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, v
 		return;
 	}
 
+	// (before monster_death_use clears its flags, and a gib's head is no
+	// longer a monster)
+	summoned = (targ->svflags & SVF_MONSTER) && (targ->monsterinfo.aiflags & AI_SPAWNED_MEDIC_C);
+
 	if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEAD_DEAD))
 	{
 		targ->touch = NULL;
@@ -123,6 +138,15 @@ void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, v
 	}
 
 	targ->die (targ, inflictor, attacker, damage, point);
+
+	// a medic commander's back only once gibbed, as he could revive them
+	if (summoned && targ->health <= targ->gib_health)
+	{
+		if (targ->monsterinfo.commander && targ->monsterinfo.commander->inuse
+			&& !strcmp(targ->monsterinfo.commander->classname, "monster_medic_commander"))
+			targ->monsterinfo.commander->monsterinfo.monster_used -= targ->monsterinfo.monster_slots;
+		targ->monsterinfo.commander = NULL;
+	}
 }
 
 
@@ -184,7 +208,7 @@ static int CheckPowerArmor (edict_t *ent, vec3_t point, vec3_t normal, int damag
 
 	client = ent->client;
 
-	if (dflags & DAMAGE_NO_ARMOR)
+	if (dflags & (DAMAGE_NO_ARMOR|DAMAGE_NO_POWER_ARMOR))
 		return 0;
 
 	if (client)
@@ -267,7 +291,7 @@ static int CheckArmor (edict_t *ent, vec3_t point, vec3_t normal, int damage, in
 	if (!client)
 		return 0;
 
-	if (dflags & DAMAGE_NO_ARMOR)
+	if (dflags & (DAMAGE_NO_ARMOR|DAMAGE_NO_REG_ARMOR))
 		return 0;
 
 	index = ArmorIndex (ent);
@@ -292,12 +316,28 @@ static int CheckArmor (edict_t *ent, vec3_t point, vec3_t normal, int damage, in
 	return save;
 }
 
-void M_ReactToDamage (edict_t *targ, edict_t *attacker)
+qboolean MarkTeslaArea (edict_t *self, edict_t *tesla);
+void TargetTesla (edict_t *self, edict_t *tesla);
+
+void M_ReactToDamage (edict_t *targ, edict_t *attacker, edict_t *inflictor)
 {
 	if (!(attacker->client) && !(attacker->svflags & SVF_MONSTER))
 		return;
 
+	// Ground Zero's: zapped by a tesla, it marks its field, and goes for
+	// it if new, or it has no enemy
+	if (inflictor && inflictor->classname && !strcmp (inflictor->classname, "tesla"))
+	{
+		if (MarkTeslaArea (targ, inflictor) || !targ->enemy)
+			TargetTesla (targ, inflictor);
+		return;
+	}
+
 	if (attacker == targ || attacker == targ->enemy)
+		return;
+
+	// Ground Zero's turrets and monsters do not fight each other
+	if ((targ->monsterinfo.aiflags & AI_IGNORE_SHOTS) && !attacker->client)
 		return;
 
 	// if we are a good guy monster and our attacker is a player
@@ -479,6 +519,11 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	//treat cheat/powerup savings the same as armor
 	asave += save;
 
+	// Ground Zero's: damage to the armour and the health both (its chainfist)
+	if ((dflags & DAMAGE_DESTROY_ARMOR) && !(targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION)
+		&& !(client && client->invincible_framenum > level.framenum))
+		take = damage;
+
 	// team damage avoidance
 	if (!(dflags & DAMAGE_NO_PROTECTION) && CheckTeamDamage (targ, attacker))
 		return;
@@ -486,7 +531,9 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 // do the damage
 	if (take)
 	{
-		if ((targ->svflags & SVF_MONSTER) || (client))
+		if (((targ->svflags & SVF_MONSTER) || (client)) && mod == MOD_CHAINFIST)
+			SpawnDamage (TE_MOREBLOOD, point, normal, take);	// Ground Zero's: more for the chainfist
+		else if ((targ->svflags & SVF_MONSTER) || (client))
 			SpawnDamage (TE_BLOOD, point, normal, take);
 		else
 			SpawnDamage (te_sparks, point, normal, take);
@@ -513,8 +560,8 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 
 	if (targ->svflags & SVF_MONSTER)
 	{
-		M_ReactToDamage (targ, attacker);
-		if (!(targ->monsterinfo.aiflags & AI_DUCKED) && (take))
+		M_ReactToDamage (targ, attacker, inflictor);
+		if (!(targ->monsterinfo.aiflags & (AI_DUCKED|AI_IGNORE_PAIN)) && (take))
 		{
 			targ->pain (targ, attacker, knockback, take);
 			// nightmare mode monsters don't go into pain frames often

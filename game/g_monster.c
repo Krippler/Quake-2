@@ -146,7 +146,8 @@ void M_CheckGround (edict_t *ent)
 	if (ent->flags & (FL_SWIM|FL_FLY))
 		return;
 
-	if (ent->velocity[2] > 100)
+	// "down" is up for Ground Zero's stalker on a ceiling
+	if (GRAVITY_UP(ent) ? ent->velocity[2] < -100 : ent->velocity[2] > 100)
 	{
 		ent->groundentity = NULL;
 		return;
@@ -155,12 +156,12 @@ void M_CheckGround (edict_t *ent)
 // if the hull point one-quarter unit down is solid the entity is on ground
 	point[0] = ent->s.origin[0];
 	point[1] = ent->s.origin[1];
-	point[2] = ent->s.origin[2] - 0.25;
+	point[2] = ent->s.origin[2] + (GRAVITY_UP(ent) ? 0.25 : -0.25);
 
 	trace = gi.trace (ent->s.origin, ent->mins, ent->maxs, point, ent, MASK_MONSTERSOLID);
 
 	// check steepness
-	if ( trace.plane.normal[2] < 0.7 && !trace.startsolid)
+	if ((GRAVITY_UP(ent) ? trace.plane.normal[2] > -0.7 : trace.plane.normal[2] < 0.7) && !trace.startsolid)
 	{
 		ent->groundentity = NULL;
 		return;
@@ -312,9 +313,18 @@ void M_droptofloor (edict_t *ent)
 	vec3_t		end;
 	trace_t		trace;
 
-	ent->s.origin[2] += 1;
-	VectorCopy (ent->s.origin, end);
-	end[2] -= 256;
+	if (GRAVITY_UP(ent))
+	{
+		ent->s.origin[2] -= 1;
+		VectorCopy (ent->s.origin, end);
+		end[2] += 256;
+	}
+	else
+	{
+		ent->s.origin[2] += 1;
+		VectorCopy (ent->s.origin, end);
+		end[2] -= 256;
+	}
 	
 	trace = gi.trace (ent->s.origin, ent->mins, ent->maxs, end, ent, MASK_MONSTERSOLID);
 
@@ -546,7 +556,7 @@ qboolean monster_start (edict_t *self)
 //		gi.dprintf("fixed spawnflags on %s at %s\n", self->classname, vtos(self->s.origin));
 	}
 
-	if (!(self->monsterinfo.aiflags & AI_GOOD_GUY))
+	if (!(self->monsterinfo.aiflags & (AI_GOOD_GUY|AI_DO_NOT_COUNT)))
 		level.total_monsters++;
 
 	self->nextthink = level.time + FRAMETIME;

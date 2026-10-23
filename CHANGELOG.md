@@ -5,6 +5,42 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.19] — 2026-10-23
+
+### Added
+
+- **The Reckoning's gekk and its super tank** (Call of the Machine's
+  `monster_boss5`) as they were made: the gekk spits, leaps, swims and
+  bursts into green gibs; the super tank wears a power shield and its
+  rockets seek their target. All of The Reckoning's monsters are now its
+  own.
+- **Ground Zero's monsters in Call of the Machine, as they were made**:
+  - the daedalus and the wall turrets, which blind-fire where they last
+    saw you;
+  - the medic commander, which summons reinforcements;
+  - the stalker, which walks on ceilings, drops and pounces;
+  - the carrier, which launches flyers and kamikaze flyers.
+- **The re-release's arachnid, shambler and gunner commander**, ported
+  from its game source: rail volleys, hand-to-hand lightning, and a
+  commander that runs and guns, lobs mortars, ducks with a counter slam
+  and sidesteps.
+- **Summoners' reinforcements as the re-release has them**: a map can
+  name what a medic commander or carrier summons, as most of Call of the
+  Machine's do (mgu4m3's carriers launch stalkers).
+- **The mission packs' weapons and powerups**: the phalanx, the
+  chainfist, the disruptor, the plasma beam and the tesla mine, with mag
+  slugs and disruptor rounds; double damage and DualFire. Monsters zapped
+  by a tesla go for it and keep out of its field.
+- No more stand-ins: every mission-pack and re-release monster, weapon
+  and item Call of the Machine places is now its own, except the legacy
+  head, which stays the ancient head.
+
+### Fixed
+
+- A crash that could come of a monster's skin being read a little outside
+  it, where the model meets the edge of the screen -- a 1997 slip that
+  went unseen in its smaller skins.
+
 ## [1.3.18] — 2026-10-23
 
 ### Added

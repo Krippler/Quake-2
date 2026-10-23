@@ -453,7 +453,7 @@ void supertank_pain (edict_t *self, edict_t *other, float kick, int damage)
 {
 
 	if (self->health < (self->max_health / 2))
-			self->s.skinnum = 1;
+			self->s.skinnum |= 1;	// The Reckoning's 2 too
 
 	if (level.time < self->pain_debounce_time)
 			return;
@@ -514,7 +514,11 @@ void supertankRocket (edict_t *self)
 	VectorSubtract (vec, start, dir);
 	VectorNormalize (dir);
 
-	monster_fire_rocket (self, start, dir, 50, 500, flash_number);
+	// The Reckoning's super tank's seek their target
+	if (self->style == 1)
+		monster_fire_heat (self, start, dir, 40, 500, flash_number);
+	else
+		monster_fire_rocket (self, start, dir, 50, 500, flash_number);
 }	
 
 void supertankMachineGun (edict_t *self)
@@ -714,4 +718,19 @@ void SP_monster_supertank (edict_t *self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	walkmonster_start(self);
+}
+
+/*QUAKED monster_boss5 (1 .5 0) (-64 -64 0) (64 64 72) Ambush Trigger_Spawn Sight
+The Reckoning's super tank, as the re-release has it: skin 2 of the super
+tank, a power shield, heat-seeking rockets.
+*/
+void SP_monster_boss5 (edict_t *self)
+{
+	SP_monster_supertank (self);
+	if (!self->inuse)
+		return;
+	self->style = 1;
+	self->s.skinnum = 2;
+	self->monsterinfo.power_armor_type = POWER_ARMOR_SHIELD;
+	self->monsterinfo.power_armor_power = 400;
 }

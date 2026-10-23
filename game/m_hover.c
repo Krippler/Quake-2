@@ -39,18 +39,26 @@ static int	sound_sight;
 static int	sound_search1;
 static int	sound_search2;
 
+/*
+Ground Zero's daedalus (style 1), as the re-release has it: skin 2 of the
+hover, a power screen, the green blaster, sounds of its own.
+*/
+static int	daed_sound_pain1, daed_sound_pain2, daed_sound_death1, daed_sound_death2;
+static int	daed_sound_sight, daed_sound_search1, daed_sound_search2;
+#define HOVER_SOUND(self, s)	((self)->style == 1 ? daed_##s : s)
+
 
 void hover_sight (edict_t *self, edict_t *other)
 {
-	gi.sound (self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
+	gi.sound (self, CHAN_VOICE, HOVER_SOUND(self, sound_sight), 1, ATTN_NORM, 0);
 }
 
 void hover_search (edict_t *self)
 {
 	if (random() < 0.5)
-		gi.sound (self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
+		gi.sound (self, CHAN_VOICE, HOVER_SOUND(self, sound_search1), 1, ATTN_NORM, 0);
 	else
-		gi.sound (self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
+		gi.sound (self, CHAN_VOICE, HOVER_SOUND(self, sound_search2), 1, ATTN_NORM, 0);
 }
 
 
@@ -451,7 +459,10 @@ void hover_fire_blaster (edict_t *self)
 	end[2] += self->enemy->viewheight;
 	VectorSubtract (end, start, dir);
 
-	monster_fire_blaster (self, start, dir, 1, 1000, MZ2_HOVER_BLASTER_1, effect);
+	if (self->style == 1)
+		monster_fire_blaster2 (self, start, dir, 1, 1000, MZ2_DAEDALUS_BLASTER, EF_BLASTER);
+	else
+		monster_fire_blaster (self, start, dir, 1, 1000, MZ2_HOVER_BLASTER_1, effect);
 }
 
 
@@ -487,7 +498,7 @@ void hover_attack(edict_t *self)
 void hover_pain (edict_t *self, edict_t *other, float kick, int damage)
 {
 	if (self->health < (self->max_health / 2))
-		self->s.skinnum = 1;
+		self->s.skinnum |= 1;	// the daedalus's 2 too
 
 	if (level.time < self->pain_debounce_time)
 		return;
@@ -501,18 +512,18 @@ void hover_pain (edict_t *self, edict_t *other, float kick, int damage)
 	{
 		if (random() < 0.5)
 		{
-			gi.sound (self, CHAN_VOICE, sound_pain1, 1, ATTN_NORM, 0);
+			gi.sound (self, CHAN_VOICE, HOVER_SOUND(self, sound_pain1), 1, ATTN_NORM, 0);
 			self->monsterinfo.currentmove = &hover_move_pain3;
 		}
 		else
 		{
-			gi.sound (self, CHAN_VOICE, sound_pain2, 1, ATTN_NORM, 0);
+			gi.sound (self, CHAN_VOICE, HOVER_SOUND(self, sound_pain2), 1, ATTN_NORM, 0);
 			self->monsterinfo.currentmove = &hover_move_pain2;
 		}
 	}
 	else
 	{
-		gi.sound (self, CHAN_VOICE, sound_pain1, 1, ATTN_NORM, 0);
+		gi.sound (self, CHAN_VOICE, HOVER_SOUND(self, sound_pain1), 1, ATTN_NORM, 0);
 		self->monsterinfo.currentmove = &hover_move_pain1;
 	}
 }
@@ -560,9 +571,9 @@ void hover_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 
 // regular death
 	if (random() < 0.5)
-		gi.sound (self, CHAN_VOICE, sound_death1, 1, ATTN_NORM, 0);
+		gi.sound (self, CHAN_VOICE, HOVER_SOUND(self, sound_death1), 1, ATTN_NORM, 0);
 	else
-		gi.sound (self, CHAN_VOICE, sound_death2, 1, ATTN_NORM, 0);
+		gi.sound (self, CHAN_VOICE, HOVER_SOUND(self, sound_death2), 1, ATTN_NORM, 0);
 	self->deadflag = DEAD_DEAD;
 	self->takedamage = DAMAGE_YES;
 	self->monsterinfo.currentmove = &hover_move_death1;
@@ -617,4 +628,29 @@ void SP_monster_hover (edict_t *self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	flymonster_start (self);
+}
+
+/*QUAKED monster_daedalus (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
+*/
+void SP_monster_daedalus (edict_t *self)
+{
+	SP_monster_hover (self);
+	if (!self->inuse)
+		return;
+	self->style = 1;
+	self->s.skinnum = 2;
+	self->health = 450 * (st.health_multiplier > 0 ? st.health_multiplier : 1);
+	self->max_health = self->health;
+	self->mass = 225;
+	self->monsterinfo.power_armor_type = POWER_ARMOR_SCREEN;
+	self->monsterinfo.power_armor_power = 100;
+	self->s.sound = gi.soundindex ("daedalus/daedidle1.wav");
+	daed_sound_pain1 = gi.soundindex ("daedalus/daedpain1.wav");
+	daed_sound_pain2 = gi.soundindex ("daedalus/daedpain2.wav");
+	daed_sound_death1 = gi.soundindex ("daedalus/daeddeth1.wav");
+	daed_sound_death2 = gi.soundindex ("daedalus/daeddeth2.wav");
+	daed_sound_sight = gi.soundindex ("daedalus/daedsght1.wav");
+	daed_sound_search1 = gi.soundindex ("daedalus/daedsrch1.wav");
+	daed_sound_search2 = gi.soundindex ("daedalus/daedsrch2.wav");
+	gi.modelindex ("models/proj/laser2/tris.md2");
 }

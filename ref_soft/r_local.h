@@ -68,7 +68,11 @@ typedef struct image_s
 	qboolean        transparent;    // true if any 255 pixels in image
 	int             registration_sequence;  // 0 = free
 	byte		*pixels[4];				// mip levels
+	int			pad;			// bytes kept before pixels[0] (R_AllocPixels)
 } image_t;
+
+byte *R_AllocPixels (image_t *image, int size);
+void R_FreePixels (image_t *image);
 
 
 //===================================================================

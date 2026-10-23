@@ -35,6 +35,11 @@ void Weapon_Grenade (edict_t *ent);
 void Weapon_GrenadeLauncher (edict_t *ent);
 void Weapon_Railgun (edict_t *ent);
 void Weapon_BFG (edict_t *ent);
+void Weapon_Phalanx (edict_t *ent);
+void Weapon_ChainFist (edict_t *ent);
+void Weapon_Disintegrator (edict_t *ent);
+void Weapon_Heatbeam (edict_t *ent);
+void Weapon_Tesla (edict_t *ent);
 
 gitem_armor_t jacketarmor_info	= { 25,  50, .30, .00, ARMOR_JACKET};
 gitem_armor_t combatarmor_info	= { 50, 100, .60, .30, ARMOR_COMBAT};
@@ -234,6 +239,10 @@ qboolean Pickup_Bandolier (edict_t *ent, edict_t *other)
 		other->client->pers.max_cells = 250;
 	if (other->client->pers.max_slugs < 75)
 		other->client->pers.max_slugs = 75;
+	if (other->client->pers.max_magslug < 75)
+		other->client->pers.max_magslug = 75;
+	if (other->client->pers.max_rounds < 150)
+		other->client->pers.max_rounds = 150;
 
 	item = FindItem("Bullets");
 	if (item)
@@ -276,6 +285,10 @@ qboolean Pickup_Pack (edict_t *ent, edict_t *other)
 		other->client->pers.max_cells = 300;
 	if (other->client->pers.max_slugs < 100)
 		other->client->pers.max_slugs = 100;
+	if (other->client->pers.max_magslug < 100)
+		other->client->pers.max_magslug = 100;
+	if (other->client->pers.max_rounds < 200)
+		other->client->pers.max_rounds = 200;
 
 	item = FindItem("Bullets");
 	if (item)
@@ -362,6 +375,34 @@ void Use_Quad (edict_t *ent, gitem_t *item)
 		ent->client->quad_framenum = level.framenum + timeout;
 
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage.wav"), 1, ATTN_NORM, 0);
+}
+
+// Ground Zero's double damage
+void Use_Double (edict_t *ent, gitem_t *item)
+{
+	ent->client->pers.inventory[ITEM_INDEX(item)]--;
+	ValidateSelectedItem (ent);
+
+	if (ent->client->double_framenum > level.framenum)
+		ent->client->double_framenum += 300;
+	else
+		ent->client->double_framenum = level.framenum + 300;
+
+	gi.sound(ent, CHAN_ITEM, gi.soundindex("misc/ddamage1.wav"), 1, ATTN_NORM, 0);
+}
+
+// The Reckoning's DualFire: weapons fire twice as fast
+void Use_QuadFire (edict_t *ent, gitem_t *item)
+{
+	ent->client->pers.inventory[ITEM_INDEX(item)]--;
+	ValidateSelectedItem (ent);
+
+	if (ent->client->quadfire_framenum > level.framenum)
+		ent->client->quadfire_framenum += 300;
+	else
+		ent->client->quadfire_framenum = level.framenum + 300;
+
+	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/quadfire1.wav"), 1, ATTN_NORM, 0);
 }
 
 //======================================================================
@@ -487,6 +528,12 @@ qboolean Add_Ammo (edict_t *ent, gitem_t *item, int count)
 		max = ent->client->pers.max_cells;
 	else if (item->tag == AMMO_SLUGS)
 		max = ent->client->pers.max_slugs;
+	else if (item->tag == AMMO_MAGSLUG)
+		max = ent->client->pers.max_magslug;
+	else if (item->tag == AMMO_TESLA)
+		max = ent->client->pers.max_tesla;
+	else if (item->tag == AMMO_DISRUPTOR)
+		max = ent->client->pers.max_rounds;
 	else
 		return false;
 
@@ -2237,6 +2284,222 @@ Quake 64: a power core, which a trigger_key takes to start a machine
 		NULL,
 		0,
 /* precache */ ""
+	},
+
+/*QUAKED weapon_phalanx (.3 .3 1) (-16 -16 -16) (16 16 16)
+The Reckoning's
+*/
+	{
+		"weapon_phalanx",
+		Pickup_Weapon,
+		Use_Weapon,
+		Drop_Weapon,
+		Weapon_Phalanx,
+		"misc/w_pkup.wav",
+		"models/weapons/g_shotx/tris.md2", EF_ROTATE,
+		"models/weapons/v_shotx/tris.md2",
+/* icon */		"w_phallanx",
+/* pickup */	"Phalanx",
+		0,
+		1,
+		"Mag Slug",
+		IT_WEAPON|IT_STAY_COOP,
+		WEAP_PHALANX,
+		NULL,
+		0,
+/* precache */ "weapons/plasshot.wav sprites/s_photon.sp2"
+	},
+
+/*QUAKED ammo_magslug (.3 .3 1) (-16 -16 -16) (16 16 16)
+The Reckoning's, for the phalanx
+*/
+	{
+		"ammo_magslug",
+		Pickup_Ammo,
+		NULL,
+		Drop_Ammo,
+		NULL,
+		"misc/am_pkup.wav",
+		"models/objects/ammo/tris.md2", 0,
+		NULL,
+/* icon */		"a_mslugs",
+/* pickup */	"Mag Slug",
+/* width */		3,
+		10,
+		NULL,
+		IT_AMMO,
+		0,
+		NULL,
+		AMMO_MAGSLUG,
+/* precache */ ""
+	},
+
+/*QUAKED weapon_chainfist (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's
+*/
+	{
+		"weapon_chainfist",
+		Pickup_Weapon,
+		Use_Weapon,
+		Drop_Weapon,
+		Weapon_ChainFist,
+		"misc/w_pkup.wav",
+		"models/weapons/g_chainf/tris.md2", EF_ROTATE,
+		"models/weapons/v_chainf/tris.md2",
+/* icon */		"w_chainfist",
+/* pickup */	"Chainfist",
+		0,
+		0,
+		NULL,
+		IT_WEAPON|IT_STAY_COOP,
+		WEAP_CHAINFIST,
+		NULL,
+		0,
+/* precache */ "weapons/sawidle.wav weapons/sawhit.wav"
+	},
+
+/*QUAKED weapon_disintegrator (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's disruptor
+*/
+	{
+		"weapon_disintegrator",
+		Pickup_Weapon,
+		Use_Weapon,
+		Drop_Weapon,
+		Weapon_Disintegrator,
+		"misc/w_pkup.wav",
+		"models/weapons/g_dist/tris.md2", EF_ROTATE,
+		"models/weapons/v_dist/tris.md2",
+/* icon */		"w_disintegrator",
+/* pickup */	"Disruptor",
+		0,
+		1,
+		"Rounds",
+		IT_WEAPON|IT_STAY_COOP,
+		WEAP_DISRUPTOR,
+		NULL,
+		0,
+/* precache */ "models/proj/disintegrator/tris.md2 weapons/disrupt.wav weapons/disint2.wav weapons/disrupthit.wav"
+	},
+
+/*QUAKED weapon_plasmabeam (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's heat beam
+*/
+	{
+		"weapon_plasmabeam",
+		Pickup_Weapon,
+		Use_Weapon,
+		Drop_Weapon,
+		Weapon_Heatbeam,
+		"misc/w_pkup.wav",
+		"models/weapons/g_beamer/tris.md2", EF_ROTATE,
+		"models/weapons/v_beamer/tris.md2",
+/* icon */		"w_heatbeam",
+/* pickup */	"Plasma Beam",
+		0,
+		2,
+		"Cells",
+		IT_WEAPON|IT_STAY_COOP,
+		WEAP_PLASMA,
+		NULL,
+		0,
+/* precache */ "weapons/bfg__l1a.wav models/proj/beam/tris.md2"
+	},
+
+/*QUAKED ammo_tesla (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's tesla mines: ammo, and thrown
+*/
+	{
+		"ammo_tesla",
+		Pickup_Ammo,
+		Use_Weapon,
+		Drop_Ammo,
+		Weapon_Tesla,
+		"misc/am_pkup.wav",
+		"models/ammo/am_tesl/tris.md2", 0,
+		"models/weapons/v_tesla/tris.md2",
+/* icon */		"a_tesla",
+/* pickup */	"Tesla",
+/* width */		3,
+		5,
+		"Tesla",
+		IT_AMMO|IT_WEAPON,
+		0,
+		NULL,
+		AMMO_TESLA,
+/* precache */ "weapons/teslaopen.wav weapons/hgrenb1a.wav weapons/hgrenb2a.wav models/weapons/g_tesla/tris.md2"
+	},
+
+/*QUAKED ammo_disruptor (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's disruptor rounds
+*/
+	{
+		"ammo_disruptor",
+		Pickup_Ammo,
+		NULL,
+		Drop_Ammo,
+		NULL,
+		"misc/am_pkup.wav",
+		"models/ammo/am_disr/tris.md2", 0,
+		NULL,
+/* icon */		"a_disruptor",
+/* pickup */	"Rounds",
+/* width */		3,
+		15,
+		NULL,
+		IT_AMMO,
+		0,
+		NULL,
+		AMMO_DISRUPTOR,
+/* precache */ ""
+	},
+
+/*QUAKED item_double (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's double damage
+*/
+	{
+		"item_double",
+		Pickup_Powerup,
+		Use_Double,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/items/ddamage/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_double",
+/* pickup */	"Double Damage",
+/* width */		2,
+		60,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "misc/ddamage1.wav misc/ddamage2.wav misc/ddamage3.wav"
+	},
+
+/*QUAKED item_quadfire (.3 .3 1) (-16 -16 -16) (16 16 16)
+The Reckoning's DualFire Damage
+*/
+	{
+		"item_quadfire",
+		Pickup_Powerup,
+		Use_QuadFire,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/items/quadfire/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_quadfire",
+/* pickup */	"DualFire Damage",
+/* width */		2,
+		60,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "items/quadfire1.wav items/quadfire2.wav items/quadfire3.wav"
 	},
 
 	// end of list marker

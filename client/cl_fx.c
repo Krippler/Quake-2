@@ -471,6 +471,14 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_INFANTRY_MACHINEGUN_11:
 	case MZ2_INFANTRY_MACHINEGUN_12:
 	case MZ2_INFANTRY_MACHINEGUN_13:
+	case MZ2_INFANTRY_MACHINEGUN_14:		// the re-release's run-attack
+	case MZ2_INFANTRY_MACHINEGUN_15:
+	case MZ2_INFANTRY_MACHINEGUN_16:
+	case MZ2_INFANTRY_MACHINEGUN_17:
+	case MZ2_INFANTRY_MACHINEGUN_18:
+	case MZ2_INFANTRY_MACHINEGUN_19:
+	case MZ2_INFANTRY_MACHINEGUN_20:
+	case MZ2_INFANTRY_MACHINEGUN_21:
 		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
 		CL_ParticleEffect (origin, vec3_origin, 0, 40);
 		CL_SmokeAndFlash(origin);
@@ -503,6 +511,14 @@ void CL_ParseMuzzleFlash2 (void)
 		CL_ParticleEffect (origin, vec3_origin, 0, 40);
 		CL_SmokeAndFlash(origin);
 		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("gunner/gunatck2.wav"), 1, ATTN_NORM, 0);
+		break;
+
+	case MZ2_GUNCMDR_CHAINGUN_1:		// the re-release's gunner commander
+	case MZ2_GUNCMDR_CHAINGUN_2:
+		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
+		CL_ParticleEffect (origin, vec3_origin, 0, 40);
+		CL_SmokeAndFlash(origin);
+		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("guncmdr/gcdratck2.wav"), 1, ATTN_NORM, 0);
 		break;
 
 	case MZ2_ACTOR_MACHINEGUN_1:
@@ -650,7 +666,24 @@ void CL_ParseMuzzleFlash2 (void)
 		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("gunner/gunatck3.wav"), 1, ATTN_NORM, 0);
 		break;
 
+	case MZ2_GUNCMDR_GRENADE_MORTAR_1:	// the re-release's gunner commander
+	case MZ2_GUNCMDR_GRENADE_MORTAR_2:
+	case MZ2_GUNCMDR_GRENADE_MORTAR_3:
+	case MZ2_GUNCMDR_GRENADE_FRONT_1:
+	case MZ2_GUNCMDR_GRENADE_FRONT_2:
+	case MZ2_GUNCMDR_GRENADE_FRONT_3:
+	case MZ2_GUNCMDR_GRENADE_CROUCH_1:
+	case MZ2_GUNCMDR_GRENADE_CROUCH_2:
+	case MZ2_GUNCMDR_GRENADE_CROUCH_3:
+		dl->color[0] = 1;dl->color[1] = 0.5;dl->color[2] = 0;
+		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("guncmdr/gcdratck3.wav"), 1, ATTN_NORM, 0);
+		break;
+
 	case MZ2_GLADIATOR_RAILGUN_1:
+	case MZ2_ARACHNID_RAIL1:			// the re-release's arachnid
+	case MZ2_ARACHNID_RAIL2:
+	case MZ2_ARACHNID_RAIL_UP1:
+	case MZ2_ARACHNID_RAIL_UP2:
 	// PMM
 	case MZ2_CARRIER_RAILGUN:
 	case MZ2_WIDOW_RAIL:
@@ -985,6 +1018,49 @@ void CL_ParticleEffect2 (vec3_t org, vec3_t dir, int color, int count)
 		p->alpha = 1.0;
 
 		p->alphavel = -1.0 / (0.5 + frand()*0.3);
+	}
+}
+
+
+/*
+===============
+CL_SlamParticles
+
+The re-release's slam (its gunner commander's counter): a ring of dust
+thrown out along the ground from the point
+===============
+*/
+void CL_SlamParticles (vec3_t org, vec3_t dir)
+{
+	int			i;
+	cparticle_t	*p;
+	float		a;
+
+	for (i=0 ; i<96 ; i++)
+	{
+		if (!free_particles)
+			return;
+		p = free_particles;
+		free_particles = p->next;
+		p->next = active_particles;
+		active_particles = p;
+
+		p->time = cl.time;
+		p->color = 0x04 + (rand()&7);	// greys and browns
+
+		a = i * (2*M_PI/96);
+		p->org[0] = org[0] + cos(a)*8;
+		p->org[1] = org[1] + sin(a)*8;
+		p->org[2] = org[2] + 2;
+		p->vel[0] = cos(a)*(160 + crand()*40);
+		p->vel[1] = sin(a)*(160 + crand()*40);
+		p->vel[2] = 40 + frand()*60;
+
+		p->accel[0] = p->accel[1] = 0;
+		p->accel[2] = -PARTICLE_GRAVITY;
+		p->alpha = 1.0;
+
+		p->alphavel = -1.0 / (0.6 + frand()*0.3);
 	}
 }
 

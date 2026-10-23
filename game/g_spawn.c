@@ -82,6 +82,16 @@ void SP_misc_flare (edict_t *ent);
 void SP_misc_hologram (edict_t *ent);
 void SP_misc_lavaball (edict_t *ent);
 void SP_monster_tank_stand (edict_t *ent);
+void SP_monster_daedalus (edict_t *ent);
+void SP_monster_turret (edict_t *ent);
+void SP_monster_stalker (edict_t *ent);
+void SP_monster_arachnid (edict_t *ent);
+void SP_monster_shambler (edict_t *ent);
+void SP_monster_guncmdr (edict_t *ent);
+void SP_monster_carrier (edict_t *ent);
+void SP_monster_kamikaze (edict_t *ent);
+void SP_monster_boss5 (edict_t *ent);
+void SP_monster_gekk (edict_t *ent);
 void SP_monster_gladb (edict_t *ent);
 void SP_monster_soldier_ripper (edict_t *ent);
 void SP_monster_soldier_hypergun (edict_t *ent);
@@ -234,6 +244,16 @@ spawn_t	spawns[] = {
 	{"misc_hologram", SP_misc_hologram},
 	{"misc_lavaball", SP_misc_lavaball},
 	{"monster_tank_stand", SP_monster_tank_stand},
+	{"monster_daedalus", SP_monster_daedalus},
+	{"monster_turret", SP_monster_turret},
+	{"monster_stalker", SP_monster_stalker},
+	{"monster_arachnid", SP_monster_arachnid},
+	{"monster_shambler", SP_monster_shambler},
+	{"monster_guncmdr", SP_monster_guncmdr},
+	{"monster_carrier", SP_monster_carrier},
+	{"monster_kamikaze", SP_monster_kamikaze},
+	{"monster_boss5", SP_monster_boss5},
+	{"monster_gekk", SP_monster_gekk},
 	{"monster_gladb", SP_monster_gladb},
 	{"monster_soldier_ripper", SP_monster_soldier_ripper},
 	{"monster_soldier_hypergun", SP_monster_soldier_hypergun},
@@ -314,6 +334,7 @@ spawn_t	spawns[] = {
 	{"monster_tank", SP_monster_tank},
 	{"monster_tank_commander", SP_monster_tank},
 	{"monster_medic", SP_monster_medic},
+	{"monster_medic_commander", SP_monster_medic},
 	{"monster_flipper", SP_monster_flipper},
 	{"monster_chick", SP_monster_chick},
 	{"monster_parasite", SP_monster_parasite},
@@ -1015,6 +1036,10 @@ void SP_worldspawn (edict_t *ent)
 	gi.modelindex ("#w_hyperblaster.md2");
 	gi.modelindex ("#w_railgun.md2");
 	gi.modelindex ("#w_bfg.md2");
+	gi.modelindex ("#w_chainfist.md2");		// the mission packs'
+	gi.modelindex ("#w_disrupt.md2");
+	gi.modelindex ("#w_phalanx.md2");
+	gi.modelindex ("#w_plasma.md2");
 
 	//-------------------
 

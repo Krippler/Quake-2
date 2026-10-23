@@ -316,3 +316,83 @@ void fire_plasma (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 	plasma->classname = "plasma";
 	gi.linkentity (plasma);
 }
+
+/*
+=================
+The heat-seeking rocket, The Reckoning's super tank's (monster_boss5):
+it turns to the nearest player it can see in front of it
+=================
+*/
+void rocket_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
+
+void heat_think (edict_t *self)
+{
+	edict_t	*target = NULL, *aquire = NULL;
+	vec3_t	vec;
+	float	len, oldlen = 0;
+
+	if (level.time > self->timestamp)
+	{
+		G_FreeEdict (self);		// gone too long without hitting anything
+		return;
+	}
+
+	while ((target = findradius (target, self->s.origin, 1024)) != NULL)
+	{
+		if (self->owner == target || !target->client || target->health <= 0)
+			continue;
+		if (!infront (self, target) || !visible (self, target))
+			continue;
+		VectorSubtract (self->s.origin, target->s.origin, vec);
+		len = VectorLength (vec);
+		if (!aquire || len < oldlen)
+		{
+			aquire = target;
+			oldlen = len;
+		}
+	}
+
+	if (aquire)
+	{
+		VectorSubtract (aquire->s.origin, self->s.origin, vec);
+		vectoangles (vec, self->s.angles);
+		VectorNormalize (vec);
+		VectorScale (vec, 500, self->velocity);
+	}
+	self->nextthink = level.time + FRAMETIME;
+}
+
+void fire_heat (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage)
+{
+	edict_t	*heat;
+
+	heat = G_Spawn ();
+	VectorCopy (start, heat->s.origin);
+	VectorCopy (dir, heat->movedir);
+	vectoangles (dir, heat->s.angles);
+	VectorScale (dir, speed, heat->velocity);
+	heat->movetype = MOVETYPE_FLYMISSILE;
+	heat->clipmask = MASK_SHOT;
+	heat->solid = SOLID_BBOX;
+	heat->s.effects |= EF_ROCKET;
+	VectorClear (heat->mins);
+	VectorClear (heat->maxs);
+	heat->s.modelindex = gi.modelindex ("models/objects/rocket/tris.md2");
+	heat->owner = self;
+	heat->touch = rocket_touch;
+	heat->nextthink = level.time + FRAMETIME;
+	heat->think = heat_think;
+	heat->timestamp = level.time + 8000.0f / speed;
+	heat->dmg = damage;
+	heat->radius_dmg = radius_damage;
+	heat->dmg_radius = damage_radius;
+	heat->s.sound = gi.soundindex ("weapons/rockfly.wav");
+	heat->classname = "rocket";
+	gi.linkentity (heat);
+}
+
+void monster_fire_heat (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype)
+{
+	fire_heat (self, start, dir, damage, speed, damage, damage);
+	Xatrix_MuzzleFlash (self, start, flashtype);
+}
