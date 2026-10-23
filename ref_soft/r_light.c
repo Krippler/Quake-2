@@ -576,9 +576,12 @@ well as their lightmaps, which its renderer draws with shadows. Here they
 are white light added to the lightmaps of the walls each can see, falling
 off to nothing at its radius, and to the models it can see; a spotlight
 only within its cone. A light behind a wall does not shine through it, as
-1997's dynamic lights do: which of the world's surfaces each light can see
-is worked out the first time it is in view, by lines through the BSP from
-the light to points of the surface, and kept until the map changes.
+1997's dynamic lights do, nor past a pillar or a ledge onto what is behind
+it: which of each surface's lightmap samples a light can see is worked out
+the first time the light is in view, by a line through the BSP from the
+light to each, and kept until the map changes. So a light's shadows fall
+where its lightmap samples do, 16 units apart, and the surface cache's
+blending between samples softens their edges, as the lightmaps' own are.
 
 The lights do not move, so a lit surface stays in the surface cache as
 long as the lights on it keep their brightness: it is the slkey a surface
@@ -596,7 +599,9 @@ typedef struct
 	float		radius;
 	vec3_t		from;		// where lines are drawn from: out of a wall's solid
 	byte		*vis;		// the world's surfaces it can see, a bit each
-	int			*list;		// the same, by number
+	int			*list;		// the same, by number, lowest first
+	int			*litofs;	// for each of those, where its samples' bits start
+	byte		*lit;		// a bit a lightmap sample, set where it sees the light
 	int			numlist;
 } rshadowlight_t;
 
@@ -604,6 +609,39 @@ static rshadowlight_t	r_slcache[MAX_SHADOWLIGHT_CS+1];	// by id
 static shadowlight_t	*r_sl[MAX_SHADOWLIGHTS];		// this frame's, with their cache
 static rshadowlight_t	*r_slc[MAX_SHADOWLIGHTS];
 static int				r_numsl;
+
+/*
+=============
+R_SampleGrid
+
+Where a surface's lightmap samples are in the world: the first at p0, on
+its plane where the texture axes give its texturemins, and each next one
+ds along s and dt along t, 16 texture units apart.
+=============
+*/
+static qboolean R_SampleGrid (msurface_t *surf, vec3_t p0, vec3_t ds, vec3_t dt)
+{
+	mtexinfo_t	*tex = surf->texinfo;
+	vec3_t		c1, c2, c3;
+	float		det, a0, b0;
+	int			i;
+
+	CrossProduct (tex->vecs[1], surf->plane->normal, c1);
+	CrossProduct (surf->plane->normal, tex->vecs[0], c2);
+	CrossProduct (tex->vecs[0], tex->vecs[1], c3);
+	det = DotProduct (tex->vecs[0], c1);
+	if (fabs (det) < 1e-6)
+		return false;
+	a0 = surf->texturemins[0] - tex->vecs[0][3];
+	b0 = surf->texturemins[1] - tex->vecs[1][3];
+	for (i=0 ; i<3 ; i++)
+	{
+		p0[i] = (a0*c1[i] + b0*c2[i] + surf->plane->dist*c3[i]) / det;
+		ds[i] = 16 * c1[i] / det;
+		dt[i] = 16 * c2[i] / det;
+	}
+	return true;
+}
 
 // whether the line from start to end goes through solid
 static qboolean R_LineBlocked (mnode_t *node, vec3_t start, vec3_t end)
@@ -653,14 +691,19 @@ static void R_ShadowLightCache (rshadowlight_t *c, shadowlight_t *sl)
 	static float	nudge[6][3] = {{0,0,-1},{0,0,1},{1,0,0},{-1,0,0},{0,1,0},{0,-1,0}};
 	msurface_t	*surf;
 	medge_t		*edge;
-	vec3_t		v[64], centre, p, d;
-	float		dist, size, f;
-	int			i, j, k, e, n, step, surfnum;
+	vec3_t		v[64], centre, p, q, d, p0, ds, dt;
+	float		dist, size, side;
+	int			i, j, k, e, n, s, t, smax, tmax, surfnum, numlit, maxlit, any;
+	byte		*grow;
 
 	if (c->vis)
 		free (c->vis);
 	if (c->list)
 		free (c->list);
+	if (c->litofs)
+		free (c->litofs);
+	if (c->lit)
+		free (c->lit);
 	memset (c, 0, sizeof(*c));
 	c->world = r_worldmodel;
 	c->sequence = registration_sequence;
@@ -679,8 +722,16 @@ static void R_ShadowLightCache (rshadowlight_t *c, shadowlight_t *sl)
 
 	c->vis = calloc ((r_worldmodel->numsurfaces + 7) >> 3, 1);
 	c->list = malloc (r_worldmodel->nummodelsurfaces * sizeof(int));
-	if (!c->vis || !c->list)
+	c->litofs = malloc (r_worldmodel->nummodelsurfaces * sizeof(int));
+	maxlit = 4096;
+	c->lit = malloc (maxlit);
+	numlit = 0;
+	if (!c->vis || !c->list || !c->litofs || !c->lit)
+	{
+		free (c->vis);
+		c->vis = NULL;
 		return;
+	}
 
 	for (i=0 ; i<r_worldmodel->nummodelsurfaces ; i++)
 	{
@@ -690,9 +741,8 @@ static void R_ShadowLightCache (rshadowlight_t *c, shadowlight_t *sl)
 			continue;
 
 		// facing it, near enough
-		dist = DotProduct (c->from, surf->plane->normal) - surf->plane->dist;
-		if (surf->flags & SURF_PLANEBACK)
-			dist = -dist;
+		side = (surf->flags & SURF_PLANEBACK) ? -1 : 1;
+		dist = side * (DotProduct (c->from, surf->plane->normal) - surf->plane->dist);
 		if (dist <= 0 || dist >= c->radius)
 			continue;
 
@@ -712,34 +762,59 @@ static void R_ShadowLightCache (rshadowlight_t *c, shadowlight_t *sl)
 		for (j=0 ; j<n ; j++)
 		{
 			VectorSubtract (v[j], centre, d);
-			f = VectorLength (d);
-			if (f > size)
-				size = f;
+			if (VectorLength (d) > size)
+				size = VectorLength (d);
 		}
 		VectorSubtract (centre, c->from, d);
 		if (VectorLength (d) - size >= c->radius)
 			continue;
+		if (!R_SampleGrid (surf, p0, ds, dt))
+			continue;
+		VectorMA (centre, side, surf->plane->normal, centre);
 
-		// seen from it at the middle or toward any of up to 8 corners,
-		// a unit off the face
-		step = n > 8 ? n / 8 : 1;
-		for (j=-1 ; j<n ; j += (j < 0 ? 1 : step))
+		// each sample, a unit off the face, that sees it; one that is in
+		// solid, as those past the edge of a face can be, is moved in
+		// toward the face's middle until it is not, as qrad does
+		smax = (surf->extents[0]>>4)+1;
+		tmax = (surf->extents[1]>>4)+1;
+		if (numlit + ((smax*tmax + 7) >> 3) > maxlit)
 		{
-			if (j < 0)
-				VectorCopy (centre, p);
-			else
-				for (k=0 ; k<3 ; k++)
-					p[k] = v[j][k] + (centre[k] - v[j][k]) * 0.2;
-			f = (surf->flags & SURF_PLANEBACK) ? -1 : 1;
-			VectorMA (p, f, surf->plane->normal, p);
-			if (!R_LineBlocked (r_worldmodel->nodes, c->from, p))
+			maxlit = (numlit + ((smax*tmax + 7) >> 3)) * 2;
+			grow = realloc (c->lit, maxlit);
+			if (!grow)
 				break;
+			c->lit = grow;
 		}
-		if (j >= n)
+		memset (c->lit + numlit, 0, (smax*tmax + 7) >> 3);
+		any = 0;
+		for (t=0 ; t<tmax ; t++)
+			for (s=0 ; s<smax ; s++)
+			{
+				for (k=0 ; k<3 ; k++)
+					p[k] = p0[k] + s*ds[k] + t*dt[k] + side*surf->plane->normal[k];
+				VectorSubtract (p, sl->origin, d);
+				if (VectorLength (d) >= sl->radius)
+					continue;
+				for (k=1 ; k<=4 && R_PointSolid (p) ; k++)
+				{
+					VectorSubtract (centre, p, d);
+					VectorMA (p, 0.25 * k, d, q);
+					if (!R_PointSolid (q))
+						VectorCopy (q, p);
+				}
+				if (R_LineBlocked (r_worldmodel->nodes, c->from, p))
+					continue;
+				j = t*smax + s;
+				c->lit[numlit + (j >> 3)] |= 1 << (j & 7);
+				any = 1;
+			}
+		if (!any)
 			continue;
 
 		c->vis[surfnum >> 3] |= 1 << (surfnum & 7);
+		c->litofs[c->numlist] = numlit;
 		c->list[c->numlist++] = surfnum;
+		numlit += (smax*tmax + 7) >> 3;
 	}
 }
 
@@ -803,40 +878,42 @@ or with rgb blockrgb, in the same 8.8 a lightmap's brightness is.
 static void R_AddShadowLightsTo (qboolean rgb)
 {
 	msurface_t		*surf = r_drawsurf.surf;
-	mtexinfo_t		*tex = surf->texinfo;
 	shadowlight_t	*sl;
-	vec3_t			n, c1, c2, c3, p0, ds, dt, p, d;
-	float			det, a0, b0, planedist, dist, f, cosang, spot;
-	int				i, s, t, smax, tmax, surfnum, add, c, *q;
+	rshadowlight_t	*sc;
+	vec3_t			n, p0, ds, dt, p, d;
+	float			planedist, dist, f, cosang, spot;
+	int				i, s, t, smax, tmax, surfnum, add, c, *q, lo, hi, mid;
+	byte			*lit;
 
 	surfnum = surf - r_worldmodel->surfaces;
 	smax = (surf->extents[0]>>4)+1;
 	tmax = (surf->extents[1]>>4)+1;
-
-	// a lightmap sample's place in the world: on the plane, where the
-	// texture axes give it its s and t
 	VectorCopy (surf->plane->normal, n);
-	CrossProduct (tex->vecs[1], n, c1);
-	CrossProduct (n, tex->vecs[0], c2);
-	CrossProduct (tex->vecs[0], tex->vecs[1], c3);
-	det = DotProduct (tex->vecs[0], c1);
-	if (fabs (det) < 1e-6)
+	if (!R_SampleGrid (surf, p0, ds, dt))
 		return;
-	a0 = surf->texturemins[0] - tex->vecs[0][3];
-	b0 = surf->texturemins[1] - tex->vecs[1][3];
-	for (i=0 ; i<3 ; i++)
-	{
-		p0[i] = (a0*c1[i] + b0*c2[i] + surf->plane->dist*c3[i]) / det;
-		ds[i] = 16 * c1[i] / det;
-		dt[i] = 16 * c2[i] / det;
-	}
 
 	for (i=0 ; i<r_numsl ; i++)
 	{
-		if (!(r_slc[i]->vis[surfnum >> 3] & (1 << (surfnum & 7))))
+		sc = r_slc[i];
+		if (!(sc->vis[surfnum >> 3] & (1 << (surfnum & 7))))
 			continue;
 		sl = r_sl[i];
-		planedist = DotProduct (r_slc[i]->from, n) - surf->plane->dist;
+
+		// which of its samples see the light
+		lo = 0;
+		hi = sc->numlist - 1;
+		while (lo < hi)
+		{
+			mid = (lo + hi) >> 1;
+			if (sc->list[mid] < surfnum)
+				lo = mid + 1;
+			else
+				hi = mid;
+		}
+		if (sc->list[lo] != surfnum)
+			continue;
+		lit = sc->lit + sc->litofs[lo];
+		planedist = DotProduct (sc->from, n) - surf->plane->dist;
 		if (surf->flags & SURF_PLANEBACK)
 			planedist = -planedist;
 		if (planedist <= 0)
@@ -845,6 +922,8 @@ static void R_AddShadowLightsTo (qboolean rgb)
 		for (t=0 ; t<tmax ; t++)
 			for (s=0 ; s<smax ; s++)
 			{
+				if (!(lit[(t*smax + s) >> 3] & (1 << ((t*smax + s) & 7))))
+					continue;
 				for (c=0 ; c<3 ; c++)
 					p[c] = p0[c] + s*ds[c] + t*dt[c];
 				VectorSubtract (p, sl->origin, d);

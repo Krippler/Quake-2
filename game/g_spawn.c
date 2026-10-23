@@ -297,6 +297,9 @@ spawn_t	spawns[] = {
 	{"light_mine1", SP_light_mine1},
 	{"light_mine2", SP_light_mine2},
 	{"info_null", SP_info_null},
+	// the re-release's, for where a player comes into a level relative to
+	// where they left the last; they come in at its info_player_start here
+	{"info_landmark", SP_info_null},
 	{"func_group", SP_info_null},
 	{"info_notnull", SP_info_notnull},
 	{"path_corner", SP_path_corner},

@@ -96,6 +96,7 @@ field_t fields[] = {
 	{"health", FOFS(health), F_INT},
 	{"sounds", FOFS(sounds), F_INT},
 	{"light", 0, F_IGNORE},
+	{"mangle", 0, F_IGNORE},	// a light's, for the light compiler
 	{"dmg", FOFS(dmg), F_INT},
 	{"mass", FOFS(mass), F_INT},
 	{"volume", FOFS(volume), F_FLOAT},
@@ -163,6 +164,27 @@ field_t fields[] = {
 	{"shadowlightstyletarget", STOFS(sl_styletarget), F_LSTRING, FFL_SPAWNTEMP},
 	// what the renderer has no use for: it is a shadow map's size
 	{"shadowlightresolution", 0, F_IGNORE, FFL_SPAWNTEMP},
+	// the re-release's, that this renderer has no use for: it draws no fog;
+	// its sky does not turn, so not whether it turns by itself; the frames
+	// a brush model's texture animates through are its texture's own chain
+	// here, as in 1997; and an achievement is the re-release's platform's
+	{"fog_color", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"fog_density", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"fog_sky_factor", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"heightfog_density", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"heightfog_falloff", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"heightfog_start_color", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"heightfog_end_color", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"heightfog_start_dist", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"heightfog_end_dist", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"skyautorotate", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"bmodel_anim_start", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"bmodel_anim_end", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"bmodel_anim_speed", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"bmodel_anim_alt_start", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"bmodel_anim_alt_end", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"bmodel_anim_alt_speed", 0, F_IGNORE, FFL_SPAWNTEMP},
+	{"achievement", 0, F_IGNORE, FFL_SPAWNTEMP},
 	{"shadowlight", FOFS(shadowlight), F_LSTRING, FFL_NOSPAWN},
 	{"item", STOFS(item), F_LSTRING, FFL_SPAWNTEMP},
 	{"radius", STOFS(radius), F_FLOAT, FFL_SPAWNTEMP},
