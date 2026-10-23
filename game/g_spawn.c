@@ -82,6 +82,8 @@ void SP_misc_flare (edict_t *ent);
 void SP_misc_hologram (edict_t *ent);
 void SP_misc_lavaball (edict_t *ent);
 void SP_monster_tank_stand (edict_t *ent);
+void SP_monster_daedalus (edict_t *ent);
+void SP_monster_turret (edict_t *ent);
 void SP_monster_boss5 (edict_t *ent);
 void SP_monster_gekk (edict_t *ent);
 void SP_monster_gladb (edict_t *ent);
@@ -236,6 +238,8 @@ spawn_t	spawns[] = {
 	{"misc_hologram", SP_misc_hologram},
 	{"misc_lavaball", SP_misc_lavaball},
 	{"monster_tank_stand", SP_monster_tank_stand},
+	{"monster_daedalus", SP_monster_daedalus},
+	{"monster_turret", SP_monster_turret},
 	{"monster_boss5", SP_monster_boss5},
 	{"monster_gekk", SP_monster_gekk},
 	{"monster_gladb", SP_monster_gladb},

@@ -307,6 +307,9 @@ void M_ChangeYaw (edict_t *ent)
 	float	current;
 	float	move;
 	float	speed;
+
+	if (ent->monsterinfo.aiflags & AI_MANUAL_STEERING)
+		return;		// it aims itself
 	
 	current = anglemod(ent->s.angles[YAW]);
 	ideal = ent->ideal_yaw;

@@ -546,7 +546,7 @@ qboolean monster_start (edict_t *self)
 //		gi.dprintf("fixed spawnflags on %s at %s\n", self->classname, vtos(self->s.origin));
 	}
 
-	if (!(self->monsterinfo.aiflags & AI_GOOD_GUY))
+	if (!(self->monsterinfo.aiflags & (AI_GOOD_GUY|AI_DO_NOT_COUNT)))
 		level.total_monsters++;
 
 	self->nextthink = level.time + FRAMETIME;

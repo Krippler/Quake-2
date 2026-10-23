@@ -99,7 +99,7 @@ void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, v
 	if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEAD_DEAD))
 	{
 //		targ->svflags |= SVF_DEADMONSTER;	// now treat as a different content type
-		if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY))
+		if (!(targ->monsterinfo.aiflags & (AI_GOOD_GUY|AI_DO_NOT_COUNT)))
 		{
 			level.killed_monsters++;
 			if (coop->value && attacker->client)
@@ -298,6 +298,10 @@ void M_ReactToDamage (edict_t *targ, edict_t *attacker)
 		return;
 
 	if (attacker == targ || attacker == targ->enemy)
+		return;
+
+	// Ground Zero's turrets and monsters do not fight each other
+	if ((targ->monsterinfo.aiflags & AI_IGNORE_SHOTS) && !attacker->client)
 		return;
 
 	// if we are a good guy monster and our attacker is a player

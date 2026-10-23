@@ -880,6 +880,10 @@ qboolean ai_checkattack (edict_t *self, float dist)
 	{
 		self->monsterinfo.search_time = level.time + 5;
 		VectorCopy (self->enemy->s.origin, self->monsterinfo.last_sighting);
+		// Ground Zero's blind fire: where it was, and when
+		self->monsterinfo.blind_sight_time = level.time;
+		VectorCopy (self->enemy->s.origin, self->monsterinfo.blind_fire_target);
+		self->monsterinfo.blind_fire_delay = 0;
 	}
 
 // look for other coop players here
@@ -908,9 +912,18 @@ qboolean ai_checkattack (edict_t *self, float dist)
 		return true;
 	}
 
-	// if enemy is not currently visible, we will never attack
+	// if enemy is not currently visible, we will never attack -- but a
+	// monster with Ground Zero's blind fire may at where it was
 	if (!enemy_vis)
+	{
+		if (self->monsterinfo.blindfire && self->monsterinfo.checkattack (self)
+			&& self->monsterinfo.attack_state == AS_BLIND)
+		{
+			ai_run_missile (self);
+			return true;
+		}
 		return false;
+	}
 
 	return self->monsterinfo.checkattack (self);
 }

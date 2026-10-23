@@ -140,12 +140,16 @@ typedef enum
 #define AI_MEDIC				0x00002000
 #define AI_RESURRECTING			0x00004000
 #define AI_IGNORE_PAIN			0x00008000	// The Reckoning's: its gekk leaping
+#define AI_MANUAL_STEERING		0x00010000	// Ground Zero's: it turns itself (its turret)
+#define AI_IGNORE_SHOTS			0x00200000	// not angered by a monster's shot
+#define AI_DO_NOT_COUNT			0x00400000	// not in the level's count of monsters
 
 //monster attack state
 #define AS_STRAIGHT				1
 #define AS_SLIDING				2
 #define	AS_MELEE				3
 #define	AS_MISSILE				4
+#define	AS_BLIND				5		// Ground Zero's: at where it was
 
 // armor types
 #define ARMOR_NONE				0
@@ -464,6 +468,12 @@ typedef struct
 
 	int			power_armor_type;
 	int			power_armor_power;
+
+	// Ground Zero's blind fire, at where the enemy was last seen: its turret's
+	qboolean	blindfire;
+	float		blind_fire_delay;
+	vec3_t		blind_fire_target;
+	float		blind_sight_time;		// when it was
 } monsterinfo_t;
 
 
@@ -520,6 +530,7 @@ extern	int	body_armor_index;
 #define MOD_RIPPER			34		// The Reckoning's
 #define MOD_PHALANX			35
 #define MOD_GEKK			36
+#define MOD_BLASTER2		37		// Ground Zero's
 #define MOD_FRIENDLY_FIRE	0x8000000
 
 extern	int	meansOfDeath;
@@ -661,6 +672,9 @@ void G_SetGoal (void);
 void monster_fire_blueblaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
 void monster_fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
 void monster_dabeam (edict_t *self);
+
+// g_rogue.c
+void monster_fire_blaster2 (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
 void monster_fire_heat (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype);
 void fire_plasma (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void G_HealthTarget (edict_t *self);
