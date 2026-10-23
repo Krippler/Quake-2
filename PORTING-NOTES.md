@@ -257,6 +257,21 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     in the first frame. Worldspawn's `goals` are the help computer's
     message, one tab-separated `$key` after another, each `target_goal`
     going on to the next (`G_SetGoal`, `G_SetClientSound`).
+  - `game/g_cotm.c` (new): Call of the Machine's targets and triggers,
+    from the re-release's source and Ground Zero's:
+    `target_crossunit_trigger`/`_target` (the hub's unit locks, in
+    `game.cross_unit_flags`), `trigger_health_relay` with a monster's
+    `healthtarget` (used from `T_Damage` each time it is hurt) and
+    `health_multiplier` (`monster_start`), `target_anger`, `target_music`,
+    `target_sky` (the client takes up a sky changed mid-level,
+    `cl_parse.c`), `target_story` (centre-printed), `target_steam`,
+    `func_eye`, The Reckoning's `misc_nuke`, and `monster_makron` in the
+    spawn table; `target_healthbar`, `target_autosave`, `trigger_fog` and
+    `trigger_flashlight` are dropped, `func_animation` is a still brush.
+    A class with no spawn function that `G_StandIn` has a stand-in for is
+    spawned as that, from `ED_CallSpawn`. The faithful monsters need more
+    than their code: the re-release folds The Reckoning's soldiers into a
+    soldier model of 575 frames, past the 512 `usable.c` lets through.
   - `client/cl_loc.c`: the re-release's key hints, `%bind:cmd:text%`
     before a message's words, are left out.
   - `server/sv_ccmds.c`: a level's files in `save/current` are named by

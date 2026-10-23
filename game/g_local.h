@@ -286,6 +286,7 @@ typedef struct
 
 	// cross level triggers
 	int			serverflags;
+	int			cross_unit_flags;	// Call of the Machine's units done (g_cotm.c)
 
 	// items
 	int			num_items;
@@ -379,6 +380,7 @@ typedef struct
 	char		*sl_styletarget;
 	float		radius;			// the re-release's target_light
 	char		*goals;			// and worldspawn's Quake 64 objectives
+	float		health_multiplier;	// a monster's health, scaled
 } spawn_temp_t;
 
 
@@ -649,6 +651,8 @@ edict_t *G_Find (edict_t *from, int fieldofs, char *match);
 edict_t *findradius (edict_t *from, vec3_t org, float rad);
 edict_t *G_PickTarget (char *targetname);
 void G_SetGoal (void);
+void G_HealthTarget (edict_t *self);
+char *G_StandIn (char *classname);
 
 #define	G_NUMLIGHTSTYLES	15
 extern char	*g_lightstyles[G_NUMLIGHTSTYLES];	// g_spawn.c
@@ -1043,6 +1047,7 @@ struct edict_s
 	char		*team;
 	char		*pathtarget;
 	char		*deathtarget;
+	char		*healthtarget;	// used as it is hurt (g_cotm.c)
 	char		*combattarget;
 	edict_t		*target_ent;
 

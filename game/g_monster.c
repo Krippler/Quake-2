@@ -555,6 +555,9 @@ qboolean monster_start (edict_t *self)
 	self->takedamage = DAMAGE_AIM;
 	self->air_finished = level.time + 12;
 	self->use = monster_use;
+	// the re-release's maps scale a boss's health by skill
+	if (st.health_multiplier > 0)
+		self->health = self->health * st.health_multiplier;
 	self->max_health = self->health;
 	self->clipmask = MASK_MONSTERSOLID;
 

@@ -536,6 +536,18 @@ void CL_ParseConfigString (void)
 		if (cl.refresh_prepped)
 			CDAudio_Play (atoi(cl.configstrings[CS_CDTRACK]), true);
 	}
+	else if (i == CS_SKY || i == CS_SKYROTATE || i == CS_SKYAXIS)
+	{
+		// changed as the level goes, by the re-release's target_sky
+		if (cl.refresh_prepped)
+		{
+			vec3_t	axis;
+
+			axis[0] = axis[1] = axis[2] = 0;
+			sscanf (cl.configstrings[CS_SKYAXIS], "%f %f %f", &axis[0], &axis[1], &axis[2]);
+			re.SetSky (cl.configstrings[CS_SKY], atof (cl.configstrings[CS_SKYROTATE]), axis);
+		}
+	}
 	else if ((i >= CS_MODELS && i < CS_MODELS+MAX_MODELS) || i >= CS_MODELS_EXT)
 	{
 		int		m = i < CS_MODELS_EXT ? i - CS_MODELS : i - CS_MODELS_EXT + MAX_MODELS;

@@ -24,6 +24,21 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
 
 Its lens flares are not drawn: the lamps they sit on are.
 
+- **Call of the Machine plays through.** The hub's units unlock as each
+  is finished, and its boss's door once all six are; the bosses call their
+  reinforcements as their health falls, and take their health from the
+  skill as the re-release has it; its music changes, its steam, its sky
+  changes and the hub's watching eyes are there, and the standalone
+  Makron fights.
+- Its monsters, weapons and items from the mission packs and the
+  re-release that this game has not got **stand in as the nearest it
+  has** -- The Reckoning's ripper, hyperblaster and laser soldiers as
+  soldiers, its phalanx gladiator as a gladiator, Ground Zero's stalker as
+  a parasite, its carrier as the Hornet, the re-release's shambler as a
+  berserker, and so on (`game/g_cotm.c` has the list) -- so that every
+  level is peopled and can be finished, though not yet as it was made.
+  The log names each stand-in. Mgu5m3's wall turrets are left out.
+
 ## [1.3.17] — 2026-10-23
 
 ### Fixed

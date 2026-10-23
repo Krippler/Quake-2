@@ -82,6 +82,19 @@ void SP_misc_flare (edict_t *ent);
 void SP_misc_hologram (edict_t *ent);
 void SP_misc_lavaball (edict_t *ent);
 void SP_monster_tank_stand (edict_t *ent);
+void SP_target_crossunit_trigger (edict_t *ent);
+void SP_target_crossunit_target (edict_t *ent);
+void SP_trigger_health_relay (edict_t *ent);
+void SP_target_anger (edict_t *ent);
+void SP_target_music (edict_t *ent);
+void SP_target_sky (edict_t *ent);
+void SP_target_story (edict_t *ent);
+void SP_target_steam (edict_t *ent);
+void SP_func_eye (edict_t *ent);
+void SP_func_animation (edict_t *ent);
+void SP_misc_nuke (edict_t *ent);
+void SP_monster_makron (edict_t *ent);
+void SP_cotm_none (edict_t *ent);
 void SP_target_secret (edict_t *ent);
 void SP_target_goal (edict_t *ent);
 void SP_target_splash (edict_t *ent);
@@ -217,6 +230,22 @@ spawn_t	spawns[] = {
 	{"misc_hologram", SP_misc_hologram},
 	{"misc_lavaball", SP_misc_lavaball},
 	{"monster_tank_stand", SP_monster_tank_stand},
+	{"target_crossunit_trigger", SP_target_crossunit_trigger},
+	{"target_crossunit_target", SP_target_crossunit_target},
+	{"trigger_health_relay", SP_trigger_health_relay},
+	{"target_anger", SP_target_anger},
+	{"target_music", SP_target_music},
+	{"target_sky", SP_target_sky},
+	{"target_story", SP_target_story},
+	{"target_steam", SP_target_steam},
+	{"func_eye", SP_func_eye},
+	{"func_animation", SP_func_animation},
+	{"misc_nuke", SP_misc_nuke},
+	{"monster_makron", SP_monster_makron},
+	{"target_healthbar", SP_cotm_none},
+	{"target_autosave", SP_cotm_none},
+	{"trigger_fog", SP_cotm_none},
+	{"trigger_flashlight", SP_cotm_none},
 	{"target_secret", SP_target_secret},
 	{"target_goal", SP_target_goal},
 	{"target_splash", SP_target_splash},
@@ -339,6 +368,16 @@ void ED_CallSpawn (edict_t *ent)
 			s->spawn (ent);
 			return;
 		}
+	}
+	// a mission pack's or the re-release's that this game has not got:
+	// the nearest it has, if there is one (g_cotm.c)
+	if (G_StandIn (ent->classname))
+	{
+		gi.dprintf ("%s at %s stands in as %s\n", ent->classname, vtos(ent->s.origin),
+			G_StandIn (ent->classname));
+		ent->classname = G_StandIn (ent->classname);
+		ED_CallSpawn (ent);
+		return;
 	}
 	gi.dprintf ("%s doesn't have a spawn function\n", ent->classname);
 }
