@@ -513,3 +513,165 @@ float realrange (edict_t *self, edict_t *other)
 	VectorSubtract (self->s.origin, other->s.origin, dir);
 	return VectorLength (dir);
 }
+
+/*
+ * Ground Zero's blocked monsters (its stalker): ride a plat, or jump, toward
+ * an enemy above or below.
+ */
+#define	PLAT_STATE_TOP		0		// g_func.c's
+#define	PLAT_STATE_BOTTOM	1
+
+qboolean has_valid_enemy (edict_t *self)
+{
+	return self->enemy && self->enemy->inuse && self->enemy->health >= 1;
+}
+
+void monster_jump_start (edict_t *self)
+{
+	self->timestamp = level.time;
+}
+
+qboolean monster_jump_finished (edict_t *self)
+{
+	return level.time - self->timestamp > 3;
+}
+
+// turn to face the wall before it
+static qboolean face_wall (edict_t *self)
+{
+	vec3_t	pt, forward, ang;
+	trace_t	tr;
+
+	AngleVectors (self->s.angles, forward, NULL, NULL);
+	VectorMA (self->s.origin, 64, forward, pt);
+	tr = gi.trace (self->s.origin, vec3_origin, vec3_origin, pt, self, MASK_MONSTERSOLID);
+	if (tr.fraction < 1 && !tr.allsolid && !tr.startsolid)
+	{
+		vectoangles2 (tr.plane.normal, ang);
+		self->ideal_yaw = ang[YAW] + 180;
+		if (self->ideal_yaw > 360)
+			self->ideal_yaw -= 360;
+		M_ChangeYaw (self);
+		return true;
+	}
+	return false;
+}
+
+qboolean blocked_checkplat (edict_t *self, float dist)
+{
+	int		playerPosition;
+	trace_t	trace;
+	vec3_t	pt1, pt2, forward;
+	edict_t	*plat;
+
+	if (!self->enemy)
+		return false;
+
+	// the player's altitude, relative
+	if (self->enemy->absmin[2] >= self->absmax[2])
+		playerPosition = 1;
+	else if (self->enemy->absmax[2] <= self->absmin[2])
+		playerPosition = -1;
+	else
+		return false;		// near enough the same
+
+	// a plat it's on, or will step on to
+	plat = NULL;
+	if (self->groundentity && self->groundentity != world
+		&& !strncmp(self->groundentity->classname, "func_plat", 8))
+		plat = self->groundentity;
+	if (!plat)
+	{
+		AngleVectors (self->s.angles, forward, NULL, NULL);
+		VectorMA (self->s.origin, dist, forward, pt1);
+		VectorCopy (pt1, pt2);
+		pt2[2] -= 384;
+		trace = gi.trace (pt1, vec3_origin, vec3_origin, pt2, self, MASK_MONSTERSOLID);
+		if (trace.fraction < 1 && !trace.allsolid && !trace.startsolid
+			&& !strncmp(trace.ent->classname, "func_plat", 8))
+			plat = trace.ent;
+	}
+
+	if (plat && plat->use)
+	{
+		if (playerPosition == 1)
+		{
+			if ((self->groundentity == plat && plat->moveinfo.state == PLAT_STATE_BOTTOM)
+				|| (self->groundentity != plat && plat->moveinfo.state == PLAT_STATE_TOP))
+			{
+				plat->use (plat, self, self);
+				return true;
+			}
+		}
+		else
+		{
+			if ((self->groundentity == plat && plat->moveinfo.state == PLAT_STATE_TOP)
+				|| (self->groundentity != plat && plat->moveinfo.state == PLAT_STATE_BOTTOM))
+			{
+				plat->use (plat, self, self);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+qboolean blocked_checkjump (edict_t *self, float dist, float maxDown, float maxUp)
+{
+	int		playerPosition;
+	trace_t	trace;
+	vec3_t	pt1, pt2, forward, up;
+
+	if (!self->enemy)
+		return false;
+
+	AngleVectors (self->s.angles, forward, NULL, up);
+
+	if (self->enemy->absmin[2] > self->absmin[2] + 16)
+		playerPosition = 1;
+	else if (self->enemy->absmin[2] < self->absmin[2] - 16)
+		playerPosition = -1;
+	else
+		playerPosition = 0;
+
+	if (playerPosition == -1 && maxDown)
+	{
+		// can it get to the spot it would drop from?
+		VectorMA (self->s.origin, 48, forward, pt1);
+		trace = gi.trace (self->s.origin, self->mins, self->maxs, pt1, self, MASK_MONSTERSOLID);
+		if (trace.fraction < 1)
+			return false;
+
+		VectorCopy (pt1, pt2);
+		pt2[2] = self->absmin[2] - maxDown - 1;
+		trace = gi.trace (pt1, vec3_origin, vec3_origin, pt2, self, MASK_MONSTERSOLID|MASK_WATER);
+		if (trace.fraction < 1 && !trace.allsolid && !trace.startsolid
+			&& self->absmin[2] - trace.endpos[2] >= 24 && (trace.contents & MASK_SOLID))
+		{
+			if (self->enemy->absmin[2] - trace.endpos[2] > 32)
+				return false;
+			if (trace.plane.normal[2] < 0.9)
+				return false;
+			return true;
+		}
+	}
+	else if (playerPosition == 1 && maxUp)
+	{
+		VectorMA (self->s.origin, 48, forward, pt1);
+		VectorCopy (pt1, pt2);
+		pt1[2] = self->absmax[2] + maxUp;
+		trace = gi.trace (pt1, vec3_origin, vec3_origin, pt2, self, MASK_MONSTERSOLID|MASK_WATER);
+		if (trace.fraction < 1 && !trace.allsolid && !trace.startsolid
+			&& trace.endpos[2] - self->absmin[2] <= maxUp && (trace.contents & MASK_SOLID))
+		{
+			face_wall (self);
+			return true;
+		}
+	}
+	return false;
+}
+
+void monster_done_dodge (edict_t *self)
+{
+	self->monsterinfo.aiflags &= ~AI_DODGING;
+}

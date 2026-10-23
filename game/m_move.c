@@ -47,7 +47,7 @@ qboolean M_CheckBottom (edict_t *ent)
 // if all of the points under the corners are solid world, don't bother
 // with the tougher checks
 // the corners must be within 16 of the midpoint
-	start[2] = mins[2] - 1;
+	start[2] = GRAVITY_UP(ent) ? maxs[2] + 1 : mins[2] - 1;
 	for	(x=0 ; x<=1 ; x++)
 		for	(y=0 ; y<=1 ; y++)
 		{
@@ -71,6 +71,11 @@ realcheck:
 	start[0] = stop[0] = (mins[0] + maxs[0])*0.5;
 	start[1] = stop[1] = (mins[1] + maxs[1])*0.5;
 	stop[2] = start[2] - 2*STEPSIZE;
+	if (GRAVITY_UP(ent))		// Ground Zero's stalker: the ceiling
+	{
+		start[2] = maxs[2];
+		stop[2] = start[2] + 2*STEPSIZE;
+	}
 	trace = gi.trace (start, vec3_origin, vec3_origin, stop, ent, MASK_MONSTERSOLID);
 
 	if (trace.fraction == 1.0)
@@ -86,6 +91,14 @@ realcheck:
 			
 			trace = gi.trace (start, vec3_origin, vec3_origin, stop, ent, MASK_MONSTERSOLID);
 			
+			if (GRAVITY_UP(ent))
+			{
+				if (trace.fraction != 1.0 && trace.endpos[2] < bottom)
+					bottom = trace.endpos[2];
+				if (trace.fraction == 1.0 || trace.endpos[2] - mid > STEPSIZE)
+					return false;
+				continue;
+			}
 			if (trace.fraction != 1.0 && trace.endpos[2] > bottom)
 				bottom = trace.endpos[2];
 			if (trace.fraction == 1.0 || mid - trace.endpos[2] > STEPSIZE)
@@ -209,9 +222,13 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 	else
 		stepsize = 1;
 
-	neworg[2] += stepsize;
+	// from a step above to a step below, "above" being down on a ceiling
+	if (GRAVITY_UP(ent))
+		neworg[2] -= stepsize;
+	else
+		neworg[2] += stepsize;
 	VectorCopy (neworg, end);
-	end[2] -= stepsize*2;
+	end[2] += GRAVITY_UP(ent) ? stepsize*2 : -stepsize*2;
 
 	trace = gi.trace (neworg, ent->mins, ent->maxs, end, ent, MASK_MONSTERSOLID);
 
@@ -232,7 +249,10 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 	{
 		test[0] = trace.endpos[0];
 		test[1] = trace.endpos[1];
-		test[2] = trace.endpos[2] + ent->mins[2] + 1;	
+		if (GRAVITY_UP(ent))
+			test[2] = trace.endpos[2] + ent->maxs[2] - 1;
+		else
+			test[2] = trace.endpos[2] + ent->mins[2] + 1;	
 		contents = gi.pointcontents(test);
 
 		if (contents & MASK_WATER)
@@ -455,6 +475,11 @@ void SV_NewChaseDir (edict_t *actor, edict_t *enemy, float dist)
 	if (d[2]!=DI_NODIR && d[2]!=turnaround
 	&& SV_StepDirection(actor, d[2], dist))
 			return;
+
+	// Ground Zero's: a monster that can do something else when blocked
+	if (actor->monsterinfo.blocked && actor->inuse && actor->health > 0
+		&& actor->monsterinfo.blocked (actor, dist))
+		return;
 
 /* there is no direct path to the player, so pick another direction */
 

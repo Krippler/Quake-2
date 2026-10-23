@@ -133,6 +133,7 @@ field_t fields[] = {
 	{"walk", FOFS(monsterinfo.walk), F_FUNCTION, FFL_NOSPAWN},
 	{"run", FOFS(monsterinfo.run), F_FUNCTION, FFL_NOSPAWN},
 	{"dodge", FOFS(monsterinfo.dodge), F_FUNCTION, FFL_NOSPAWN},
+	{"monsterblocked", FOFS(monsterinfo.blocked), F_FUNCTION, FFL_NOSPAWN},
 	{"attack", FOFS(monsterinfo.attack), F_FUNCTION, FFL_NOSPAWN},
 	{"melee", FOFS(monsterinfo.melee), F_FUNCTION, FFL_NOSPAWN},
 	{"sight", FOFS(monsterinfo.sight), F_FUNCTION, FFL_NOSPAWN},

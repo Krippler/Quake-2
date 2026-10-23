@@ -321,7 +321,10 @@ SV_AddGravity
 */
 void SV_AddGravity (edict_t *ent)
 {
-	ent->velocity[2] -= ent->gravity * sv_gravity->value * FRAMETIME;
+	if (GRAVITY_UP(ent))	// Ground Zero's stalker, on a ceiling
+		VectorMA (ent->velocity, ent->gravity * sv_gravity->value * FRAMETIME, ent->gravityVector, ent->velocity);
+	else
+		ent->velocity[2] -= ent->gravity * sv_gravity->value * FRAMETIME;
 }
 
 /*

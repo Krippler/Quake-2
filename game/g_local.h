@@ -141,11 +141,16 @@ typedef enum
 #define AI_RESURRECTING			0x00004000
 #define AI_IGNORE_PAIN			0x00008000	// The Reckoning's: its gekk leaping
 #define AI_MANUAL_STEERING		0x00010000	// Ground Zero's: it sets its own yaw (turret, medic commander)
+#define AI_DODGING				0x00040000	// Ground Zero's: in a dodge
 #define AI_IGNORE_SHOTS			0x00200000	// not angered by a monster's shot
 #define AI_DO_NOT_COUNT			0x00400000	// not in the level's count of monsters
 #define AI_SPAWNED_CARRIER		0x00800000	// summoned by a carrier
 #define AI_SPAWNED_MEDIC_C		0x01000000	// summoned by a medic commander
+#define AI_SPAWNED_WIDOW		0x02000000	// summoned by a widow (none here)
 #define AI_BLOCKED				0x04000000	// the medic commander's signal to summon
+#define AI_WALK_WALLS			0x08000000	// Ground Zero's stalker: it walks on ceilings
+// on a ceiling: Ground Zero's gravityVector, unset (zero) meaning down
+#define GRAVITY_UP(ent)			((ent)->gravityVector[2] > 0)
 
 //monster attack state
 #define AS_STRAIGHT				1
@@ -452,6 +457,7 @@ typedef struct
 	void		(*walk)(edict_t *self);
 	void		(*run)(edict_t *self);
 	void		(*dodge)(edict_t *self, edict_t *other, float eta);
+	qboolean	(*blocked)(edict_t *self, float dist);	// Ground Zero's: when it can't go on
 	void		(*attack)(edict_t *self);
 	void		(*melee)(edict_t *self);
 	void		(*sight)(edict_t *self, edict_t *other);
@@ -1104,6 +1110,7 @@ struct edict_s
 	int			mass;
 	float		air_finished;
 	float		gravity;		// per entity gravity multiplier (1.0 is normal)
+	vec3_t		gravityVector;	// Ground Zero's: +z on a ceiling (its stalker); else down
 								// use for lowgrav artifact, flares
 
 	edict_t		*goalentity;
