@@ -1051,11 +1051,19 @@ static void MedicCommanderCache (void)
 /*QUAKED monster_medic_commander (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
 Ground Zero's: it heals, and summons reinforcements
 */
+void SP_monster_medic_rr (edict_t *self);
+
 void SP_monster_medic (edict_t *self)
 {
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_medic_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_medic_rr (self);
 		return;
 	}
 

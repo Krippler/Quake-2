@@ -76,6 +76,14 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   shrug off small hurts and don't flinch mid-attack, lose an arm as they
   fall, show a hurt skin, and gib into pieces of their own. Quake 64's
   heat-seeking commanders fire heat seekers.
+- **On the re-release's maps, its medics and medic commanders.** They
+  heal the strongest corpse in sight, stay with it unless badly hurt,
+  give up on one their cable can't reach and don't go back to it, and
+  gib one that would rise inside something; the risen keep the health
+  they had and lose their flies. Medics fire a hyperblaster burst after
+  their blaster, duck and sidestep, show a hurt skin, and gib into
+  pieces of their own. Monsters there turn on whoever hurt them only
+  every few seconds, as in the re-release.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.

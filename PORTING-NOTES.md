@@ -527,7 +527,15 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   commander (`m_tank_rr.c`, on 1997's frames), whose Quake 64 guardian
   has its health but is not drawn half as large again, there being no
   `s.scale` here, and whose heat seekers are The Reckoning's, without
-  the re-release's turn rate (`accel`).
+  the re-release's turn rate (`accel`); the medic and medic commander
+  (`m_medic_rr.c`, on 1997's frames, summoning with `m_medic.c`'s
+  reinforcements, which are the re-release's), with its patients' own
+  `healer`, `badMedic1` and `badMedic2` (saved) and `medicTries`,
+  `cleanupHealTarget`, and on these maps `Killed` and `M_ReactToDamage`
+  freeing a medic's patient (`M_AbandonHeal`) and the latter's
+  `react_to_damage_time`. Its check for room to raise a corpse traces
+  down a unit onto it, as this engine's trace that does not move has a
+  box resting on the floor in it, as the re-release's does not.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all
   numbered here as there (`game/q_shared.h`, `game/m_flash.c`). Those
   past a byte go in `svc_muzzleflash3` (21), as the re-release sends them,

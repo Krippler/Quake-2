@@ -543,6 +543,14 @@ typedef struct
 	// again till jump_time
 	float		drop_height, jump_height;
 	float		jump_time;
+
+	// the re-release's medics: who heals this corpse, which gave up on it,
+	// how often its cable was blocked; and when it may turn on what hurt
+	// it again
+	edict_t		*healer;
+	edict_t		*badMedic1, *badMedic2;
+	int			medicTries;
+	float		react_to_damage_time;
 } monsterinfo_t;
 
 
@@ -771,6 +779,8 @@ typedef struct
 	int		type;		// GIB_ORGANIC or GIB_METALLIC, GIB_SKINNED, GIB_HEAD
 } gib_def_t;
 void ThrowGibs (edict_t *self, int damage, gib_def_t *gibs);
+void cleanupHealTarget (edict_t *ent);
+void M_AbandonHeal (edict_t *self);
 qboolean M_CheckGib (edict_t *self);
 qboolean M_ShouldReactToPain (edict_t *self);
 void monster_footstep (edict_t *self);

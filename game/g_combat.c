@@ -96,6 +96,10 @@ void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, v
 	if (targ->health < -999)
 		targ->health = -999;
 
+	// the re-release's medic lets its patient go
+	if (RR_Map ())
+		M_AbandonHeal (targ);
+
 	targ->enemy = attacker;
 
 	if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEAD_DEAD))
@@ -350,6 +354,21 @@ void M_ReactToDamage (edict_t *targ, edict_t *attacker, edict_t *inflictor)
 	{
 		if (attacker->client || (attacker->monsterinfo.aiflags & AI_GOOD_GUY))
 			return;
+	}
+
+	// the re-release's: not again till a while after it last did, and a
+	// medic stays with its patient while it is not badly hurt
+	if (RR_Map ())
+	{
+		if (targ->monsterinfo.react_to_damage_time > level.time)
+			return;
+		if (targ->enemy && (targ->monsterinfo.aiflags & AI_MEDIC))
+		{
+			if (targ->enemy->inuse && (float)targ->health / (float)targ->max_health > 0.25f)
+				return;
+			M_AbandonHeal (targ);
+		}
+		targ->monsterinfo.react_to_damage_time = level.time + 3 + 2 * random();
 	}
 
 	// we now know that we are not both good guys

@@ -147,6 +147,9 @@ field_t fields[] = {
 	{"checkattack", FOFS(monsterinfo.checkattack), F_FUNCTION, FFL_NOSPAWN},
 	{"currentmove", FOFS(monsterinfo.currentmove), F_MMOVE, FFL_NOSPAWN},
 	{"commander", FOFS(monsterinfo.commander), F_EDICT, FFL_NOSPAWN},
+	{"healer", FOFS(monsterinfo.healer), F_EDICT, FFL_NOSPAWN},
+	{"badMedic1", FOFS(monsterinfo.badMedic1), F_EDICT, FFL_NOSPAWN},
+	{"badMedic2", FOFS(monsterinfo.badMedic2), F_EDICT, FFL_NOSPAWN},
 	{"beam", FOFS(beam), F_EDICT, FFL_NOSPAWN},
 	{"bad_area", FOFS(bad_area), F_EDICT, FFL_NOSPAWN},
 

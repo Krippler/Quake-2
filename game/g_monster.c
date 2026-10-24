@@ -111,6 +111,12 @@ void M_FlyCheck (edict_t *self)
 	self->nextthink = level.time + 5 + 10 * random();
 }
 
+// the re-release's: a corpse at rest, or with only its flies about it
+qboolean M_CorpseAtRest (edict_t *ent)
+{
+	return !ent->nextthink || ent->think == M_FliesOn || ent->think == M_FliesOff;
+}
+
 // the re-release's, for a stinky corpse: flies every time
 void M_FliesLater (edict_t *self)
 {

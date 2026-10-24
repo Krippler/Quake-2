@@ -708,6 +708,27 @@ void ThrowGibs (edict_t *self, int damage, gib_def_t *gibs)
 		}
 }
 
+void M_SetEffects (edict_t *ent);
+
+// the re-release's: a corpse no longer being healed
+void cleanupHealTarget (edict_t *ent)
+{
+	ent->monsterinfo.healer = NULL;
+	ent->takedamage = DAMAGE_YES;
+	ent->monsterinfo.aiflags &= ~AI_RESURRECTING;
+	M_SetEffects (ent);
+}
+
+// and a medic giving up its patient, as it dies or turns on another
+void M_AbandonHeal (edict_t *self)
+{
+	if (!(self->svflags & SVF_MONSTER) || !(self->monsterinfo.aiflags & AI_MEDIC))
+		return;
+	if (self->enemy && self->enemy->inuse && (self->enemy->svflags & SVF_MONSTER))
+		cleanupHealTarget (self->enemy);
+	self->monsterinfo.aiflags &= ~AI_MEDIC;
+}
+
 // the re-release's: dead enough to be gibbed, or crushed once dead
 qboolean M_CheckGib (edict_t *self)
 {
