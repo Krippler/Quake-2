@@ -151,6 +151,7 @@ field_t fields[] = {
 	{"badMedic1", FOFS(monsterinfo.badMedic1), F_EDICT, FFL_NOSPAWN},
 	{"badMedic2", FOFS(monsterinfo.badMedic2), F_EDICT, FFL_NOSPAWN},
 	{"beam", FOFS(beam), F_EDICT, FFL_NOSPAWN},
+	{"beam2", FOFS(beam2), F_EDICT, FFL_NOSPAWN},
 	{"bad_area", FOFS(bad_area), F_EDICT, FFL_NOSPAWN},
 
 	{"endfunc", FOFS(moveinfo.endfunc), F_FUNCTION, FFL_NOSPAWN},

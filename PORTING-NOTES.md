@@ -535,7 +535,10 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   freeing a medic's patient (`M_AbandonHeal`) and the latter's
   `react_to_damage_time`. Its check for room to raise a corpse traces
   down a unit onto it, as this engine's trace that does not move has a
-  box resting on the floor in it, as the re-release's does not.
+  box resting on the floor in it, as the re-release's does not;
+  the brain (`m_brain_rr.c`, on 1997's frames), whose eye lasers are the
+  re-release's lasting ones (`monster_fire_dabeam_rr`, its `beam` and
+  `beam2`, placed by `postthink`), not The Reckoning's of a frame.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all
   numbered here as there (`game/q_shared.h`, `game/m_flash.c`). Those
   past a byte go in `svc_muzzleflash3` (21), as the re-release sends them,

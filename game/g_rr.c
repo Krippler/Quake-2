@@ -708,6 +708,104 @@ void ThrowGibs (edict_t *self, int damage, gib_def_t *gibs)
 		}
 }
 
+/*
+=================
+The re-release's lasting monster laser (The Reckoning's, made to stay):
+a beam its monster keeps (beam, or beam2 for a second), placed each
+frame by its update after its physics, through what it may hurt to what
+stops it, gone a fifth of a second after it was last fired.
+=================
+*/
+void dabeam_update_rr (edict_t *self, qboolean damage)
+{
+	edict_t	*ignore = self;
+	vec3_t	start, end;
+	trace_t	tr;
+
+	VectorCopy (self->s.origin, start);
+	VectorMA (start, 2048, self->movedir, end);
+
+	while (1)
+	{
+		tr = gi.trace (start, NULL, NULL, end, ignore, CONTENTS_SOLID|CONTENTS_MONSTER|CONTENTS_DEADMONSTER);
+		if (!tr.ent || tr.fraction == 1.0)
+			break;
+
+		if (damage)
+		{
+			// hurt it if we can
+			if (self->dmg > 0 && tr.ent->takedamage && !(tr.ent->flags & FL_IMMUNE_LASER) && tr.ent != self->owner)
+				T_Damage (tr.ent, self, self->owner, self->movedir, tr.endpos, vec3_origin, self->dmg, skill->value, DAMAGE_ENERGY, MOD_TARGET_LASER);
+		}
+
+		// if we hit something that's not a monster or player, we're done
+		if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client)
+		{
+			if (damage)
+			{
+				gi.WriteByte (svc_temp_entity);
+				gi.WriteByte (TE_LASER_SPARKS);
+				gi.WriteByte (10);
+				gi.WritePosition (tr.endpos);
+				gi.WriteDir (tr.plane.normal);
+				gi.WriteByte (self->s.skinnum);
+				gi.multicast (tr.endpos, MULTICAST_PVS);
+			}
+			break;
+		}
+
+		ignore = tr.ent;
+		VectorCopy (tr.endpos, start);
+	}
+
+	VectorMA (tr.endpos, 1.f, tr.plane.normal, self->s.old_origin);
+	gi.linkentity (self);
+}
+
+#define SPAWNFLAG_DABEAM_SECONDARY	1
+
+static void beam_think_rr (edict_t *self)
+{
+	if (self->spawnflags & SPAWNFLAG_DABEAM_SECONDARY)
+		self->owner->beam2 = NULL;
+	else
+		self->owner->beam = NULL;
+	G_FreeEdict (self);
+}
+
+void monster_fire_dabeam_rr (edict_t *self, int damage, qboolean secondary, void (*update_func)(edict_t *self))
+{
+	edict_t	**beam_ptr = secondary ? &self->beam2 : &self->beam;
+
+	if (!*beam_ptr)
+	{
+		*beam_ptr = G_Spawn ();
+
+		(*beam_ptr)->movetype = MOVETYPE_NONE;
+		(*beam_ptr)->solid = SOLID_NOT;
+		(*beam_ptr)->s.renderfx |= RF_BEAM;
+		(*beam_ptr)->s.modelindex = 1;
+		(*beam_ptr)->owner = self;
+		(*beam_ptr)->dmg = damage;
+		(*beam_ptr)->s.frame = 2;
+		(*beam_ptr)->spawnflags = secondary ? SPAWNFLAG_DABEAM_SECONDARY : 0;
+
+		if (self->monsterinfo.aiflags & AI_MEDIC)
+			(*beam_ptr)->s.skinnum = 0xf3f3f1f1;
+		else
+			(*beam_ptr)->s.skinnum = 0xf2f2f0f0;
+
+		(*beam_ptr)->think = beam_think_rr;
+		(*beam_ptr)->s.sound = gi.soundindex ("misc/lasfly.wav");
+		(*beam_ptr)->postthink = update_func;
+		(*beam_ptr)->classname = "laser";
+	}
+
+	(*beam_ptr)->nextthink = level.time + 0.2;
+	update_func (*beam_ptr);
+	dabeam_update_rr (*beam_ptr, true);
+}
+
 void M_SetEffects (edict_t *ent);
 
 // the re-release's: a corpse no longer being healed

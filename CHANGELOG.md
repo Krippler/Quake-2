@@ -84,6 +84,11 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   their blaster, duck and sidestep, show a hurt skin, and gib into
   pieces of their own. Monsters there turn on whoever hurt them only
   every few seconds, as in the re-release.
+- **On the re-release's maps, its brains.** Their power screen drops
+  only while the chest is open; they claw and lash their tentacles up
+  close, suck you in with the tongue from a little further, and from
+  afar sweep you with a laser from each eye, held on you and leading
+  you; they duck, show a hurt skin, and gib into pieces of their own.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.

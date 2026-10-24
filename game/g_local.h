@@ -780,6 +780,8 @@ typedef struct
 } gib_def_t;
 void ThrowGibs (edict_t *self, int damage, gib_def_t *gibs);
 void cleanupHealTarget (edict_t *ent);
+void monster_fire_dabeam_rr (edict_t *self, int damage, qboolean secondary, void (*update_func)(edict_t *self));
+void dabeam_update_rr (edict_t *self, qboolean damage);
 void M_AbandonHeal (edict_t *self);
 qboolean M_CheckGib (edict_t *self);
 qboolean M_ShouldReactToPain (edict_t *self);
@@ -1241,6 +1243,7 @@ struct edict_s
 	char		*deathtarget;
 	char		*healthtarget;	// used as it is hurt (g_cotm.c)
 	edict_t		*beam;			// the re-release's: its shambler's lightning
+	edict_t		*beam2;			// and a second laser (its brain's eyes)
 	edict_t		*bad_area;		// Ground Zero's: the tesla's area it stands in
 	char		*combattarget;
 	edict_t		*target_ent;
