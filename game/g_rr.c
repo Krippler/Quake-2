@@ -219,12 +219,17 @@ qboolean M_CheckClearShot (edict_t *self, vec3_t offset, vec3_t start)
 	return false;
 }
 
+void M_FliesLater (edict_t *self);
+
 // the re-release's end of a death animation
 void monster_dead (edict_t *self)
 {
 	self->movetype = MOVETYPE_TOSS;
 	self->svflags |= SVF_DEADMONSTER;
 	self->nextthink = 0;
+	// a stinky one draws flies a while after
+	if (self->monsterinfo.aiflags & AI_STINKY)
+		M_FliesLater (self);
 	gi.linkentity (self);
 }
 

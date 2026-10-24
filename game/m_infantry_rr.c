@@ -874,6 +874,8 @@ static qboolean infantry_sidestep (edict_t *self)
 
 void SP_monster_infantry_rr (edict_t *self)
 {
+	self->monsterinfo.aiflags |= AI_STINKY;
+
 	sound_pain1 = gi.soundindex ("infantry/infpain1.wav");
 	sound_pain2 = gi.soundindex ("infantry/infpain2.wav");
 	sound_die1 = gi.soundindex ("infantry/infdeth1.wav");

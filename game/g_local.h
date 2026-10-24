@@ -165,6 +165,7 @@ typedef enum
 #define AI_BLOCKED				0x04000000	// the medic commander's signal to summon
 #define AI_WALK_WALLS			0x08000000	// Ground Zero's stalker: it walks on ceilings
 #define AI_CIRCLE_STRAFE		0x10000000	// Ground Zero's: it circles as it charges, sliding
+#define AI_STINKY				0x20000000	// the re-release's: its corpse always draws flies
 // on a ceiling: Ground Zero's gravityVector, unset (zero) meaning down
 #define GRAVITY_UP(ent)			((ent)->gravityVector[2] > 0)
 

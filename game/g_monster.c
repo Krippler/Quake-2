@@ -111,6 +111,13 @@ void M_FlyCheck (edict_t *self)
 	self->nextthink = level.time + 5 + 10 * random();
 }
 
+// the re-release's, for a stinky corpse: flies every time
+void M_FliesLater (edict_t *self)
+{
+	self->think = M_FliesOn;
+	self->nextthink = level.time + 5 + 10 * random();
+}
+
 void AttackFinished (edict_t *self, float time)
 {
 	self->monsterinfo.attack_finished = level.time + time;
@@ -500,7 +507,7 @@ enemy as activator.
 void monster_death_use (edict_t *self)
 {
 	self->flags &= ~(FL_FLY|FL_SWIM);
-	self->monsterinfo.aiflags &= AI_GOOD_GUY;
+	self->monsterinfo.aiflags &= AI_GOOD_GUY | AI_STINKY;	// the re-release's stink lasts
 
 	if (self->item)
 	{

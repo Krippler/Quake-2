@@ -64,6 +64,12 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   reels back in. One that misses into a wall sticks there and the
   parasite wrenches it free. They jump ledges after you, show a hurt
   skin, and gib into pieces of their own.
+- **On the re-release's maps, its mutants.** They leap only to close a
+  gap and hurt only when they land on you still moving, claw left and
+  right and keep clawing while you stay close, jump ledges after you,
+  slide as they fall dead, show a hurt skin, and gib into pieces of their
+  own. Their corpses, and the enforcers', always draw flies a while
+  after, as there, not just half the time.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.

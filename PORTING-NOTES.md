@@ -518,7 +518,12 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   and a segment drawn as a model beam from the parasite to it, placed by
   the re-release's `postthink`, which `G_RunEntity` calls after an
   entity's physics. Its `GIB_UPRIGHT` is taken and needs nothing, as
-  1997's `gib_touch` lands an organic gib level.
+  1997's `gib_touch` lands an organic gib level; the mutant
+  (`m_mutant_rr.c`, its jump frames after 1997's in `m_mutant_rr.h`),
+  without its `combat_style`, which this game's AI has no use for. A
+  monster of the re-release's `AI_STINKY` (the infantry, the mutant) is
+  given flies by `monster_dead` every time (`M_FliesLater`), and keeps
+  the flag through `monster_death_use`, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all
   numbered here as there (`game/q_shared.h`, `game/m_flash.c`). Those
   past a byte go in `svc_muzzleflash3` (21), as the re-release sends them,
