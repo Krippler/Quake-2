@@ -33,6 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // protocol bytes that can be directly added to messages
 #define	svc_muzzleflash		1
 #define	svc_muzzleflash2	2
+#define	svc_muzzleflash3	21	// the re-release's: a flash past a byte
 #define	svc_temp_entity		3
 #define	svc_layout			4
 #define	svc_inventory		5
@@ -534,6 +535,11 @@ typedef struct
 	// and when a held frame of firing may go on
 	void		(*setskin)(edict_t *self);
 	float		fire_wait;
+
+	// the re-release's jumping: how far down and up it may, and no jump
+	// again till jump_time
+	float		drop_height, jump_height;
+	float		jump_time;
 } monsterinfo_t;
 
 
@@ -765,6 +771,13 @@ void ThrowGibs (edict_t *self, int damage, gib_def_t *gibs);
 qboolean M_CheckGib (edict_t *self);
 qboolean M_ShouldReactToPain (edict_t *self);
 void monster_footstep (edict_t *self);
+#define	JUMP_NO			0	// blocked_checkjump_rr's
+#define	JUMP_TURN		1
+#define	JUMP_UP			2
+#define	JUMP_DOWN		3
+int blocked_checkjump_rr (edict_t *self, float dist);
+void monster_jump_start_rr (edict_t *self);
+qboolean monster_jump_finished_rr (edict_t *self);
 #define	RANGE_MELEE_RR		20		// the re-release's: bboxes basically touching
 #define	RANGE_NEAR_RR		440
 #define	RANGE_MID_RR		940

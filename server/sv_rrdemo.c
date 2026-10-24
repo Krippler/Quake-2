@@ -1047,7 +1047,7 @@ static qboolean RR_ReadMessage (sizebuf_t *m, qboolean *framed)
 		case svc_muzzleflash2:
 			n = MSG_ReadShort (m) & 0xffff;
 			i = MSG_ReadByte (m);
-			if (cmd == svc_muzzleflash2 && i > MZ2_WIDOW2_BEAM_SWEEP_11)
+			if (cmd == svc_muzzleflash2 && i > MZ2_SOLDIER_HYPERGUN_9)
 				break;		// a monster's flash of its own
 			if (n < MAX_EDICTS && rr.pend.cursize + 4 <= rr.pend.maxsize)
 			{
@@ -1060,11 +1060,15 @@ static qboolean RR_ReadMessage (sizebuf_t *m, qboolean *framed)
 		case 32:	// a monster's muzzle flash past 255
 			n = MSG_ReadShort (m) & 0xffff;
 			i = MSG_ReadShort (m) & 0xffff;
-			if (n < MAX_EDICTS && i <= MZ2_WIDOW2_BEAM_SWEEP_11 && rr.pend.cursize + 4 <= rr.pend.maxsize)
+			if (n < MAX_EDICTS && i <= MZ2_MEDIC_HYPERBLASTER2_12 && rr.pend.cursize + 5 <= rr.pend.maxsize)
 			{
-				MSG_WriteByte (&rr.pend, svc_muzzleflash2);
+				// the same numbers as here, all of them now
+				MSG_WriteByte (&rr.pend, i > 255 ? svc_muzzleflash3 : svc_muzzleflash2);
 				MSG_WriteShort (&rr.pend, n);
-				MSG_WriteByte (&rr.pend, i);
+				if (i > 255)
+					MSG_WriteShort (&rr.pend, i);
+				else
+					MSG_WriteByte (&rr.pend, i);
 			}
 			break;
 

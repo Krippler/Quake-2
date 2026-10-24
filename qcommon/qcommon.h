@@ -226,7 +226,8 @@ enum svc_ops_e
 	svc_playerinfo,				// variable
 	svc_packetentities,			// [...]
 	svc_deltapacketentities,	// [...]
-	svc_frame
+	svc_frame,
+	svc_muzzleflash3			// the re-release's: svc_muzzleflash2, its flash a short
 };
 
 //==============================================

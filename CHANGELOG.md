@@ -39,6 +39,10 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   down, duck and sidestep your shots, blind-fire where they last saw
   you, the shotgun guard cocks between shots, they show a hurt skin, and
   they gib into pieces of their own.
+- **On the re-release's maps, its infantry.** Enforcers run at you
+  firing, cock their gun before shooting unless already cocked, punch up
+  close, duck and sidestep, jump up and down ledges after you, spray as
+  they fall, sometimes lose their heads, and gib into pieces of their own.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.

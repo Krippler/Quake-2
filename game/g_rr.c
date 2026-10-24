@@ -230,9 +230,13 @@ void monster_dead (edict_t *self)
 
 void monster_muzzleflash (edict_t *self, vec3_t start, int flashtype)
 {
-	gi.WriteByte (svc_muzzleflash2);
+	// the re-release's past a byte in a message of their own
+	gi.WriteByte (flashtype > 255 ? svc_muzzleflash3 : svc_muzzleflash2);
 	gi.WriteShort (self - g_edicts);
-	gi.WriteByte (flashtype);
+	if (flashtype > 255)
+		gi.WriteShort (flashtype);
+	else
+		gi.WriteByte (flashtype);
 	gi.multicast (start, MULTICAST_PVS);
 }
 
@@ -722,4 +726,122 @@ void monster_footstep (edict_t *self)
 {
 	if (self->groundentity)
 		self->s.event = EV_OTHER_FOOTSTEP;
+}
+
+/*
+=============
+blocked_checkjump_rr
+
+The re-release's jump, when a monster is blocked going after its enemy:
+down to where it stands, no more than drop_height, onto level ground and
+not into deep water; or up onto a ledge no higher than jump_height,
+facing the wall first. Not again till jump_time. It has no navigation
+paths here.
+=============
+*/
+qboolean face_wall (edict_t *self);
+
+void monster_jump_start_rr (edict_t *self)
+{
+	monster_done_dodge (self);
+	self->monsterinfo.jump_time = level.time + 3;
+}
+
+// landed, or long enough; and still going forward
+qboolean monster_jump_finished_rr (edict_t *self)
+{
+	vec3_t	forward, v;
+	float	z;
+
+	AngleVectors (self->s.angles, forward, NULL, NULL);
+	VectorSet (v, self->velocity[0] * forward[0], self->velocity[1] * forward[1], self->velocity[2] * forward[2]);
+	if (VectorLength (v) < 150)
+	{
+		z = self->velocity[2];
+		VectorScale (forward, 150, self->velocity);
+		self->velocity[2] = z;
+	}
+
+	return self->monsterinfo.jump_time < level.time;
+}
+
+#define	STEPSIZE_RR	18
+
+int blocked_checkjump_rr (edict_t *self, float dist)
+{
+	int		playerPosition;
+	trace_t	trace, deep;
+	vec3_t	pt1, pt2, forward, up, mid;
+
+	// can't jump even if we physically can, or no enemy to go after
+	if (!self->monsterinfo.can_jump || !self->enemy)
+		return JUMP_NO;
+
+	// we just jumped recently, don't try again
+	if (self->monsterinfo.jump_time > level.time)
+		return JUMP_NO;
+
+	AngleVectors (self->s.angles, forward, NULL, up);
+
+	if (self->enemy->absmin[2] > self->absmin[2] + STEPSIZE_RR)
+		playerPosition = 1;
+	else if (self->enemy->absmin[2] < self->absmin[2] - STEPSIZE_RR)
+		playerPosition = -1;
+	else
+		playerPosition = 0;
+
+	if (playerPosition == -1 && self->monsterinfo.drop_height)
+	{
+		// can it even get to the spot it is going to fall from?
+		VectorMA (self->s.origin, 48, forward, pt1);
+		trace = gi.trace (self->s.origin, self->mins, self->maxs, pt1, self, MASK_MONSTERSOLID);
+		if (trace.fraction < 1)
+			return JUMP_NO;
+
+		VectorCopy (pt1, pt2);
+		pt2[2] = self->absmin[2] - self->monsterinfo.drop_height - 1;
+
+		trace = gi.trace (pt1, vec3_origin, vec3_origin, pt2, self, MASK_MONSTERSOLID | MASK_WATER);
+		if (trace.fraction < 1 && !trace.allsolid && !trace.startsolid)
+		{
+			// how deep the water is: not over its waist
+			if (trace.contents & CONTENTS_WATER)
+			{
+				deep = gi.trace (trace.endpos, vec3_origin, vec3_origin, pt2, self, MASK_MONSTERSOLID);
+				VectorCopy (deep.endpos, mid);
+				mid[2] += (self->mins[2] + self->maxs[2]) * 0.5 - self->mins[2];
+				if (gi.pointcontents (mid) & MASK_WATER)
+					return JUMP_NO;
+			}
+
+			if (self->absmin[2] - trace.endpos[2] >= 24 && (trace.contents & (MASK_SOLID | CONTENTS_WATER)))
+			{
+				if (self->enemy->absmin[2] - trace.endpos[2] > 32)
+					return JUMP_NO;
+				if (trace.plane.normal[2] < 0.9)
+					return JUMP_NO;
+
+				monster_jump_start_rr (self);
+				return JUMP_DOWN;
+			}
+		}
+	}
+	else if (playerPosition == 1 && self->monsterinfo.jump_height)
+	{
+		VectorMA (self->s.origin, 48, forward, pt1);
+		VectorCopy (pt1, pt2);
+		pt1[2] = self->absmax[2] + self->monsterinfo.jump_height;
+
+		trace = gi.trace (pt1, vec3_origin, vec3_origin, pt2, self, MASK_MONSTERSOLID | MASK_WATER);
+		if (trace.fraction < 1 && !trace.allsolid && !trace.startsolid
+			&& trace.endpos[2] - self->absmin[2] <= self->monsterinfo.jump_height
+			&& (trace.contents & (MASK_SOLID | CONTENTS_WATER)))
+		{
+			face_wall (self);
+			monster_jump_start_rr (self);
+			return JUMP_UP;
+		}
+	}
+
+	return JUMP_NO;
 }

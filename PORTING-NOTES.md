@@ -505,7 +505,13 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   monsters do not find their way with its navigation files, which its
   closed engine reads. So far: the soldier, with The Reckoning's guards
   (`m_soldier_rr.c`), whose prone fire is the re-release's muzzle flashes
-  251 to 255.
+  251 to 255; the infantry (`m_infantry_rr.c`), with its jumps
+  (`blocked_checkjump_rr`, by `drop_height` and `jump_height`).
+- **Muzzle flashes past 255**: the re-release's monsters have 289, all
+  numbered here as there (`game/q_shared.h`, `game/m_flash.c`). Those
+  past a byte go in `svc_muzzleflash3` (21), as the re-release sends them,
+  with the flash a short; `monster_muzzleflash` picks which for every
+  monster weapon, and the re-release demo player passes them all on.
 - **`client/cl_fx.c`**: footsteps on the re-release's maps are by material,
   as its engine plays them: a trace down to the surface stepped on, its
   texture's `textures/<name>.mat` naming the material (cached per map),

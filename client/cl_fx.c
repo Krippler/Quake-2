@@ -426,7 +426,7 @@ void CL_ParseMuzzleFlash (void)
 CL_ParseMuzzleFlash2
 ==============
 */
-void CL_ParseMuzzleFlash2 (void) 
+void CL_ParseMuzzleFlash2 (qboolean wide)
 {
 	int			ent;
 	vec3_t		origin;
@@ -439,7 +439,7 @@ void CL_ParseMuzzleFlash2 (void)
 	if (ent < 1 || ent >= MAX_EDICTS)
 		Com_Error (ERR_DROP, "CL_ParseMuzzleFlash2: bad entity");
 
-	flash_number = MSG_ReadByte (&net_message);
+	flash_number = wide ? MSG_ReadShort (&net_message) : MSG_ReadByte (&net_message);
 	// past the end of monster_flash_offset: numbers 1997 has not got
 	if (flash_number > MZ2_WIDOW2_BEAM_SWEEP_11)
 		return;
@@ -478,6 +478,7 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_INFANTRY_MACHINEGUN_18:
 	case MZ2_INFANTRY_MACHINEGUN_19:
 	case MZ2_INFANTRY_MACHINEGUN_20:
+	case MZ2_INFANTRY_MACHINEGUN_22:
 	case MZ2_INFANTRY_MACHINEGUN_21:
 		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
 		CL_ParticleEffect (origin, vec3_origin, 0, 40);
@@ -577,6 +578,7 @@ void CL_ParseMuzzleFlash2 (void)
 		break;
 
 	case MZ2_HOVER_BLASTER_1:
+	case MZ2_HOVER_BLASTER_2:
 		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
 		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("hover/hovatck1.wav"), 1, ATTN_NORM, 0);
 		break;
@@ -665,6 +667,12 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_GUNNER_GRENADE_2:
 	case MZ2_GUNNER_GRENADE_3:
 	case MZ2_GUNNER_GRENADE_4:
+	case MZ2_GUNNER_GRENADE2_1:
+	case MZ2_GUNNER_GRENADE2_2:
+	case MZ2_GUNNER_GRENADE2_3:
+	case MZ2_GUNNER_GRENADE2_4:
+	case MZ2_SUPERTANK_GRENADE_1:
+	case MZ2_SUPERTANK_GRENADE_2:
 		dl->color[0] = 1;dl->color[1] = 0.5;dl->color[2] = 0;
 		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("gunner/gunatck3.wav"), 1, ATTN_NORM, 0);
 		break;
@@ -767,6 +775,31 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_STALKER_BLASTER:
 	case MZ2_DAEDALUS_BLASTER:
 	case MZ2_MEDIC_BLASTER_2:
+	case MZ2_DAEDALUS_BLASTER_2:
+	case MZ2_MEDIC_HYPERBLASTER1_1:
+	case MZ2_MEDIC_HYPERBLASTER1_2:
+	case MZ2_MEDIC_HYPERBLASTER1_3:
+	case MZ2_MEDIC_HYPERBLASTER1_4:
+	case MZ2_MEDIC_HYPERBLASTER1_5:
+	case MZ2_MEDIC_HYPERBLASTER1_6:
+	case MZ2_MEDIC_HYPERBLASTER1_7:
+	case MZ2_MEDIC_HYPERBLASTER1_8:
+	case MZ2_MEDIC_HYPERBLASTER1_9:
+	case MZ2_MEDIC_HYPERBLASTER1_10:
+	case MZ2_MEDIC_HYPERBLASTER1_11:
+	case MZ2_MEDIC_HYPERBLASTER1_12:
+	case MZ2_MEDIC_HYPERBLASTER2_1:
+	case MZ2_MEDIC_HYPERBLASTER2_2:
+	case MZ2_MEDIC_HYPERBLASTER2_3:
+	case MZ2_MEDIC_HYPERBLASTER2_4:
+	case MZ2_MEDIC_HYPERBLASTER2_5:
+	case MZ2_MEDIC_HYPERBLASTER2_6:
+	case MZ2_MEDIC_HYPERBLASTER2_7:
+	case MZ2_MEDIC_HYPERBLASTER2_8:
+	case MZ2_MEDIC_HYPERBLASTER2_9:
+	case MZ2_MEDIC_HYPERBLASTER2_10:
+	case MZ2_MEDIC_HYPERBLASTER2_11:
+	case MZ2_MEDIC_HYPERBLASTER2_12:
 	case MZ2_WIDOW_BLASTER:
 	case MZ2_WIDOW_BLASTER_SWEEP1:
 	case MZ2_WIDOW_BLASTER_SWEEP2:

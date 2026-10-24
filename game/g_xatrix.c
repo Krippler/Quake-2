@@ -29,10 +29,7 @@ laser soldier's beam, its gladiator's phalanx.
 
 static void Xatrix_MuzzleFlash (edict_t *self, vec3_t start, int flashtype)
 {
-	gi.WriteByte (svc_muzzleflash2);
-	gi.WriteShort (self - g_edicts);
-	gi.WriteByte (flashtype);
-	gi.multicast (start, MULTICAST_PVS);
+	monster_muzzleflash (self, start, flashtype);
 }
 
 /*

@@ -120,10 +120,7 @@ void monster_fire_blaster2 (edict_t *self, vec3_t start, vec3_t dir, int damage,
 {
 	fire_blaster2 (self, start, dir, damage, speed, effect);
 
-	gi.WriteByte (svc_muzzleflash2);
-	gi.WriteShort (self - g_edicts);
-	gi.WriteByte (flashtype);
-	gi.multicast (start, MULTICAST_PVS);
+	monster_muzzleflash (self, start, flashtype);
 }
 
 /*
@@ -547,7 +544,7 @@ qboolean monster_jump_finished (edict_t *self)
 }
 
 // turn to face the wall before it
-static qboolean face_wall (edict_t *self)
+qboolean face_wall (edict_t *self)
 {
 	vec3_t	pt, forward, ang;
 	trace_t	tr;
@@ -762,10 +759,7 @@ void monster_fire_flechette (edict_t *self, vec3_t start, vec3_t dir, int damage
 {
 	fire_flechette (self, start, dir, damage, speed, damage / 2);
 
-	gi.WriteByte (svc_muzzleflash2);
-	gi.WriteShort (self - g_edicts);
-	gi.WriteByte (flashtype);
-	gi.multicast (start, MULTICAST_PVS);
+	monster_muzzleflash (self, start, flashtype);
 }
 
 // Ground Zero's: is other behind self, or straight below it?
