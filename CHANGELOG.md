@@ -21,6 +21,18 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   flies twice as fast. On the Quake 64 levels in single player, as in the
   re-release, you cannot crouch and pause briefly after every landing.
   Monsters there no longer hear you jump, but do hear you land hard.
+- **On the re-release's maps, weapons work as in the re-release.**
+  Shots go where the crosshair is, not straight out from the side of the
+  gun, and the machinegun, chaingun and shotguns fire from the middle of
+  the view. Recoil eases off over a fifth of a second instead of snapping
+  back. The machinegun no longer climbs as it fires; the hyperblaster
+  and chaingun shake the view more. The blaster does 15 damage
+  everywhere and its bolts fly half as fast again. Launcher grenades use
+  the re-release's model, point the way they fly and spin; hand grenades
+  use its model and tumble. Bullets pass through corpses. Changing weapon
+  makes the re-release's sound, a weapon running low on ammo warns you,
+  and when one runs dry you switch to the next as the re-release orders
+  them, launchers and mission-pack weapons included.
 
 ## [1.3.20] — 2026-10-23
 

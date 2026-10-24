@@ -1081,6 +1081,11 @@ struct gclient_s
 	weaponstate_t	weaponstate;
 	vec3_t		kick_angles;	// weapon kicks
 	vec3_t		kick_origin;
+	// on the re-release's maps, the last kick, going down to none by
+	// kick_time over kick_total: 200 ms, or kick_length when a weapon
+	// asks for longer
+	vec3_t		rr_kick_angles, rr_kick_origin;
+	float		kick_time, kick_total, kick_length;
 	float		v_dmg_roll, v_dmg_pitch, v_dmg_time;	// damage kicks
 	float		fall_time, fall_value;		// for view drop on fall
 	float		damage_alpha;

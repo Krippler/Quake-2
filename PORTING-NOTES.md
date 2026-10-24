@@ -476,6 +476,21 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   once) is not in this engine's traces, so that experiment of its is left
   out. The engine sets `sv_rerelease_map` for the game, whose players on
   such a map are not heard jumping by monsters but are heard landing hard.
+- **`game/p_weapon.c`**, **`game/g_weapon.c`**, **`game/p_view.c`**: on
+  the same maps (`RR_Map`) the player's weapons are the re-release's
+  `p_weapon.cpp` and `g_weapon.cpp`. `P_ProjectSource` turns a shot toward
+  where a line from the eye along the view first hits, unless that is a
+  monster or player within 128 units or the eye is in a wall, which is
+  every weapon's through the one function, the mission packs' included.
+  Kicks a weapon sets in a frame become the start of a 200 ms decay
+  (`rr_kick_*`, `kick_time`, `kick_total`; the BFG's lasts `DAMAGE_TIME`
+  through `kick_length`) instead of being cleared at the frame's end, so
+  at this 10 Hz a kick is whole, then half, then gone, as the re-release's
+  is on any tick rate. Ammo goes through `P_RemoveAmmo`, which plays its
+  `weapons/lowammo.wav` at its items' `quantity_warn`. Its weapon state
+  machine, rewritten for 40 Hz (buffered fire, `weapon_think_time`),
+  behaves as 1997's at 10 Hz and is not taken; nor are its weapon chains,
+  instant or quick switching, or lag compensation.
 
 ## The system layer
 
