@@ -5,6 +5,23 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Changed
+
+- **On the re-release's maps, the player moves as in the re-release.**
+  Its movement code is ported beside the 1997 one, which every other map
+  keeps exactly. Running down stairs and slopes keeps you on the ground
+  instead of hopping step to step. Ladders climb with jump or forward,
+  go down with crouch or back, and move sideways with strafe. You swim
+  up and down with jump and crouch, and climb out of water wherever there
+  is a dry place to land. You can crouch in mid-air to clear a ledge. A
+  hard landing no longer stops you jumping straight away, and landing on
+  a ledge while still rising gives the re-release's trick jump. Noclip
+  flies twice as fast. On the Quake 64 levels in single player, as in the
+  re-release, you cannot crouch and pause briefly after every landing.
+  Monsters there no longer hear you jump, but do hear you land hard.
+
 ## [1.3.20] — 2026-10-23
 
 ### Fixed

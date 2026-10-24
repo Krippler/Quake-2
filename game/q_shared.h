@@ -481,6 +481,7 @@ typedef enum
 #define	PMF_TIME_LAND		16	// pm_time is time before rejump
 #define	PMF_TIME_TELEPORT	32	// pm_time is non-moving time
 #define PMF_NO_PREDICTION	64	// temporarily disables prediction (used for grappling hook)
+#define PMF_TIME_TRICK		128	// the 2023 re-release's: pm_time is a trick jump's window
 
 // this structure needs to be communicated bit-accurate
 // from the server to the client to guarantee that

@@ -608,6 +608,7 @@ cmodel_t *CM_LoadMap (char *name, qboolean clientload, unsigned *checksum)
 		numclusters = 1;
 		numareas = 1;
 		*checksum = 0;
+		pm_rerelease = pm_n64 = false;
 		return &map_cmodels[0];			// cinematic servers won't have anything at all
 	}
 
@@ -647,6 +648,39 @@ cmodel_t *CM_LoadMap (char *name, qboolean clientload, unsigned *checksum)
 	CMod_LoadAreaPortals (&header.lumps[LUMP_AREAPORTALS]);
 	CMod_LoadVisibility (&header.lumps[LUMP_VISIBILITY]);
 	CMod_LoadEntityString (&header.lumps[LUMP_ENTITIES]);
+
+	// the 2023 re-release's own maps, which its player moves through as
+	// it moves (pmove.c): those lit as only it lights them, in a BSPX
+	// DECOUPLED_LM lump, and its Quake 64 levels, which are only its
+	{
+		int		end = 0, ofs, n;
+		byte	*e;
+
+		pm_rerelease = false;
+		for (i=0 ; i<HEADER_LUMPS ; i++)
+			if (header.lumps[i].fileofs + header.lumps[i].filelen > end)
+				end = header.lumps[i].fileofs + header.lumps[i].filelen;
+		ofs = (end + 3) & ~3;
+		if (ofs + 8 <= length && !memcmp ((byte *)buf + ofs, "BSPX", 4))
+		{
+			n = LittleLong (*(int *)((byte *)buf + ofs + 4));
+			for (i=0 ; i<n && ofs + 8 + (i+1)*32 <= length ; i++)
+			{
+				e = (byte *)buf + ofs + 8 + i*32;
+				if (!strncmp ((char *)e, "DECOUPLED_LM", 24))
+					pm_rerelease = true;
+			}
+		}
+		pm_n64 = !Q_strncasecmp (name, "maps/q64/", 9);
+		if (pm_n64)
+			pm_rerelease = true;
+		// the re-release moves on the N64's terms only in single player
+		if (Cvar_VariableValue ("deathmatch"))
+			pm_n64 = false;
+		// and for the game, which follows it too
+		if (!clientload)
+			Cvar_FullSet ("sv_rerelease_map", pm_rerelease ? "1" : "0", CVAR_NOSET);
+	}
 
 	FS_FreeFile (buf);
 

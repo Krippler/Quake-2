@@ -650,3 +650,20 @@ int M_PickReinforcements (edict_t *self, int max_slots)
 
 	return num_chosen;
 }
+
+/*
+=============
+RR_Map
+
+Whether the level is one of the re-release's own, which its player moves
+through as it does (qcommon/pmove.c): the engine says, as it loads it.
+=============
+*/
+qboolean RR_Map (void)
+{
+	static cvar_t	*sv_rerelease_map;
+
+	if (!sv_rerelease_map)
+		sv_rerelease_map = gi.cvar ("sv_rerelease_map", "0", 0);
+	return sv_rerelease_map->value != 0;
+}

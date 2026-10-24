@@ -451,6 +451,31 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   again when it is unset. Whenever a `Q2Game.kpf` is in the mount, however
   the re-release's pak got into the game, its localization files are taken
   out into `baseq2/localization`.
+- **`qcommon/pmove.c`**, **`qcommon/cmodel.c`**: on the re-release's own
+  maps the player moves as its `p_move.cpp` moves them, ported to C beside
+  the 1997 code, which is left as it was for every other map (scripted
+  runs through both on the same maps match the old build frame for frame).
+  A map is the re-release's when its BSP has the `DECOUPLED_LM` lump only
+  the re-release's lighting has, or is under `maps/q64/`; `CM_LoadMap` says
+  so in `pm_rerelease`, and as the server and the client's prediction both
+  load the map through it they cannot disagree, with no change to the
+  protocol. `pm_n64` is the Quake 64 levels in single player. What it does
+  differently: stepping down stairs and slopes on the ground; a step's
+  edge not stood on mid-air; a slope wedged against a wall stood on; out
+  of a wall the shortest way when stuck (`G_FixStuckObject_Generic`);
+  ladders climbed with jump or forward unless looking down, descended with
+  crouch or back, crossed with strafe, and none under water; swimming up
+  and down with jump and crouch, no sinking while standing on the bottom,
+  crouched swimming at crouch speed, and a waterjump only where there is
+  somewhere dry to land, tried out first; crouching in the air; a landing
+  pause only crouched or on the N64, and a trick jump's window
+  (`PMF_TIME_TRICK`, the free bit 128 of `pm_flags`) when landing on a
+  ledge still rising; `sv_airaccelerate` as an acceleration of its own; and
+  flying twice as fast as spectator or noclip. Its full float positions are
+  the network's eighths here, and its `trace.surface2` (two planes hit at
+  once) is not in this engine's traces, so that experiment of its is left
+  out. The engine sets `sv_rerelease_map` for the game, whose players on
+  such a map are not heard jumping by monsters but are heard landing hard.
 
 ## The system layer
 

@@ -581,8 +581,13 @@ void P_FallingDamage (edict_t *ent)
 	else
 	{
 		ent->s.event = EV_FALLSHORT;
-		return;
+		if (!RR_Map ())
+			return;
 	}
+
+	// the re-release's monsters hear a hard landing
+	if (RR_Map () && ent->health > 0)
+		PlayerNoise (ent, ent->s.origin, PNOISE_SELF);
 }
 
 

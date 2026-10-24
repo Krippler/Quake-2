@@ -745,6 +745,7 @@ float realrange (edict_t *self, edict_t *other);
 void ED_CallSpawn (edict_t *ent);
 
 // g_rr.c: the re-release's
+qboolean RR_Map (void);
 #define	MELEE_DISTANCE_RR	50
 float distance_between_boxes (vec3_t absminsa, vec3_t absmaxsa, vec3_t absminsb, vec3_t absmaxsb);
 float range_to (edict_t *self, edict_t *other);
