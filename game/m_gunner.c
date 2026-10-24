@@ -578,11 +578,19 @@ void gunner_refire_chain(edict_t *self)
 
 /*QUAKED monster_gunner (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
 */
+void SP_monster_gunner_rr (edict_t *self);
+
 void SP_monster_gunner (edict_t *self)
 {
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_gunner_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_gunner_rr (self);
 		return;
 	}
 

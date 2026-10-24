@@ -43,6 +43,11 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   firing, cock their gun before shooting unless already cocked, punch up
   close, duck and sidestep, jump up and down ledges after you, spray as
   they fall, sometimes lose their heads, and gib into pieces of their own.
+- **On the re-release's maps, its gunners.** They chaingun you up close,
+  lob grenades judged to reach you from further off, blind-fire grenades
+  where they last saw you, duck (sometimes throwing a grenade as they go
+  down) and sidestep, jump ledges after you, and gib into pieces of their
+  own.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.
