@@ -789,11 +789,19 @@ void tank_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
 */
 /*QUAKED monster_tank_commander (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight
 */
+void SP_monster_tank_rr (edict_t *self);
+
 void SP_monster_tank (edict_t *self)
 {
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_tank_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_tank_rr (self);
 		return;
 	}
 

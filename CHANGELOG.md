@@ -70,6 +70,12 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   slide as they fall dead, show a hurt skin, and gib into pieces of their
   own. Their corpses, and the enforcers', always draw flies a while
   after, as there, not just half the time.
+- **On the re-release's maps, its tanks and tank commanders.** Their
+  blaster leads you and their rockets now and then do; they blind-fire
+  where they last saw you, sweep the machinegun only with a clear shot,
+  shrug off small hurts and don't flinch mid-attack, lose an arm as they
+  fall, show a hurt skin, and gib into pieces of their own. Quake 64's
+  heat-seeking commanders fire heat seekers.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.
