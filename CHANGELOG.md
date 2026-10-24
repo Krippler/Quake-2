@@ -48,6 +48,10 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   where they last saw you, duck (sometimes throwing a grenade as they go
   down) and sidestep, jump ledges after you, and gib into pieces of their
   own.
+- **On the re-release's maps, its berserkers.** They leap at you from
+  afar and slam down with a shockwave, swing as they run in, spike and
+  club up close, sidestep and now and then dive out of the way, jump
+  ledges after you, and gib into pieces of their own.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.

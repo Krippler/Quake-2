@@ -507,7 +507,9 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   (`m_soldier_rr.c`), whose prone fire is the re-release's muzzle flashes
   251 to 255; the infantry (`m_infantry_rr.c`), with its jumps
   (`blocked_checkjump_rr`, by `drop_height` and `jump_height`); the
-  gunner (`m_gunner_rr.c`, on the gunner commander's frames).
+  gunner (`m_gunner_rr.c`, on the gunner commander's frames); the
+  berserker (`m_berserk_rr.c`), whose leap's landing slams by its touch,
+  as there, its velocity cleared there for its `FL_KILL_VELOCITY`.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all
   numbered here as there (`game/q_shared.h`, `game/m_flash.c`). Those
   past a byte go in `svc_muzzleflash3` (21), as the re-release sends them,
