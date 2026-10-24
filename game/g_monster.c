@@ -582,6 +582,9 @@ qboolean monster_start (edict_t *self)
 	if (self->monsterinfo.currentmove)
 		self->s.frame = self->monsterinfo.currentmove->firstframe + (rand() % (self->monsterinfo.currentmove->lastframe - self->monsterinfo.currentmove->firstframe + 1));
 
+	// the re-release's: its height standing, which its ducks come down from
+	self->monsterinfo.base_height = self->maxs[2];
+
 	return true;
 }
 

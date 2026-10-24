@@ -539,6 +539,8 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   the brain (`m_brain_rr.c`, on 1997's frames), whose eye lasers are the
   re-release's lasting ones (`monster_fire_dabeam_rr`, its `beam` and
   `beam2`, placed by `postthink`), not The Reckoning's of a frame.
+  Their ducks come down from `monsterinfo.base_height`, which
+  `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all
   numbered here as there (`game/q_shared.h`, `game/m_flash.c`). Those
   past a byte go in `svc_muzzleflash3` (21), as the re-release sends them,
