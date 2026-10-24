@@ -971,4 +971,8 @@ void G_RunEntity (edict_t *ent)
 	default:
 		gi.error ("SV_Physics: bad movetype %i", (int)ent->movetype);			
 	}
+
+	// the re-release's, after its physics (a freed entity has none)
+	if (ent->postthink)
+		ent->postthink (ent);
 }

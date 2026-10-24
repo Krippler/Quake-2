@@ -130,6 +130,8 @@ typedef enum
 // monster itself, as ThrowHead
 #define GIB_SKINNED				0x10
 #define GIB_HEAD				0x20
+// and kept upright where it lands, as 1997's gib_touch already lands one
+#define GIB_UPRIGHT				0x40
 
 // the re-release's summoned reinforcements
 #define	MAX_REINFORCEMENTS		5	// at once
@@ -1325,5 +1327,10 @@ struct edict_s
 	// common data blocks
 	moveinfo_t		moveinfo;
 	monsterinfo_t	monsterinfo;
+
+	// the re-release's: run after this entity's physics each frame, and
+	// a parasite's proboscis (its tip; the tip's, its drawn segment)
+	void		(*postthink) (edict_t *ent);
+	edict_t		*proboscus;
 };
 

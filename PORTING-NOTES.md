@@ -512,7 +512,13 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   as there, its velocity cleared there for its `FL_KILL_VELOCITY`; the
   gladiator (`m_gladiator_rr.c`, on 1997's frames, which are the same),
   which is The Reckoning's plasma gladiator too by its classname, as
-  there by `style`.
+  there by `style`; the parasite (`m_parasite_rr.c`, with its jump
+  frames after 1997's in `m_parasite_rr.h`), whose proboscis is an
+  entity of its own (`proboscus`, saved), a tip that flies and sticks
+  and a segment drawn as a model beam from the parasite to it, placed by
+  the re-release's `postthink`, which `G_RunEntity` calls after an
+  entity's physics. Its `GIB_UPRIGHT` is taken and needs nothing, as
+  1997's `gib_touch` lands an organic gib level.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all
   numbered here as there (`game/q_shared.h`, `game/m_flash.c`). Those
   past a byte go in `svc_muzzleflash3` (21), as the re-release sends them,

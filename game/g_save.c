@@ -121,6 +121,8 @@ field_t fields[] = {
 	{"chain", FOFS(chain), F_EDICT, FFL_NOSPAWN},
 
 	{"prethink", FOFS(prethink), F_FUNCTION, FFL_NOSPAWN},
+	{"postthink", FOFS(postthink), F_FUNCTION, FFL_NOSPAWN},
+	{"proboscus", FOFS(proboscus), F_EDICT, FFL_NOSPAWN},
 	{"think", FOFS(think), F_FUNCTION, FFL_NOSPAWN},
 	{"blocked", FOFS(blocked), F_FUNCTION, FFL_NOSPAWN},
 	{"touch", FOFS(touch), F_FUNCTION, FFL_NOSPAWN},

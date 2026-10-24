@@ -58,6 +58,12 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   enough to cleave, show a hurt skin, and gib into pieces of their own.
   The Reckoning's plasma gladiators fire two bolts a charge on nightmare,
   and their power shield takes the first of the damage.
+- **On the re-release's maps, its parasites.** The proboscis is shot at
+  you, aimed where you are heading, and flies out on a segmented stalk;
+  it sticks and drains you as long as nothing comes between you, then
+  reels back in. One that misses into a wall sticks there and the
+  parasite wrenches it free. They jump ledges after you, show a hurt
+  skin, and gib into pieces of their own.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.
