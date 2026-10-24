@@ -33,6 +33,15 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   makes the re-release's sound, a weapon running low on ammo warns you,
   and when one runs dry you switch to the next as the re-release orders
   them, launchers and mission-pack weapons included.
+- **On the re-release's maps, its soldiers.** The light, machinegun and
+  shotgun guards and The Reckoning's ripper, hypergun and laser guards
+  are the re-release's own: they run at you firing, dive and fire lying
+  down, duck and sidestep your shots, blind-fire where they last saw
+  you, the shotgun guard cocks between shots, they show a hurt skin, and
+  they gib into pieces of their own.
+- **Footsteps by material on the re-release's maps.** Your footsteps, and
+  now monsters', sound like what is underfoot: metal, wood, grass, glass
+  and the rest, from the re-release's own sounds.
 
 ## [1.3.20] — 2026-10-23
 

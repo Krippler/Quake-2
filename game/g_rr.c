@@ -667,3 +667,59 @@ qboolean RR_Map (void)
 		sv_rerelease_map = gi.cvar ("sv_rerelease_map", "0", 0);
 	return sv_rerelease_map->value != 0;
 }
+
+/*
+=============
+ThrowGibs
+
+The re-release's list of a monster's gibs: so many of each, in its own
+skin where it says, its head last, which the monster itself becomes.
+=============
+*/
+void ThrowGibs (edict_t *self, int damage, gib_def_t *gibs)
+{
+	edict_t	*gib;
+	int		i, n, skin;
+
+	for ( ; gibs->gibname ; gibs++)
+		for (n = gibs->count ? gibs->count : 1, i = 0 ; i < n ; i++)
+		{
+			if (gibs->type & GIB_HEAD)
+			{
+				skin = self->s.skinnum;
+				ThrowHead (self, gibs->gibname, damage, gibs->type & GIB_METALLIC);
+				if (gibs->type & GIB_SKINNED)
+					self->s.skinnum = skin;
+				self->monsterinfo.setskin = NULL;
+				continue;
+			}
+			gib = ThrowGib (self, gibs->gibname, damage, gibs->type & GIB_METALLIC);
+			if (gib && (gibs->type & GIB_SKINNED))
+				gib->s.skinnum = self->s.skinnum;
+		}
+}
+
+// the re-release's: dead enough to be gibbed, or crushed once dead
+qboolean M_CheckGib (edict_t *self)
+{
+	if (self->deadflag && meansOfDeath == MOD_CRUSH)
+		return true;
+	return self->health <= self->gib_health;
+}
+
+// the re-release's: whether pain shows, not ducked or on a combat point,
+// nor in nightmare unless it is a chainfist
+qboolean M_ShouldReactToPain (edict_t *self)
+{
+	if (self->monsterinfo.aiflags & (AI_DUCKED | AI_COMBAT_POINT))
+		return false;
+	return meansOfDeath == MOD_CHAINFIST || skill->value < 3;
+}
+
+// the re-release's: a monster's step, which its client sounds by the
+// material stepped on (client/cl_fx.c)
+void monster_footstep (edict_t *self)
+{
+	if (self->groundentity)
+		self->s.event = EV_OTHER_FOOTSTEP;
+}

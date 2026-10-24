@@ -493,6 +493,7 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_SOLDIER_MACHINEGUN_6:
 	case MZ2_SOLDIER_MACHINEGUN_7:
 	case MZ2_SOLDIER_MACHINEGUN_8:
+	case MZ2_SOLDIER_MACHINEGUN_9:
 		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
 		CL_ParticleEffect (origin, vec3_origin, 0, 40);
 		CL_SmokeAndFlash(origin);
@@ -558,6 +559,7 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_SOLDIER_BLASTER_6:
 	case MZ2_SOLDIER_BLASTER_7:
 	case MZ2_SOLDIER_BLASTER_8:
+	case MZ2_SOLDIER_BLASTER_9:
 	case MZ2_TURRET_BLASTER:			// PGM
 		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
 		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("soldier/solatck2.wav"), 1, ATTN_NORM, 0);
@@ -592,6 +594,7 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_SOLDIER_SHOTGUN_6:
 	case MZ2_SOLDIER_SHOTGUN_7:
 	case MZ2_SOLDIER_SHOTGUN_8:
+	case MZ2_SOLDIER_SHOTGUN_9:
 		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
 		CL_SmokeAndFlash(origin);
 		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("soldier/solatck1.wav"), 1, ATTN_NORM, 0);
@@ -2348,6 +2351,83 @@ the female events are there for backwards compatability
 */
 extern struct sfx_s	*cl_sfx_footsteps[4];
 
+/*
+==============
+CL_FootstepSound
+
+A step's sound. On the re-release's maps it is as there, of the material
+of what is stepped on: each texture has a textures/<name>.mat naming one,
+"clank", "wood", "grass" and so on, and player/steps/ has four of each.
+What has none, or a map of 1997's, steps as 1997 does.
+==============
+*/
+#define	MAX_STEP_MATERIALS	1024
+
+static struct
+{
+	char	texture[32];
+	char	material[16];	// "" for none
+}				cl_stepmats[MAX_STEP_MATERIALS];
+static int		cl_numstepmats;
+static char		cl_stepmats_map[MAX_QPATH];
+
+static char *CL_StepMaterial (char *texture)
+{
+	int		i, len;
+	char	path[MAX_QPATH], *buf, *p;
+
+	if (strcmp (cl_stepmats_map, cl.configstrings[CS_MODELS+1]))
+	{
+		cl_numstepmats = 0;
+		strncpy (cl_stepmats_map, cl.configstrings[CS_MODELS+1], sizeof(cl_stepmats_map)-1);
+	}
+	for (i=0 ; i<cl_numstepmats ; i++)
+		if (!strcmp (cl_stepmats[i].texture, texture))
+			return cl_stepmats[i].material;
+	if (cl_numstepmats == MAX_STEP_MATERIALS)
+		return "";
+
+	i = cl_numstepmats++;
+	strncpy (cl_stepmats[i].texture, texture, sizeof(cl_stepmats[i].texture)-1);
+	cl_stepmats[i].texture[sizeof(cl_stepmats[i].texture)-1] = 0;
+	cl_stepmats[i].material[0] = 0;
+	Com_sprintf (path, sizeof(path), "textures/%s.mat", texture);
+	len = FS_LoadFile (path, (void **)&buf);
+	if (buf)
+	{
+		// one word, letters only
+		for (p = buf ; p < buf + len && (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') ; p++)
+			;
+		for (len = buf + len - p, i = 0 ; i < len && i < sizeof(cl_stepmats[0].material)-1
+			&& ((p[i] >= 'a' && p[i] <= 'z') || (p[i] >= 'A' && p[i] <= 'Z')) ; i++)
+			cl_stepmats[cl_numstepmats-1].material[i] = p[i];
+		cl_stepmats[cl_numstepmats-1].material[i] = 0;
+		FS_FreeFile (buf);
+	}
+	return cl_stepmats[cl_numstepmats-1].material;
+}
+
+static struct sfx_s *CL_FootstepSound (entity_state_t *ent)
+{
+	vec3_t	end;
+	trace_t	tr;
+	char	*material, name[MAX_QPATH];
+
+	if (!pm_rerelease)
+		return cl_sfx_footsteps[rand()&3];
+
+	VectorCopy (ent->origin, end);
+	end[2] -= 64;
+	tr = CM_BoxTrace (ent->origin, end, vec3_origin, vec3_origin, 0, MASK_SOLID);
+	if (tr.fraction == 1 || !tr.surface || !tr.surface->name[0])
+		return cl_sfx_footsteps[rand()&3];
+	material = CL_StepMaterial (((mapsurface_t *)tr.surface)->rname);	// the whole name
+	if (!material[0])
+		return cl_sfx_footsteps[rand()&3];
+	Com_sprintf (name, sizeof(name), "player/steps/%s%i.wav", material, (rand()&3) + 1);
+	return S_RegisterSound (name);
+}
+
 void CL_EntityEvent (entity_state_t *ent)
 {
 	switch (ent->event)
@@ -2362,7 +2442,11 @@ void CL_EntityEvent (entity_state_t *ent)
 		break;
 	case EV_FOOTSTEP:
 		if (cl_footsteps->value)
-			S_StartSound (NULL, ent->number, CHAN_BODY, cl_sfx_footsteps[rand()&3], 1, ATTN_NORM, 0);
+			S_StartSound (NULL, ent->number, CHAN_BODY, CL_FootstepSound (ent), 1, ATTN_NORM, 0);
+		break;
+	case EV_OTHER_FOOTSTEP:		// a monster's, which carries less far
+		if (cl_footsteps->value)
+			S_StartSound (NULL, ent->number, CHAN_BODY, CL_FootstepSound (ent), 1, ATTN_IDLE, 0);
 		break;
 	case EV_FALLSHORT:
 		S_StartSound (NULL, ent->number, CHAN_AUTO, S_RegisterSound ("player/land1.wav"), 1, ATTN_NORM, 0);

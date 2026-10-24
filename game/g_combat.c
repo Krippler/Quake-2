@@ -147,6 +147,10 @@ void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, v
 			targ->monsterinfo.commander->monsterinfo.monster_used -= targ->monsterinfo.monster_slots;
 		targ->monsterinfo.commander = NULL;
 	}
+
+	// the re-release's: its skin for how hurt it is
+	if (targ->inuse && targ->monsterinfo.setskin)
+		targ->monsterinfo.setskin (targ);
 }
 
 
@@ -579,6 +583,10 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 		if (targ->pain)
 			targ->pain (targ, attacker, knockback, take);
 	}
+
+	// the re-release's: a monster's skin for how hurt it is
+	if ((targ->svflags & SVF_MONSTER) && targ->inuse && targ->monsterinfo.setskin)
+		targ->monsterinfo.setskin (targ);
 
 	// add to the damage inflicted on a player this frame
 	// the total will be turned into screen blends and view angle kicks

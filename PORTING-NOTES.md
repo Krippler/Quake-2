@@ -491,6 +491,26 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   machine, rewritten for 40 Hz (buffered fire, `weapon_think_time`),
   behaves as 1997's at 10 Hz and is not taken; nor are its weapon chains,
   instant or quick switching, or lag compensation.
+- **`game/m_*_rr.c`**: on the same maps the 1997 monsters are the
+  re-release's, ported whole from its `m_*.cpp` into a file of their own
+  beside 1997's, whose spawn function hands over to it on such a map.
+  Its models have the frames these need, after 1997's, and the maps'
+  models are its models. Each takes from `g_rr.c` what the re-release's
+  monsters share: `ThrowGibs` with its own gibs (`GIB_SKINNED`, and
+  `GIB_HEAD` for the monster itself), `M_CheckGib` by `gib_health`,
+  `M_ShouldReactToPain`, `monster_footstep`, `monsterinfo.setskin` for
+  the hurt skin (called after damage and death in `g_combat.c`, and in
+  the save fields). What it does at 40 Hz is done at 10, its `M_SetAnimation`
+  is `currentmove`, its sidestep scale on a move is not taken, and its
+  monsters do not find their way with its navigation files, which its
+  closed engine reads. So far: the soldier, with The Reckoning's guards
+  (`m_soldier_rr.c`), whose prone fire is the re-release's muzzle flashes
+  251 to 255.
+- **`client/cl_fx.c`**: footsteps on the re-release's maps are by material,
+  as its engine plays them: a trace down to the surface stepped on, its
+  texture's `textures/<name>.mat` naming the material (cached per map),
+  and `player/steps/<material>1..4.wav`. A monster's step is the new
+  entity event `EV_OTHER_FOOTSTEP`, at `ATTN_IDLE`.
 
 ## The system layer
 

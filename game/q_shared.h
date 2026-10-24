@@ -937,6 +937,13 @@ typedef struct
 #define	MZ2_GUNCMDR_GRENADE_CROUCH_2	249
 #define	MZ2_GUNCMDR_GRENADE_CROUCH_3	250
 
+// the re-release's soldiers, prone
+#define	MZ2_SOLDIER_BLASTER_9			251
+#define	MZ2_SOLDIER_SHOTGUN_9			252
+#define	MZ2_SOLDIER_MACHINEGUN_9		253
+#define	MZ2_SOLDIER_RIPPER_9			254
+#define	MZ2_SOLDIER_HYPERGUN_9			255
+
 // ROGUE
 
 extern	vec3_t monster_flash_offset [];
@@ -1189,7 +1196,8 @@ typedef enum
 	EV_FALL,
 	EV_FALLFAR,
 	EV_PLAYER_TELEPORT,
-	EV_OTHER_TELEPORT
+	EV_OTHER_TELEPORT,
+	EV_OTHER_FOOTSTEP	// the re-release's: a monster's step
 } entity_event_t;
 
 

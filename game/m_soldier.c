@@ -28,6 +28,13 @@ SOLDIER
 #include "g_local.h"
 #include "m_soldier.h"
 
+void SP_monster_soldier_light_rr (edict_t *self);
+void SP_monster_soldier_rr (edict_t *self);
+void SP_monster_soldier_ss_rr (edict_t *self);
+void SP_monster_soldier_ripper_rr (edict_t *self);
+void SP_monster_soldier_hypergun_rr (edict_t *self);
+void SP_monster_soldier_lasergun_rr (edict_t *self);
+
 /*
 The Reckoning's ripper, hyperblaster and laser soldiers, as the 2023
 re-release has them: on this soldier model, with its skins 6 to 11
@@ -1388,6 +1395,12 @@ void SP_monster_soldier_light (edict_t *self)
 		G_FreeEdict (self);
 		return;
 	}
+	// the re-release's own, on its maps (m_soldier_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_soldier_light_rr (self);
+		return;
+	}
 
 	SP_monster_soldier_x (self);
 
@@ -1411,6 +1424,12 @@ void SP_monster_soldier (edict_t *self)
 		G_FreeEdict (self);
 		return;
 	}
+	// the re-release's own, on its maps (m_soldier_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_soldier_rr (self);
+		return;
+	}
 
 	SP_monster_soldier_x (self);
 
@@ -1430,6 +1449,12 @@ void SP_monster_soldier_ss (edict_t *self)
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_soldier_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_soldier_ss_rr (self);
 		return;
 	}
 
@@ -1467,6 +1492,12 @@ void SP_monster_soldier_ripper (edict_t *self)
 		G_FreeEdict (self);
 		return;
 	}
+	// the re-release's own, on its maps (m_soldier_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_soldier_ripper_rr (self);
+		return;
+	}
 	sound_pain_light = gi.soundindex ("soldier/solpain2.wav");
 	sound_death_light = gi.soundindex ("soldier/soldeth2.wav");
 	gi.modelindex ("models/objects/boomrang/tris.md2");
@@ -1481,6 +1512,12 @@ void SP_monster_soldier_hypergun (edict_t *self)
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_soldier_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_soldier_hypergun_rr (self);
 		return;
 	}
 	sound_pain = gi.soundindex ("soldier/solpain1.wav");
@@ -1499,6 +1536,12 @@ void SP_monster_soldier_lasergun (edict_t *self)
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_soldier_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_soldier_lasergun_rr (self);
 		return;
 	}
 	sound_pain_ss = gi.soundindex ("soldier/solpain3.wav");

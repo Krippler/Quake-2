@@ -125,6 +125,10 @@ typedef enum
 //gib types
 #define GIB_ORGANIC				0
 #define GIB_METALLIC			1
+// the re-release's, with ThrowGibs: in the monster's own skin; the
+// monster itself, as ThrowHead
+#define GIB_SKINNED				0x10
+#define GIB_HEAD				0x20
 
 // the re-release's summoned reinforcements
 #define	MAX_REINFORCEMENTS		5	// at once
@@ -525,6 +529,11 @@ typedef struct
 	float		dodge_time;			// no dodge again till then
 	float		base_height;		// maxs[2], not ducked
 	qboolean	can_jump;
+
+	// the re-release's: its skin for how hurt it is, set after damage;
+	// and when a held frame of firing may go on
+	void		(*setskin)(edict_t *self);
+	float		fire_wait;
 } monsterinfo_t;
 
 
@@ -746,6 +755,19 @@ void ED_CallSpawn (edict_t *ent);
 
 // g_rr.c: the re-release's
 qboolean RR_Map (void);
+typedef struct
+{
+	int		count;		// 0 for 1
+	char	*gibname;	// NULL ends a list
+	int		type;		// GIB_ORGANIC or GIB_METALLIC, GIB_SKINNED, GIB_HEAD
+} gib_def_t;
+void ThrowGibs (edict_t *self, int damage, gib_def_t *gibs);
+qboolean M_CheckGib (edict_t *self);
+qboolean M_ShouldReactToPain (edict_t *self);
+void monster_footstep (edict_t *self);
+#define	RANGE_MELEE_RR		20		// the re-release's: bboxes basically touching
+#define	RANGE_NEAR_RR		440
+#define	RANGE_MID_RR		940
 #define	MELEE_DISTANCE_RR	50
 float distance_between_boxes (vec3_t absminsa, vec3_t absmaxsa, vec3_t absminsb, vec3_t absmaxsb);
 float range_to (edict_t *self, edict_t *other);
