@@ -52,6 +52,12 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   afar and slam down with a shockwave, swing as they run in, spike and
   club up close, sidestep and now and then dive out of the way, jump
   ledges after you, and gib into pieces of their own.
+- **On the re-release's maps, its gladiators.** Their gun hums while
+  they live. They fire the railgun at where you stood when they began to
+  charge it, so moving dodges it, hold off firing while you are close
+  enough to cleave, show a hurt skin, and gib into pieces of their own.
+  The Reckoning's plasma gladiators fire two bolts a charge on nightmare,
+  and their power shield takes the first of the damage.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.
