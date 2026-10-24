@@ -623,11 +623,19 @@ void chick_sight(edict_t *self, edict_t *other)
 
 /*QUAKED monster_chick (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
 */
+void SP_monster_chick_rr (edict_t *self);
+
 void SP_monster_chick (edict_t *self)
 {
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_chick_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_chick_rr (self);
 		return;
 	}
 
@@ -674,4 +682,16 @@ void SP_monster_chick (edict_t *self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	walkmonster_start (self);
+}
+
+/*QUAKED monster_chick_heat (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
+The Reckoning's iron maiden, whose rockets seek heat: the re-release's
+on its maps (m_chick_rr.c), and elsewhere an iron maiden in its skin.
+*/
+void SP_monster_chick_heat (edict_t *self)
+{
+	SP_monster_chick (self);
+	if (!self->inuse)
+		return;
+	self->s.skinnum = 2;
 }

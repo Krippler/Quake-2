@@ -169,6 +169,7 @@ void SP_monster_tank (edict_t *self);
 void SP_monster_medic (edict_t *self);
 void SP_monster_flipper (edict_t *self);
 void SP_monster_chick (edict_t *self);
+void SP_monster_chick_heat (edict_t *self);
 void SP_monster_parasite (edict_t *self);
 void SP_monster_flyer (edict_t *self);
 void SP_monster_brain (edict_t *self);
@@ -340,6 +341,7 @@ spawn_t	spawns[] = {
 	{"monster_medic_commander", SP_monster_medic},
 	{"monster_flipper", SP_monster_flipper},
 	{"monster_chick", SP_monster_chick},
+	{"monster_chick_heat", SP_monster_chick_heat},
 	{"monster_parasite", SP_monster_parasite},
 	{"monster_flyer", SP_monster_flyer},
 	{"monster_brain", SP_monster_brain},

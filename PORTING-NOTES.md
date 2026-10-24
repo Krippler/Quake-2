@@ -539,6 +539,9 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   the brain (`m_brain_rr.c`, on 1997's frames), whose eye lasers are the
   re-release's lasting ones (`monster_fire_dabeam_rr`, its `beam` and
   `beam2`, placed by `postthink`), not The Reckoning's of a frame.
+  The iron maiden (`m_chick_rr.c`, on 1997's frames) is The Reckoning's
+  heat-seeking one too (`monster_chick_heat`, spawned now: elsewhere
+  an iron maiden in its skin).
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all

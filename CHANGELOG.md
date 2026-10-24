@@ -89,6 +89,12 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   close, suck you in with the tongue from a little further, and from
   afar sweep you with a laser from each eye, held on you and leading
   you; they duck, show a hurt skin, and gib into pieces of their own.
+- **On the re-release's maps, its iron maidens.** Their rockets now and
+  then lead you, they fire again only with a clear shot, blind-fire
+  where they last saw you, keep slashing while you stay close, duck and
+  sidestep, show a hurt skin, and gib into pieces of their own. The
+  Reckoning's heat-seeking iron maidens (`monster_chick_heat`) are
+  spawned too.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.
