@@ -856,7 +856,9 @@ void SV_Physics_Step (edict_t *ent)
 			{
 				if (ent->velocity[2] < sv_gravity->value*-0.1)
 					hitsound = true;
-				if (ent->waterlevel == 0)
+				// the re-release's swimmers, which coast out of the water,
+				// fall back unless all under, as its monsters do
+				if (ent->waterlevel == 0 || ((ent->monsterinfo.aiflags & AI_ALTERNATE_FLY) && ent->waterlevel < 3))
 					SV_AddGravity (ent);
 			}
 

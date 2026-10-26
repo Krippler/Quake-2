@@ -550,7 +550,10 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   it no distance. Its numbers are for its 40 Hz frames; at 10 each frame
   gains four of its speed-ups and keeps its old heading as four of its
   turns would. The technician (`m_float_rr.c`) and the icarus and
-  Ground Zero's daedalus (`m_hover_rr.c`) fly by it too.
+  Ground Zero's daedalus (`m_hover_rr.c`) fly by it too, and the
+  barracuda shark (`m_flipper_rr.c`) swims by it; a swimmer of it coasts
+  when not all under water, and falls by gravity then as there, where
+  1997's has gravity only out of the water.
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all
