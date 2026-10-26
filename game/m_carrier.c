@@ -1501,6 +1501,8 @@ CarrierPrecache(void)
 /*
  * QUAKED monster_carrier (1 .5 0) (-56 -56 -44) (56 56 44) Ambush Trigger_Spawn Sight
  */
+void SP_monster_carrier_rr (edict_t *self);
+
 void
 SP_monster_carrier(edict_t *self)
 {
@@ -1512,6 +1514,12 @@ SP_monster_carrier(edict_t *self)
 	if (deathmatch->value)
 	{
 		G_FreeEdict(self);
+		return;
+	}
+	// the re-release's own, on its maps (m_carrier_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_carrier_rr (self);
 		return;
 	}
 

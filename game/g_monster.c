@@ -384,8 +384,9 @@ void M_MoveFrame (edict_t *self)
 				// regrab move, endfunc is very likely to change it
 				move = self->monsterinfo.currentmove;
 
-				// check for death
-				if (self->svflags & SVF_DEADMONSTER)
+				// check for death, or for its having become a gib
+				// (the re-release's ThrowGibs, its head last)
+				if ((self->svflags & SVF_DEADMONSTER) || !(self->svflags & SVF_MONSTER))
 					return;
 			}
 		}

@@ -579,7 +579,14 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   (`m_turret_rr.c`, on Ground Zero's frames), which wears combat armor,
   as only it does there: `monsterinfo.armor_type` (an item index) and
   `armor_power`, which `CheckArmor` takes from for a monster as from a
-  player's inventory, till it is spent.
+  player's inventory, till it is spent; and the carrier
+  (`m_carrier_rr.c`), on the re-release's flight, its checkattack the
+  re-release's `M_CheckAttack_Base` (`g_rr.c`: chances by range given,
+  a flyer's strafing kept a while, by `monsterinfo.strafe_check_time`),
+  its summoned flyers set going on `m_flyer_rr.c`'s own moves
+  (`flyer_move_attack3_rr`, `flyer_move_kamikaze_rr`). `M_MoveFrame`
+  stops once an end function has made the monster its head
+  (`ThrowGibs`), not to set the gib to its move's first frame.
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all

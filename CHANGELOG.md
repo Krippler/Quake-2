@@ -22,6 +22,14 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   less health, turn faster on harder skills, sweep a lasersight about,
   fire machineguns in bursts, lead their shots now and then, whir as
   they ready, and leave their heads behind when destroyed.
+- **On the re-release's maps, its carriers.** They fly as its other
+  flyers do, keeping their distance above you; spin their chainguns up
+  and down, fire rockets out the back at whoever is behind or under
+  them, lead their rockets, summon flyers and kamikazes as their slots
+  allow, hang in the air as they blow up, and gib into pieces of their
+  own.
+- **Monsters that gib into pieces of their own no longer keep their
+  last animation frame on the head they leave.**
 
 ## [1.3.21] — 2026-10-26
 

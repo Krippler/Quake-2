@@ -543,6 +543,7 @@ typedef struct
 	// and when a held frame of firing may go on
 	void		(*setskin)(edict_t *self);
 	float		fire_wait;
+	float		strafe_check_time;	// the re-release's: a flyer's strafing kept till then
 
 	// the re-release's jumping: how far down and up it may, and no jump
 	// again till jump_time
@@ -823,6 +824,7 @@ qboolean monster_jump_finished_rr (edict_t *self);
 #define	MELEE_DISTANCE_RR	50
 float distance_between_boxes (vec3_t absminsa, vec3_t absmaxsa, vec3_t absminsb, vec3_t absmaxsb);
 float range_to (edict_t *self, edict_t *other);
+qboolean M_CheckAttack_Base (edict_t *self, float stand_ground_chance, float melee_chance, float near_chance, float mid_chance, float far_chance, float strafe_scalar);
 qboolean fire_hit_rr (edict_t *self, vec3_t aim, int damage, int kick);
 void PredictAim (edict_t *self, edict_t *target, vec3_t start, float bolt_speed, qboolean eye_height, float offset, vec3_t aimdir, vec3_t aimpoint);
 qboolean M_CheckClearShot (edict_t *self, vec3_t offset, vec3_t start);
