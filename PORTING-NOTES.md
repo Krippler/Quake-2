@@ -561,6 +561,9 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   So does the hornet (`m_boss2_rr.c`), whose sinking as it dies is
   its `gravityVector` scaled, here its `gravity`, and whose gibs drawn
   larger there are drawn at their own size.
+  So does the Jorg (`m_boss31_rr.c`), whose loop while it fires (its
+  `weapon_sound`) is its `s.sound`; it throws out the Makron of
+  `m_boss32_rr.c` (`MakronToss_rr`).
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all

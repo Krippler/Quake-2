@@ -124,6 +124,12 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   and a stream of single rockets. They are proof against lasers, sink
   slowly as they die, bursting with explosions, and blow apart into
   pieces of their own.
+- **On the re-release's maps, its Jorg and Makron.** The Jorg's
+  chainguns lead you as they whirr, its gun's loop sounding while it
+  fires; it seldom flinches from small hurts, bursts with explosions as
+  it dies and blows apart into pieces of its own, throwing out the
+  Makron, who leaps at you, and whose torso falls from his legs as he
+  dies, twitching, a thing of its own.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.
