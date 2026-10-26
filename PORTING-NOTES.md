@@ -549,7 +549,8 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   friction, and its AI calls the move each frame though the frame moves
   it no distance. Its numbers are for its 40 Hz frames; at 10 each frame
   gains four of its speed-ups and keeps its old heading as four of its
-  turns would. The technician (`m_float_rr.c`) flies by it too.
+  turns would. The technician (`m_float_rr.c`) and the icarus and
+  Ground Zero's daedalus (`m_hover_rr.c`) fly by it too.
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all
