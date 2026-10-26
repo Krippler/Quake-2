@@ -567,6 +567,46 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   The insane marine (`m_insane_rr.c`) is the re-release's but crucified,
   which hangs as 1997's does, the re-release's stationary monsters
   being none of this game's.
+- **The mission packs' monsters, the re-release's**: likewise, the
+  gekk (`m_gekk_rr.c`, on The Reckoning's frames), which swims by the
+  re-release's flight and gibs by `ThrowGibs` into acid gibs
+  (`GIB_ACID`: the green trail, full bright); the stalker
+  (`m_stalker_rr.c`, on Ground Zero's frames and its ceiling walking),
+  told by `monsterinfo.physics_change` (saved) as it gains or loses its
+  ground, which the step physics now calls as the re-release's does, and
+  marked to circle as it fires (`AI_CIRCLE_STRAFE`), as this game's
+  `ai_charge` circles only those it marks; and the turret
+  (`m_turret_rr.c`, on Ground Zero's frames), which wears combat armor,
+  as only it does there: `monsterinfo.armor_type` (an item index) and
+  `armor_power`, which `CheckArmor` takes from for a monster as from a
+  player's inventory, till it is spent; and the carrier
+  (`m_carrier_rr.c`), on the re-release's flight, its checkattack the
+  re-release's `M_CheckAttack_Base` (`g_rr.c`: chances by range given,
+  a flyer's strafing kept a while, by `monsterinfo.strafe_check_time`),
+  its summoned flyers set going on `m_flyer_rr.c`'s own moves
+  (`flyer_move_attack3_rr`, `flyer_move_kamikaze_rr`). `M_MoveFrame`
+  stops once an end function has made the monster its head
+  (`ThrowGibs`), not to set the gib to its move's first frame.
+  The fixbot (`m_fixbot.c`, its frames' header made from the
+  re-release's enum) is The Reckoning's, which this game had none of,
+  so it is the re-release's on every map, with `func_object_repair`
+  (`object_repair`) for it to weld. Its healing ray is the lasting
+  laser's (`dabeam_update_rr`) with a negative `dmg`, which heals what
+  it touches short of full health; the medic's `abortHeal` is shared
+  with it. Its Fixit spawnflag (4) is spared `monster_start`'s 1997
+  rewrite of 4 into Ambush, and a trigger-spawned one bent on landing,
+  taking off or fixing skips its first target, as the re-release's
+  does. As there, it keeps `AI_MEDIC` after a raise.
+  The black widow (`m_widow.c`) and its second form (`m_widow2.c`,
+  with its first form's legs and its own gibs), Ground Zero's final
+  boss, likewise the re-release's on every map, their frames' headers
+  made from its enums. Their monster powerups (`monsterinfo.quad_time`,
+  `double_time`, `invincible_time`, in seconds; a player's frames
+  times `FRAMETIME`) show as shells in `M_SetEffects`, blinking out as
+  the re-release's do; their damage is the widow's multiplier. Its
+  helpers are in `g_rr.c`: `G_ProjectSource2`, `CountPlayers`,
+  `monster_fire_heatbeam` and `monster_fire_tracker`. `monster_think`
+  stops if a frame has freed its monster (the widow, become its legs).
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all

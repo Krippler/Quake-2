@@ -84,6 +84,10 @@ void SP_misc_lavaball (edict_t *ent);
 void SP_monster_tank_stand (edict_t *ent);
 void SP_monster_daedalus (edict_t *ent);
 void SP_monster_turret (edict_t *ent);
+void SP_monster_fixbot (edict_t *ent);
+void SP_monster_widow (edict_t *ent);
+void SP_monster_widow2 (edict_t *ent);
+void SP_object_repair (edict_t *ent);
 void SP_monster_stalker (edict_t *ent);
 void SP_monster_arachnid (edict_t *ent);
 void SP_monster_shambler (edict_t *ent);
@@ -247,6 +251,10 @@ spawn_t	spawns[] = {
 	{"monster_tank_stand", SP_monster_tank_stand},
 	{"monster_daedalus", SP_monster_daedalus},
 	{"monster_turret", SP_monster_turret},
+	{"monster_fixbot", SP_monster_fixbot},
+	{"monster_widow", SP_monster_widow},
+	{"monster_widow2", SP_monster_widow2},
+	{"func_object_repair", SP_object_repair},
 	{"monster_stalker", SP_monster_stalker},
 	{"monster_arachnid", SP_monster_arachnid},
 	{"monster_shambler", SP_monster_shambler},

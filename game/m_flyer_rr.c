@@ -362,6 +362,34 @@ static mframe_t flyer_frames_attack2[] = {
 };
 static mmove_t flyer_move_attack2 = { FRAME_attak201, FRAME_attak217, flyer_frames_attack2, flyer_run };
 
+// PMM
+// circle strafe frames: what its carrier's summoned flyers start with
+static mframe_t flyer_frames_attack3[] = {
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 }
+};
+static mmove_t flyer_move_attack3 = { FRAME_attak201, FRAME_attak217, flyer_frames_attack3, flyer_run };
+// pmm
+
+// for its carrier (m_carrier_rr.c), which sets its summoned ones going
+mmove_t *flyer_move_attack3_rr = &flyer_move_attack3;
+mmove_t *flyer_move_kamikaze_rr = &flyer_move_kamikaze;
+
 static void flyer_slash_left (edict_t *self)
 {
 	vec3_t	aim;

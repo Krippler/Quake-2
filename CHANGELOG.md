@@ -5,6 +5,45 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.22] — 2026-10-26
+
+### Changed
+
+- **On the re-release's maps, its gekks.** They swim as its flyers fly
+  and leap from the water at you, spit acid from afar, leap and claw up
+  close, pull themselves up ledges as they land, jump ledges after you,
+  heal as they search, and gib into acid pieces of their own.
+- **On the re-release's maps, its stalkers.** They pounce only when they
+  can land by you, now and then lead their shots and fire as they jump,
+  circle you as they fire, feign death when badly hurt and heal, jump
+  ledges after you, fall from a ceiling they are knocked off, show a
+  hurt skin, and gib into pieces of their own.
+- **On the re-release's maps, its turrets.** They wear armor but have
+  less health, turn faster on harder skills, sweep a lasersight about,
+  fire machineguns in bursts, lead their shots now and then, whir as
+  they ready, and leave their heads behind when destroyed.
+- **On the re-release's maps, its carriers.** They fly as its other
+  flyers do, keeping their distance above you; spin their chainguns up
+  and down, fire rockets out the back at whoever is behind or under
+  them, lead their rockets, summon flyers and kamikazes as their slots
+  allow, hang in the air as they blow up, and gib into pieces of their
+  own.
+- **The Reckoning's fixbots, which this game lacked.** On its
+  compound and reactor maps they now fly about welding what needs
+  fixing, take off and land where the map says, raise the dead with
+  their healing ray as medics do, and otherwise charge in with their
+  blasters, as the re-release has them.
+- **Ground Zero's final boss, the black widow, which this game lacked.**
+  Its last map now has its fight, as the re-release has it: the widow
+  sweeps its blaster as it turns, fires its rail, kicks, summons
+  stalkers and answers your quad, double or invulnerability with its
+  own; dead, it beams out and leaves its legs to burn, and its second
+  form comes in, sweeping its heat beam, firing its disruptor, pulling
+  you into its jaws with its tongue, summoning stalkers, and blowing
+  apart in pieces of its own as its stalkers die with it.
+- **Monsters that gib into pieces of their own no longer keep their
+  last animation frame on the head they leave.**
+
 ## [1.3.21] — 2026-10-26
 
 ### Changed

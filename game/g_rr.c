@@ -35,6 +35,175 @@ float range_to (edict_t *self, edict_t *other)
 	return distance_between_boxes (self->absmin, self->absmax, other->absmin, other->absmax);
 }
 
+// a point so far forward, right and up of another
+void G_ProjectSource2 (vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t up, vec3_t result)
+{
+	int		i;
+
+	for (i = 0; i < 3; i++)
+		result[i] = point[i] + forward[i] * distance[0] + right[i] * distance[1] + up[i] * distance[2];
+}
+
+// the players in the game, for coop's tougher bosses; one out of coop
+int CountPlayers (void)
+{
+	int		i, count = 0;
+
+	if (!coop->value)
+		return 1;
+
+	for (i = 1; i <= game.maxclients; i++)
+		if (g_edicts[i].inuse && g_edicts[i].client)
+			count++;
+
+	return count;
+}
+
+void fire_heatbeam (edict_t *self, vec3_t start, vec3_t aimdir, vec3_t offset, int damage, int kick, qboolean monster);
+
+// Ground Zero's monster weapons, with their flashes
+void monster_fire_heatbeam (edict_t *self, vec3_t start, vec3_t dir, vec3_t offset, int damage, int kick, int flashtype)
+{
+	fire_heatbeam (self, start, dir, offset, damage, kick, true);
+	monster_muzzleflash (self, start, flashtype);
+}
+
+void monster_fire_tracker (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, edict_t *enemy, int flashtype)
+{
+	fire_tracker (self, start, dir, damage, speed, enemy);
+	monster_muzzleflash (self, start, flashtype);
+}
+
+/*
+=============
+M_CheckAttack_Base
+
+The re-release's checkattack, its chances by range given, for its bosses
+(carrier, widows): blind fire as Ground Zero's, a sure shot at a
+SOLID_NOT target, and a flyer's strafing kept a while once chosen.
+=============
+*/
+qboolean M_CheckAttack_Base (edict_t *self, float stand_ground_chance, float melee_chance, float near_chance, float mid_chance, float far_chance, float strafe_scalar)
+{
+	vec3_t	spot1, spot2;
+	float	chance, enemy_range, strafe_chance;
+	trace_t	tr;
+	int		new_state;
+
+	if (self->enemy->health > 0)
+	{
+		VectorCopy (self->s.origin, spot1);
+		spot1[2] += self->viewheight;
+		// see if any entities are in the way of the shot
+		VectorCopy (self->enemy->s.origin, spot2);
+		spot2[2] += self->enemy->viewheight;
+
+		tr = gi.trace (spot1, NULL, NULL, spot2, self, MASK_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA);
+
+		// do we have a clear shot?
+		if (tr.ent != self->enemy && !tr.ent->client)
+		{
+			// we want them to go ahead and shoot at info_notnulls if they can
+			if (self->enemy->solid != SOLID_NOT || tr.fraction < 1.0)
+			{
+				// if we can't see our target, and we're not blocked by a monster, go into blind fire if available
+				if (!(tr.ent->svflags & SVF_MONSTER) && !visible (self, self->enemy))
+				{
+					if (self->monsterinfo.blindfire && self->monsterinfo.blind_fire_delay <= 20)
+					{
+						if (level.time < self->monsterinfo.attack_finished)
+							return false;
+						if (level.time < self->monsterinfo.trail_time + self->monsterinfo.blind_fire_delay)
+							return false;	// wait for our time
+
+						// make sure we're not going to shoot a monster
+						tr = gi.trace (spot1, NULL, NULL, self->monsterinfo.blind_fire_target, self, CONTENTS_MONSTER);
+						if (tr.allsolid || tr.startsolid || (tr.fraction < 1.0 && tr.ent != self->enemy))
+							return false;
+
+						self->monsterinfo.attack_state = AS_BLIND;
+						return true;
+					}
+				}
+				return false;
+			}
+		}
+	}
+
+	enemy_range = range_to (self, self->enemy);
+
+	// melee attack
+	if (enemy_range <= RANGE_MELEE_RR)
+	{
+		if (self->monsterinfo.melee && self->monsterinfo.melee_debounce_time <= level.time)
+			self->monsterinfo.attack_state = AS_MELEE;
+		else
+			self->monsterinfo.attack_state = AS_MISSILE;
+		return true;
+	}
+
+	// if we were in melee just before this but we're too far away, get out of melee state now
+	if (self->monsterinfo.attack_state == AS_MELEE && self->monsterinfo.melee_debounce_time > level.time)
+		self->monsterinfo.attack_state = AS_MISSILE;
+
+	// missile attack
+	if (!self->monsterinfo.attack)
+	{
+		self->monsterinfo.attack_state = AS_STRAIGHT;
+		return false;
+	}
+
+	if (level.time < self->monsterinfo.attack_finished)
+		return false;
+
+	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
+		chance = stand_ground_chance;
+	else if (enemy_range <= RANGE_MELEE_RR)
+		chance = melee_chance;
+	else if (enemy_range <= RANGE_NEAR_RR)
+		chance = near_chance;
+	else if (enemy_range <= RANGE_MID_RR)
+		chance = mid_chance;
+	else
+		chance = far_chance;
+
+	// go ahead and shoot every time if it's a info_notnull
+	if ((!self->enemy->client && self->enemy->solid == SOLID_NOT) || random () < chance)
+	{
+		self->monsterinfo.attack_state = AS_MISSILE;
+		self->monsterinfo.attack_finished = level.time;
+		return true;
+	}
+
+	if (self->flags & FL_FLY)
+	{
+		if (self->monsterinfo.strafe_check_time <= level.time)
+		{
+			strafe_chance = 0.6;
+
+			// if enemy is tesla, never strafe
+			if (self->enemy->classname && !strcmp (self->enemy->classname, "tesla"))
+				strafe_chance = 0;
+			else
+				strafe_chance *= strafe_scalar;
+
+			if (strafe_chance)
+			{
+				new_state = (random () < strafe_chance) ? AS_SLIDING : AS_STRAIGHT;
+				if (new_state != self->monsterinfo.attack_state)
+				{
+					self->monsterinfo.strafe_check_time = level.time + 1 + random () * 2;
+					self->monsterinfo.attack_state = new_state;
+				}
+			}
+		}
+	}
+	else
+		self->monsterinfo.attack_state = AS_STRAIGHT;
+
+	return false;
+}
+
 static void closest_point_to_box (vec3_t from, vec3_t absmins, vec3_t absmaxs, vec3_t out)
 {
 	int		i;
@@ -699,12 +868,22 @@ void ThrowGibs (edict_t *self, int damage, gib_def_t *gibs)
 				ThrowHead (self, gibs->gibname, damage, gibs->type & GIB_METALLIC);
 				if (gibs->type & GIB_SKINNED)
 					self->s.skinnum = skin;
+				if (gibs->type & GIB_ACID)
+				{
+					self->s.effects = (self->s.effects & ~EF_GIB) | EF_GREENGIB;
+					self->s.renderfx |= RF_FULLBRIGHT;
+				}
 				self->monsterinfo.setskin = NULL;
 				continue;
 			}
 			gib = ThrowGib (self, gibs->gibname, damage, gibs->type & GIB_METALLIC);
 			if (gib && (gibs->type & GIB_SKINNED))
 				gib->s.skinnum = self->s.skinnum;
+			if (gib && (gibs->type & GIB_ACID))
+			{
+				gib->s.effects = (gib->s.effects & ~EF_GIB) | EF_GREENGIB;
+				gib->s.renderfx |= RF_FULLBRIGHT;
+			}
 		}
 }
 
@@ -736,6 +915,14 @@ void dabeam_update_rr (edict_t *self, qboolean damage)
 			// hurt it if we can
 			if (self->dmg > 0 && tr.ent->takedamage && !(tr.ent->flags & FL_IMMUNE_LASER) && tr.ent != self->owner)
 				T_Damage (tr.ent, self, self->owner, self->movedir, tr.endpos, vec3_origin, self->dmg, skill->value, DAMAGE_ENERGY, MOD_TARGET_LASER);
+
+			// a healer's ray (its fixbot's), short of full health
+			if (self->dmg < 0 && tr.ent->health < tr.ent->max_health)
+			{
+				tr.ent->health -= self->dmg;
+				if (tr.ent->health > tr.ent->max_health)
+					tr.ent->health = tr.ent->max_health;
+			}
 		}
 
 		// if we hit something that's not a monster or player, we're done

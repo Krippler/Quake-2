@@ -932,6 +932,10 @@ void SV_Physics_Step (edict_t *ent)
 					gi.sound (ent, 0, gi.soundindex("world/land.wav"), 1, 1, 0);
 	}
 
+	// the re-release's: a monster told as it gains or loses its ground
+	if ((ent->svflags & SVF_MONSTER) && wasonground != (ent->groundentity != NULL) && ent->monsterinfo.physics_change)
+		ent->monsterinfo.physics_change (ent);
+
 // regular thinking
 	SV_RunThink (ent);
 }

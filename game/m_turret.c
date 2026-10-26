@@ -1107,6 +1107,8 @@ turret_checkattack(edict_t *self)
  * Default weapon is blaster.
  * When activated, wall units move 32 units in the direction they're facing.
  */
+void SP_monster_turret_rr (edict_t *self);
+
 void
 SP_monster_turret(edict_t *self)
 {
@@ -1120,6 +1122,12 @@ SP_monster_turret(edict_t *self)
 	if (deathmatch->value)
 	{
 		G_FreeEdict(self);
+		return;
+	}
+	// the re-release's own, on its maps (m_turret_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_turret_rr (self);
 		return;
 	}
 

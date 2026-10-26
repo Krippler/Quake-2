@@ -132,6 +132,8 @@ typedef enum
 #define GIB_HEAD				0x20
 // and kept upright where it lands, as 1997's gib_touch already lands one
 #define GIB_UPRIGHT				0x40
+// and acid, as The Reckoning's gekk's: a green trail, full bright
+#define GIB_ACID				0x80
 
 // the re-release's summoned reinforcements
 #define	MAX_REINFORCEMENTS		5	// at once
@@ -155,13 +157,14 @@ typedef enum
 #define AI_RESURRECTING			0x00004000
 #define AI_IGNORE_PAIN			0x00008000	// The Reckoning's: its gekk leaping
 #define AI_MANUAL_STEERING		0x00010000	// Ground Zero's: it sets its own yaw (turret, medic commander)
+#define AI_TARGET_ANGER			0x00020000	// Ground Zero's widow: blocked running, so mad at its target
 #define AI_DODGING				0x00040000	// Ground Zero's: in a dodge
 #define AI_CHARGING				0x00080000	// Ground Zero's kamikaze flyer: chasing
 #define AI_IGNORE_SHOTS			0x00200000	// not angered by a monster's shot
 #define AI_DO_NOT_COUNT			0x00400000	// not in the level's count of monsters
 #define AI_SPAWNED_CARRIER		0x00800000	// summoned by a carrier
 #define AI_SPAWNED_MEDIC_C		0x01000000	// summoned by a medic commander
-#define AI_SPAWNED_WIDOW		0x02000000	// summoned by a widow (none here)
+#define AI_SPAWNED_WIDOW		0x02000000	// summoned by a widow
 #define AI_BLOCKED				0x04000000	// the medic commander's signal to summon
 #define AI_WALK_WALLS			0x08000000	// Ground Zero's stalker: it walks on ceilings
 #define AI_CIRCLE_STRAFE		0x10000000	// Ground Zero's: it circles as it charges, sliding
@@ -501,6 +504,8 @@ typedef struct
 
 	int			power_armor_type;
 	int			power_armor_power;
+	int			armor_type;			// the re-release's: an armor's item index, worn
+	int			armor_power;		// and so much of it left
 
 	// Ground Zero's blind fire, at where the enemy was last seen: its turret's
 	qboolean	blindfire;
@@ -539,6 +544,8 @@ typedef struct
 	// and when a held frame of firing may go on
 	void		(*setskin)(edict_t *self);
 	float		fire_wait;
+	float		strafe_check_time;	// the re-release's: a flyer's strafing kept till then
+	float		quad_time, double_time, invincible_time;	// the re-release's: its powerups' shells till then (its widows)
 
 	// the re-release's jumping: how far down and up it may, and no jump
 	// again till jump_time
@@ -566,6 +573,9 @@ typedef struct
 	qboolean	fly_buzzard, fly_above, fly_pinned, fly_thrusters;
 	float		fly_recovery_time;
 	vec3_t		fly_recovery_dir;
+
+	// the re-release's: told as it gains or loses its ground (its stalker)
+	void		(*physics_change)(edict_t *self);
 } monsterinfo_t;
 
 
@@ -629,6 +639,7 @@ extern	int	body_armor_index;
 #define MOD_TRACKER			41		// Ground Zero's disruptor
 #define MOD_HEATBEAM		42		// Ground Zero's plasma beam
 #define MOD_TESLA_MINE		43		// Ground Zero's tesla mine
+#define MOD_BLASTOFF		44		// the re-release's: under a fixbot taking off
 #define MOD_FRIENDLY_FIRE	0x8000000
 
 extern	int	meansOfDeath;
@@ -816,6 +827,11 @@ qboolean monster_jump_finished_rr (edict_t *self);
 #define	MELEE_DISTANCE_RR	50
 float distance_between_boxes (vec3_t absminsa, vec3_t absmaxsa, vec3_t absminsb, vec3_t absmaxsb);
 float range_to (edict_t *self, edict_t *other);
+void G_ProjectSource2 (vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t up, vec3_t result);
+int CountPlayers (void);
+void monster_fire_heatbeam (edict_t *self, vec3_t start, vec3_t dir, vec3_t offset, int damage, int kick, int flashtype);
+void monster_fire_tracker (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, edict_t *enemy, int flashtype);
+qboolean M_CheckAttack_Base (edict_t *self, float stand_ground_chance, float melee_chance, float near_chance, float mid_chance, float far_chance, float strafe_scalar);
 qboolean fire_hit_rr (edict_t *self, vec3_t aim, int damage, int kick);
 void PredictAim (edict_t *self, edict_t *target, vec3_t start, float bolt_speed, qboolean eye_height, float offset, vec3_t aimdir, vec3_t aimpoint);
 qboolean M_CheckClearShot (edict_t *self, vec3_t offset, vec3_t start);
