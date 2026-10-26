@@ -503,6 +503,8 @@ typedef struct
 
 	int			power_armor_type;
 	int			power_armor_power;
+	int			armor_type;			// the re-release's: an armor's item index, worn
+	int			armor_power;		// and so much of it left
 
 	// Ground Zero's blind fire, at where the enemy was last seen: its turret's
 	qboolean	blindfire;

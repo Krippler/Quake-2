@@ -289,6 +289,7 @@ static int CheckArmor (edict_t *ent, vec3_t point, vec3_t normal, int damage, in
 	gclient_t	*client;
 	int			save;
 	int			index;
+	int			*power;
 	gitem_t		*armor;
 
 	if (!damage)
@@ -296,13 +297,14 @@ static int CheckArmor (edict_t *ent, vec3_t point, vec3_t normal, int damage, in
 
 	client = ent->client;
 
-	if (!client)
+	// the re-release's monsters may wear armor too (its turret)
+	if (!client && !ent->monsterinfo.armor_type)
 		return 0;
 
 	if (dflags & (DAMAGE_NO_ARMOR|DAMAGE_NO_REG_ARMOR))
 		return 0;
 
-	index = ArmorIndex (ent);
+	index = client ? ArmorIndex (ent) : ent->monsterinfo.armor_type;
 	if (!index)
 		return 0;
 
@@ -312,13 +314,16 @@ static int CheckArmor (edict_t *ent, vec3_t point, vec3_t normal, int damage, in
 		save = ceil(((gitem_armor_t *)armor->info)->energy_protection*damage);
 	else
 		save = ceil(((gitem_armor_t *)armor->info)->normal_protection*damage);
-	if (save >= client->pers.inventory[index])
-		save = client->pers.inventory[index];
+	power = client ? &client->pers.inventory[index] : &ent->monsterinfo.armor_power;
+	if (save >= *power)
+		save = *power;
 
 	if (!save)
 		return 0;
 
-	client->pers.inventory[index] -= save;
+	*power -= save;
+	if (!client && !*power)
+		ent->monsterinfo.armor_type = 0;
 	SpawnDamage (te_sparks, point, normal, save);
 
 	return save;

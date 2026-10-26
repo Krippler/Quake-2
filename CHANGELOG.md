@@ -18,6 +18,10 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   circle you as they fire, feign death when badly hurt and heal, jump
   ledges after you, fall from a ceiling they are knocked off, show a
   hurt skin, and gib into pieces of their own.
+- **On the re-release's maps, its turrets.** They wear armor but have
+  less health, turn faster on harder skills, sweep a lasersight about,
+  fire machineguns in bursts, lead their shots now and then, whir as
+  they ready, and leave their heads behind when destroyed.
 
 ## [1.3.21] — 2026-10-26
 

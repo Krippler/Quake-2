@@ -575,7 +575,11 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   told by `monsterinfo.physics_change` (saved) as it gains or loses its
   ground, which the step physics now calls as the re-release's does, and
   marked to circle as it fires (`AI_CIRCLE_STRAFE`), as this game's
-  `ai_charge` circles only those it marks.
+  `ai_charge` circles only those it marks; and the turret
+  (`m_turret_rr.c`, on Ground Zero's frames), which wears combat armor,
+  as only it does there: `monsterinfo.armor_type` (an item index) and
+  `armor_power`, which `CheckArmor` takes from for a monster as from a
+  player's inventory, till it is spent.
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all
