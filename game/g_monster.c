@@ -331,9 +331,17 @@ void M_droptofloor (edict_t *ent)
 }
 
 
+// a powerup running till then shows, but for half of each of its last three seconds
+static qboolean M_PowerUpShows (float time)
+{
+	int		left = (int)((time - level.time) * 1000);
+
+	return left > 3000 || (left % 1000) < 500;
+}
+
 void M_SetEffects (edict_t *ent)
 {
-	ent->s.effects &= ~(EF_COLOR_SHELL|EF_POWERSCREEN);
+	ent->s.effects &= ~(EF_COLOR_SHELL|EF_POWERSCREEN|EF_QUAD|EF_DOUBLE|EF_PENT);
 	ent->s.renderfx &= ~(RF_SHELL_RED|RF_SHELL_GREEN|RF_SHELL_BLUE);
 
 	if (ent->monsterinfo.aiflags & AI_RESURRECTING)
@@ -357,6 +365,14 @@ void M_SetEffects (edict_t *ent)
 			ent->s.renderfx |= RF_SHELL_GREEN;
 		}
 	}
+
+	// the re-release's monster powerups (its widows'), blinking as they run out
+	if (ent->monsterinfo.quad_time > level.time && M_PowerUpShows (ent->monsterinfo.quad_time))
+		ent->s.effects |= EF_QUAD;
+	if (ent->monsterinfo.double_time > level.time && M_PowerUpShows (ent->monsterinfo.double_time))
+		ent->s.effects |= EF_DOUBLE;
+	if (ent->monsterinfo.invincible_time > level.time && M_PowerUpShows (ent->monsterinfo.invincible_time))
+		ent->s.effects |= EF_PENT;
 }
 
 
@@ -422,6 +438,9 @@ void M_MoveFrame (edict_t *self)
 void monster_think (edict_t *self)
 {
 	M_MoveFrame (self);
+	// gone by its own frame (the re-release's widow, become its legs)
+	if (!self->inuse)
+		return;
 	if (self->linkcount != self->monsterinfo.linkcount)
 	{
 		self->monsterinfo.linkcount = self->linkcount;

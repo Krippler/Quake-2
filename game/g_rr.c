@@ -35,6 +35,45 @@ float range_to (edict_t *self, edict_t *other)
 	return distance_between_boxes (self->absmin, self->absmax, other->absmin, other->absmax);
 }
 
+// a point so far forward, right and up of another
+void G_ProjectSource2 (vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t up, vec3_t result)
+{
+	int		i;
+
+	for (i = 0; i < 3; i++)
+		result[i] = point[i] + forward[i] * distance[0] + right[i] * distance[1] + up[i] * distance[2];
+}
+
+// the players in the game, for coop's tougher bosses; one out of coop
+int CountPlayers (void)
+{
+	int		i, count = 0;
+
+	if (!coop->value)
+		return 1;
+
+	for (i = 1; i <= game.maxclients; i++)
+		if (g_edicts[i].inuse && g_edicts[i].client)
+			count++;
+
+	return count;
+}
+
+void fire_heatbeam (edict_t *self, vec3_t start, vec3_t aimdir, vec3_t offset, int damage, int kick, qboolean monster);
+
+// Ground Zero's monster weapons, with their flashes
+void monster_fire_heatbeam (edict_t *self, vec3_t start, vec3_t dir, vec3_t offset, int damage, int kick, int flashtype)
+{
+	fire_heatbeam (self, start, dir, offset, damage, kick, true);
+	monster_muzzleflash (self, start, flashtype);
+}
+
+void monster_fire_tracker (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, edict_t *enemy, int flashtype)
+{
+	fire_tracker (self, start, dir, damage, speed, enemy);
+	monster_muzzleflash (self, start, flashtype);
+}
+
 /*
 =============
 M_CheckAttack_Base

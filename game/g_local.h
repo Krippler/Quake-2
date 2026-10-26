@@ -157,13 +157,14 @@ typedef enum
 #define AI_RESURRECTING			0x00004000
 #define AI_IGNORE_PAIN			0x00008000	// The Reckoning's: its gekk leaping
 #define AI_MANUAL_STEERING		0x00010000	// Ground Zero's: it sets its own yaw (turret, medic commander)
+#define AI_TARGET_ANGER			0x00020000	// Ground Zero's widow: blocked running, so mad at its target
 #define AI_DODGING				0x00040000	// Ground Zero's: in a dodge
 #define AI_CHARGING				0x00080000	// Ground Zero's kamikaze flyer: chasing
 #define AI_IGNORE_SHOTS			0x00200000	// not angered by a monster's shot
 #define AI_DO_NOT_COUNT			0x00400000	// not in the level's count of monsters
 #define AI_SPAWNED_CARRIER		0x00800000	// summoned by a carrier
 #define AI_SPAWNED_MEDIC_C		0x01000000	// summoned by a medic commander
-#define AI_SPAWNED_WIDOW		0x02000000	// summoned by a widow (none here)
+#define AI_SPAWNED_WIDOW		0x02000000	// summoned by a widow
 #define AI_BLOCKED				0x04000000	// the medic commander's signal to summon
 #define AI_WALK_WALLS			0x08000000	// Ground Zero's stalker: it walks on ceilings
 #define AI_CIRCLE_STRAFE		0x10000000	// Ground Zero's: it circles as it charges, sliding
@@ -544,6 +545,7 @@ typedef struct
 	void		(*setskin)(edict_t *self);
 	float		fire_wait;
 	float		strafe_check_time;	// the re-release's: a flyer's strafing kept till then
+	float		quad_time, double_time, invincible_time;	// the re-release's: its powerups' shells till then (its widows)
 
 	// the re-release's jumping: how far down and up it may, and no jump
 	// again till jump_time
@@ -825,6 +827,10 @@ qboolean monster_jump_finished_rr (edict_t *self);
 #define	MELEE_DISTANCE_RR	50
 float distance_between_boxes (vec3_t absminsa, vec3_t absmaxsa, vec3_t absminsb, vec3_t absmaxsb);
 float range_to (edict_t *self, edict_t *other);
+void G_ProjectSource2 (vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t up, vec3_t result);
+int CountPlayers (void);
+void monster_fire_heatbeam (edict_t *self, vec3_t start, vec3_t dir, vec3_t offset, int damage, int kick, int flashtype);
+void monster_fire_tracker (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, edict_t *enemy, int flashtype);
 qboolean M_CheckAttack_Base (edict_t *self, float stand_ground_chance, float melee_chance, float near_chance, float mid_chance, float far_chance, float strafe_scalar);
 qboolean fire_hit_rr (edict_t *self, vec3_t aim, int damage, int kick);
 void PredictAim (edict_t *self, edict_t *target, vec3_t start, float bolt_speed, qboolean eye_height, float offset, vec3_t aimdir, vec3_t aimpoint);

@@ -33,6 +33,14 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   fixing, take off and land where the map says, raise the dead with
   their healing ray as medics do, and otherwise charge in with their
   blasters, as the re-release has them.
+- **Ground Zero's final boss, the black widow, which this game lacked.**
+  Its last map now has its fight, as the re-release has it: the widow
+  sweeps its blaster as it turns, fires its rail, kicks, summons
+  stalkers and answers your quad, double or invulnerability with its
+  own; dead, it beams out and leaves its legs to burn, and its second
+  form comes in, sweeping its heat beam, firing its disruptor, pulling
+  you into its jaws with its tongue, summoning stalkers, and blowing
+  apart in pieces of its own as its stalkers die with it.
 - **Monsters that gib into pieces of their own no longer keep their
   last animation frame on the head they leave.**
 

@@ -597,6 +597,16 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   rewrite of 4 into Ambush, and a trigger-spawned one bent on landing,
   taking off or fixing skips its first target, as the re-release's
   does. As there, it keeps `AI_MEDIC` after a raise.
+  The black widow (`m_widow.c`) and its second form (`m_widow2.c`,
+  with its first form's legs and its own gibs), Ground Zero's final
+  boss, likewise the re-release's on every map, their frames' headers
+  made from its enums. Their monster powerups (`monsterinfo.quad_time`,
+  `double_time`, `invincible_time`, in seconds; a player's frames
+  times `FRAMETIME`) show as shells in `M_SetEffects`, blinking out as
+  the re-release's do; their damage is the widow's multiplier. Its
+  helpers are in `g_rr.c`: `G_ProjectSource2`, `CountPlayers`,
+  `monster_fire_heatbeam` and `monster_fire_tracker`. `monster_think`
+  stops if a frame has freed its monster (the widow, become its legs).
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all
