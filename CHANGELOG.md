@@ -118,6 +118,12 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   hurts or while firing rockets, burst with explosions all over as they
   die, longer on the Quake 64 levels, and blow apart into pieces of
   their own. The Reckoning's shielded super tank fires heat seekers.
+- **On the re-release's maps, its hornets.** Their rockets mostly lead
+  you, spread across your path, their chainguns lead you, and they keep
+  firing while you are in front of them; Quake 64's fire hyperblasters
+  and a stream of single rockets. They are proof against lasers, sink
+  slowly as they die, bursting with explosions, and blow apart into
+  pieces of their own.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.

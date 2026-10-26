@@ -558,6 +558,9 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   dies by the re-release's `BossExplode` (`BossExplode_rr`): a thing of
   its own bursting explosions over it till it turns to its gibs, its
   unlit ones here the ones without particles (`TE_EXPLOSION1_NP`).
+  So does the hornet (`m_boss2_rr.c`), whose sinking as it dies is
+  its `gravityVector` scaled, here its `gravity`, and whose gibs drawn
+  larger there are drawn at their own size.
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all
