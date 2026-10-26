@@ -564,6 +564,9 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   So does the Jorg (`m_boss31_rr.c`), whose loop while it fires (its
   `weapon_sound`) is its `s.sound`; it throws out the Makron of
   `m_boss32_rr.c` (`MakronToss_rr`).
+  The insane marine (`m_insane_rr.c`) is the re-release's but crucified,
+  which hangs as 1997's does, the re-release's stationary monsters
+  being none of this game's.
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all

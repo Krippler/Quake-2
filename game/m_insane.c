@@ -618,6 +618,8 @@ void insane_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 /*QUAKED misc_insane (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn CRAWL CRUCIFIED STAND_GROUND ALWAYS_STAND
 */
+void SP_misc_insane_rr (edict_t *self);
+
 void SP_misc_insane (edict_t *self)
 {
 //	static int skin = 0;	//@@
@@ -625,6 +627,12 @@ void SP_misc_insane (edict_t *self)
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_insane_rr.c)
+	if (RR_Map ())
+	{
+		SP_misc_insane_rr (self);
 		return;
 	}
 

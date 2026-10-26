@@ -130,6 +130,10 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   it dies and blows apart into pieces of its own, throwing out the
   Makron, who leaps at you, and whose torso falls from his legs as he
   dies, twitching, a thing of its own.
+- **On the re-release's maps, its insane marines.** They moan and
+  scream now and then rather than every moment, may be kept quiet by
+  the map, cry out in pain as a player does, step as they walk, and
+  gib.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.
