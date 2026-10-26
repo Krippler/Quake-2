@@ -101,6 +101,10 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   slashes on their thrusters, glance off one another in sparks, show a
   hurt skin, and gib into pieces of their own. Ground Zero's kamikaze
   flyers dive at you and blow up as before.
+- **On the re-release's maps, its technicians.** They fly as its flyers
+  do, keeping in close for their claws and zapper, fire their blaster
+  now straight and now circling you, may lie disguised till they wake,
+  show a hurt skin, and gib into pieces of their own.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.
