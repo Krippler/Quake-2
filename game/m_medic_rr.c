@@ -101,7 +101,7 @@ static void cleanupHeal (edict_t *self, qboolean change_frame)
 		self->monsterinfo.nextframe = FRAME_attack52;
 }
 
-static void abortHeal (edict_t *self, qboolean change_frame, qboolean gib, qboolean mark)
+void abortHeal (edict_t *self, qboolean change_frame, qboolean gib, qboolean mark)
 {
 	int		hurt;
 	vec3_t	pain_normal = { 0, 0, 1 };

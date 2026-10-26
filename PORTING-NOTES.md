@@ -587,6 +587,16 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   (`flyer_move_attack3_rr`, `flyer_move_kamikaze_rr`). `M_MoveFrame`
   stops once an end function has made the monster its head
   (`ThrowGibs`), not to set the gib to its move's first frame.
+  The fixbot (`m_fixbot.c`, its frames' header made from the
+  re-release's enum) is The Reckoning's, which this game had none of,
+  so it is the re-release's on every map, with `func_object_repair`
+  (`object_repair`) for it to weld. Its healing ray is the lasting
+  laser's (`dabeam_update_rr`) with a negative `dmg`, which heals what
+  it touches short of full health; the medic's `abortHeal` is shared
+  with it. Its Fixit spawnflag (4) is spared `monster_start`'s 1997
+  rewrite of 4 into Ambush, and a trigger-spawned one bent on landing,
+  taking off or fixing skips its first target, as the re-release's
+  does. As there, it keeps `AI_MEDIC` after a raise.
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all

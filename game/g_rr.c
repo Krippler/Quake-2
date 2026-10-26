@@ -876,6 +876,14 @@ void dabeam_update_rr (edict_t *self, qboolean damage)
 			// hurt it if we can
 			if (self->dmg > 0 && tr.ent->takedamage && !(tr.ent->flags & FL_IMMUNE_LASER) && tr.ent != self->owner)
 				T_Damage (tr.ent, self, self->owner, self->movedir, tr.endpos, vec3_origin, self->dmg, skill->value, DAMAGE_ENERGY, MOD_TARGET_LASER);
+
+			// a healer's ray (its fixbot's), short of full health
+			if (self->dmg < 0 && tr.ent->health < tr.ent->max_health)
+			{
+				tr.ent->health -= self->dmg;
+				if (tr.ent->health > tr.ent->max_health)
+					tr.ent->health = tr.ent->max_health;
+			}
 		}
 
 		// if we hit something that's not a monster or player, we're done

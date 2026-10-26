@@ -28,6 +28,11 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   them, lead their rockets, summon flyers and kamikazes as their slots
   allow, hang in the air as they blow up, and gib into pieces of their
   own.
+- **The Reckoning's fixbots, which this game lacked.** On its
+  compound and reactor maps they now fly about welding what needs
+  fixing, take off and land where the map says, raise the dead with
+  their healing ray as medics do, and otherwise charge in with their
+  blasters, as the re-release has them.
 - **Monsters that gib into pieces of their own no longer keep their
   last animation frame on the head they leave.**
 

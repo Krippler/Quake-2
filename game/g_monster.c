@@ -473,6 +473,14 @@ void monster_triggered_spawn (edict_t *self)
 
 	monster_start_go (self);
 
+	// The Reckoning's: a fixbot spawned to land, take off or fix
+	// something does that first
+	if (!strcmp (self->classname, "monster_fixbot") && (self->spawnflags & (4|8|16)))
+	{
+		self->enemy = NULL;
+		return;
+	}
+
 	if (self->enemy && !(self->spawnflags & 1) && !(self->enemy->flags & FL_NOTARGET))
 	{
 		FoundTarget (self);
@@ -542,7 +550,8 @@ qboolean monster_start (edict_t *self)
 		return false;
 	}
 
-	if ((self->spawnflags & 4) && !(self->monsterinfo.aiflags & AI_GOOD_GUY))
+	// (but a fixbot's 4 is its Fixit)
+	if ((self->spawnflags & 4) && !(self->monsterinfo.aiflags & AI_GOOD_GUY) && strcmp (self->classname, "monster_fixbot"))
 	{
 		self->spawnflags &= ~4;
 		self->spawnflags |= 1;

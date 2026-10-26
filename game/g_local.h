@@ -637,6 +637,7 @@ extern	int	body_armor_index;
 #define MOD_TRACKER			41		// Ground Zero's disruptor
 #define MOD_HEATBEAM		42		// Ground Zero's plasma beam
 #define MOD_TESLA_MINE		43		// Ground Zero's tesla mine
+#define MOD_BLASTOFF		44		// the re-release's: under a fixbot taking off
 #define MOD_FRIENDLY_FIRE	0x8000000
 
 extern	int	meansOfDeath;
