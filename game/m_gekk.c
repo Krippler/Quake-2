@@ -2009,6 +2009,8 @@ gekk_dodge(edict_t *self, edict_t *attacker, float eta)
 /*
  * QUAKED monster_gekk (1 .5 0) (-24 -24 -24) (24 24 24) Ambush Trigger_Spawn Sight Chant
  */
+void SP_monster_gekk_rr (edict_t *self);
+
 void
 SP_monster_gekk(edict_t *self)
 {
@@ -2020,6 +2022,12 @@ SP_monster_gekk(edict_t *self)
 	if (deathmatch->value)
 	{
 		G_FreeEdict(self);
+		return;
+	}
+	// the re-release's own, on its maps (m_gekk_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_gekk_rr (self);
 		return;
 	}
 

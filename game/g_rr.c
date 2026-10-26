@@ -699,12 +699,22 @@ void ThrowGibs (edict_t *self, int damage, gib_def_t *gibs)
 				ThrowHead (self, gibs->gibname, damage, gibs->type & GIB_METALLIC);
 				if (gibs->type & GIB_SKINNED)
 					self->s.skinnum = skin;
+				if (gibs->type & GIB_ACID)
+				{
+					self->s.effects = (self->s.effects & ~EF_GIB) | EF_GREENGIB;
+					self->s.renderfx |= RF_FULLBRIGHT;
+				}
 				self->monsterinfo.setskin = NULL;
 				continue;
 			}
 			gib = ThrowGib (self, gibs->gibname, damage, gibs->type & GIB_METALLIC);
 			if (gib && (gibs->type & GIB_SKINNED))
 				gib->s.skinnum = self->s.skinnum;
+			if (gib && (gibs->type & GIB_ACID))
+			{
+				gib->s.effects = (gib->s.effects & ~EF_GIB) | EF_GREENGIB;
+				gib->s.renderfx |= RF_FULLBRIGHT;
+			}
 		}
 }
 

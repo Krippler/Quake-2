@@ -132,6 +132,8 @@ typedef enum
 #define GIB_HEAD				0x20
 // and kept upright where it lands, as 1997's gib_touch already lands one
 #define GIB_UPRIGHT				0x40
+// and acid, as The Reckoning's gekk's: a green trail, full bright
+#define GIB_ACID				0x80
 
 // the re-release's summoned reinforcements
 #define	MAX_REINFORCEMENTS		5	// at once

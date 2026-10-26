@@ -5,6 +5,15 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Changed
+
+- **On the re-release's maps, its gekks.** They swim as its flyers fly
+  and leap from the water at you, spit acid from afar, leap and claw up
+  close, pull themselves up ledges as they land, jump ledges after you,
+  heal as they search, and gib into acid pieces of their own.
+
 ## [1.3.21] — 2026-10-26
 
 ### Changed
