@@ -542,6 +542,14 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   The iron maiden (`m_chick_rr.c`, on 1997's frames) is The Reckoning's
   heat-seeking one too (`monster_chick_heat`, spawned now: elsewhere
   an iron maiden in its skin).
+  The flyer (`m_flyer.c`'s kamikaze too, in `m_flyer_rr.c`) flies by
+  the re-release's flight (`AI_ALTERNATE_FLY`, `SV_alternate_flystep` in
+  `g_rr.c`, and its `fly_*` fields): its moves steer its velocity to a
+  place about its enemy, which its physics carries it by without
+  friction, and its AI calls the move each frame though the frame moves
+  it no distance. Its numbers are for its 40 Hz frames; at 10 each frame
+  gains four of its speed-ups and keeps its old heading as four of its
+  turns would.
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all

@@ -166,6 +166,7 @@ typedef enum
 #define AI_WALK_WALLS			0x08000000	// Ground Zero's stalker: it walks on ceilings
 #define AI_CIRCLE_STRAFE		0x10000000	// Ground Zero's: it circles as it charges, sliding
 #define AI_STINKY				0x20000000	// the re-release's: its corpse always draws flies
+#define AI_ALTERNATE_FLY		0x40000000	// the re-release's flight (SV_alternate_flystep)
 // on a ceiling: Ground Zero's gravityVector, unset (zero) meaning down
 #define GRAVITY_UP(ent)			((ent)->gravityVector[2] > 0)
 
@@ -551,6 +552,20 @@ typedef struct
 	edict_t		*badMedic1, *badMedic2;
 	int			medicTries;
 	float		react_to_damage_time;
+
+	// the re-release's flight (AI_ALTERNATE_FLY): the speed it flies at
+	// and gains by each of its 40 Hz frames, and how near and far it
+	// keeps of its enemy; where about it it is to be (pinned, there
+	// itself) till fly_position_time; whether it hovers above it as a
+	// buzzard does, keeps above it, or charges on its thrusters; and a
+	// way out of water (or into it) it tries for a while
+	float		fly_max_distance, fly_min_distance;
+	float		fly_acceleration, fly_speed;
+	vec3_t		fly_ideal_position;
+	float		fly_position_time;
+	qboolean	fly_buzzard, fly_above, fly_pinned, fly_thrusters;
+	float		fly_recovery_time;
+	vec3_t		fly_recovery_dir;
 } monsterinfo_t;
 
 
@@ -782,6 +797,7 @@ void ThrowGibs (edict_t *self, int damage, gib_def_t *gibs);
 void cleanupHealTarget (edict_t *ent);
 void monster_fire_dabeam_rr (edict_t *self, int damage, qboolean secondary, void (*update_func)(edict_t *self));
 void dabeam_update_rr (edict_t *self, qboolean damage);
+qboolean SV_alternate_flystep (edict_t *ent);
 void M_AbandonHeal (edict_t *self);
 qboolean M_CheckGib (edict_t *self);
 qboolean M_ShouldReactToPain (edict_t *self);

@@ -95,6 +95,12 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   sidestep, show a hurt skin, and gib into pieces of their own. The
   Reckoning's heat-seeking iron maidens (`monster_chick_heat`) are
   spawned too.
+- **On the re-release's maps, its flyers.** They fly as the re-release's
+  flying monsters do, sweeping and gliding rather than stepping: they
+  circle about you, now and then hold a spot to fire from, make fly-by
+  slashes on their thrusters, glance off one another in sparks, show a
+  hurt skin, and gib into pieces of their own. Ground Zero's kamikaze
+  flyers dive at you and blow up as before.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.
