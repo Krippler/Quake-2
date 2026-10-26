@@ -798,6 +798,7 @@ void cleanupHealTarget (edict_t *ent);
 void monster_fire_dabeam_rr (edict_t *self, int damage, qboolean secondary, void (*update_func)(edict_t *self));
 void dabeam_update_rr (edict_t *self, qboolean damage);
 qboolean SV_alternate_flystep (edict_t *ent);
+void BossExplode_rr (edict_t *self);
 void M_AbandonHeal (edict_t *self);
 qboolean M_CheckGib (edict_t *self);
 qboolean M_ShouldReactToPain (edict_t *self);

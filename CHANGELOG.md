@@ -112,6 +112,12 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
 - **On the re-release's maps, its barracuda sharks.** They swim as its
   flyers fly, gliding in close to bite and keeping to the water, and
   sink back into it when they break the surface.
+- **On the re-release's maps, its super tanks.** They fire only with a
+  clear shot, lead you with rockets and chaingun, lob grenades judged
+  to reach you (more when you are above them), won't flinch from small
+  hurts or while firing rockets, burst with explosions all over as they
+  die, longer on the Quake 64 levels, and blow apart into pieces of
+  their own. The Reckoning's shielded super tank fires heat seekers.
 - **Footsteps by material on the re-release's maps.** Your footsteps, and
   now monsters', sound like what is underfoot: metal, wood, grass, glass
   and the rest, from the re-release's own sounds.

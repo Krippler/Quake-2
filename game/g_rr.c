@@ -1120,6 +1120,52 @@ qboolean SV_alternate_flystep (edict_t *ent)
 	return true;
 }
 
+/*
+=================
+The re-release's boss death: explosions bursting all over it, now and
+then, from a thing of their own, till it is gone or turns to its gibs
+(its model changes)
+=================
+*/
+static void BossExplode_think (edict_t *self)
+{
+	vec3_t	org;
+
+	// owner gone or changed
+	if (!self->owner->inuse || self->owner->s.modelindex != self->style)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+
+	VectorAdd (self->owner->s.origin, self->owner->mins, org);
+	org[0] += random() * self->owner->size[0];
+	org[1] += random() * self->owner->size[1];
+	org[2] += random() * self->owner->size[2];
+
+	gi.WriteByte (svc_temp_entity);
+	// its unlit explosion between lit ones, here the one without particles
+	gi.WriteByte (!(self->viewheight % 3) ? TE_EXPLOSION1 : TE_EXPLOSION1_NP);
+	gi.WritePosition (org);
+	gi.multicast (org, MULTICAST_PVS);
+
+	self->viewheight++;
+
+	self->nextthink = level.time + 0.05 + 0.15 * random();
+}
+
+void BossExplode_rr (edict_t *self)
+{
+	edict_t	*exploder = G_Spawn ();
+
+	exploder->owner = self;
+	exploder->style = self->s.modelindex;
+	exploder->think = BossExplode_think;
+	exploder->nextthink = level.time + 0.075 + 0.175 * random();
+	exploder->viewheight = 0;
+	exploder->classname = "boss_exploder";
+}
+
 void M_SetEffects (edict_t *ent);
 
 // the re-release's: a corpse no longer being healed

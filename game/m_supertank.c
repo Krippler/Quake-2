@@ -673,11 +673,19 @@ void supertank_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int da
 
 /*QUAKED monster_supertank (1 .5 0) (-64 -64 0) (64 64 72) Ambush Trigger_Spawn Sight
 */
+void SP_monster_supertank_rr (edict_t *self);
+
 void SP_monster_supertank (edict_t *self)
 {
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_supertank_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_supertank_rr (self);
 		return;
 	}
 
@@ -728,6 +736,9 @@ void SP_monster_boss5 (edict_t *self)
 {
 	SP_monster_supertank (self);
 	if (!self->inuse)
+		return;
+	// the re-release's, on its maps, is its own (m_supertank_rr.c)
+	if (RR_Map ())
 		return;
 	self->style = 1;
 	self->s.skinnum = 2;

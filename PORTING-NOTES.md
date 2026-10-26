@@ -554,6 +554,10 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   barracuda shark (`m_flipper_rr.c`) swims by it; a swimmer of it coasts
   when not all under water, and falls by gravity then as there, where
   1997's has gravity only out of the water.
+  The super tank (`m_supertank_rr.c`, with The Reckoning's `boss5`)
+  dies by the re-release's `BossExplode` (`BossExplode_rr`): a thing of
+  its own bursting explosions over it till it turns to its gibs, its
+  unlit ones here the ones without particles (`TE_EXPLOSION1_NP`).
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all
