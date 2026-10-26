@@ -216,6 +216,20 @@ static void fire_lead (edict_t *self, vec3_t start, vec3_t aimdir, int damage, i
 			// re-trace ignoring water this time
 			tr = gi.trace (water_start, NULL, NULL, end, self, MASK_SHOT);
 		}
+
+		// the re-release's go through the dead, hurting them
+		if (RR_Map ())
+		{
+			int		n;
+
+			for (n=0 ; n<16 && tr.fraction < 1 && tr.ent && tr.ent->takedamage
+				&& ((tr.ent->svflags & SVF_DEADMONSTER)
+				|| ((tr.ent->svflags & SVF_MONSTER) && tr.ent->health <= 0)) ; n++)
+			{
+				T_Damage (tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, mod);
+				tr = gi.trace (tr.endpos, NULL, NULL, end, tr.ent, MASK_SHOT);
+			}
+		}
 	}
 
 	// send gun puff / flash
@@ -492,6 +506,40 @@ void fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
 		crandom() * 10.0, 200 + crandom() * 10.0);
 }
 
+/*
+=================
+Grenade4_Think
+
+The re-release's player's grenade in flight, on its maps: pointing the
+way it goes, more so and turning over the faster it goes, until it is
+time to go off.
+=================
+*/
+static void Grenade4_Think (edict_t *self)
+{
+	float	p, z, frac;
+
+	if (level.time >= self->timestamp)
+	{
+		Grenade_Explode (self);
+		return;
+	}
+
+	if (!VectorCompare (self->velocity, vec3_origin))
+	{
+		p = self->s.angles[PITCH];
+		z = self->s.angles[ROLL];
+		frac = DotProduct (self->velocity, self->velocity) / (self->speed * self->speed);
+		if (frac > 1)
+			frac = 1;
+		vectoangles (self->velocity, self->s.angles);
+		self->s.angles[PITCH] = LerpAngle (p, self->s.angles[PITCH], frac);
+		self->s.angles[ROLL] = z + FRAMETIME * 360 * frac;
+	}
+
+	self->nextthink = level.time + FRAMETIME;
+}
+
 // the re-release's: its lob up and drift right given (its gunner commander's)
 void fire_grenade_adjust (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, float right_adjust, float up_adjust)
 {
@@ -505,6 +553,9 @@ void fire_grenade_adjust (edict_t *self, vec3_t start, vec3_t aimdir, int damage
 	grenade = G_Spawn();
 	VectorCopy (start, grenade->s.origin);
 	VectorScale (aimdir, speed, grenade->velocity);
+	// the re-release lobs as high whatever the gravity
+	if (RR_Map ())
+		up_adjust *= sv_gravity->value / 800;
 	VectorMA (grenade->velocity, up_adjust, up, grenade->velocity);
 	VectorMA (grenade->velocity, right_adjust, right, grenade->velocity);
 	VectorSet (grenade->avelocity, 300, 300, 300);
@@ -523,6 +574,19 @@ void fire_grenade_adjust (edict_t *self, vec3_t start, vec3_t aimdir, int damage
 	grenade->dmg_radius = damage_radius;
 	grenade->classname = "grenade";
 
+	// a player's, on the re-release's maps, is its own
+	if (RR_Map () && self->client)
+	{
+		grenade->s.modelindex = gi.modelindex ("models/objects/grenade4/tris.md2");
+		VectorClear (grenade->avelocity);
+		vectoangles (grenade->velocity, grenade->s.angles);
+		grenade->speed = speed;
+		grenade->timestamp = level.time + timer;
+		grenade->nextthink = level.time + FRAMETIME;
+		grenade->think = Grenade4_Think;
+		grenade->s.renderfx |= RF_MINLIGHT;
+	}
+
 	gi.linkentity (grenade);
 }
 
@@ -538,16 +602,18 @@ void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int 
 	grenade = G_Spawn();
 	VectorCopy (start, grenade->s.origin);
 	VectorScale (aimdir, speed, grenade->velocity);
-	VectorMA (grenade->velocity, 200 + crandom() * 10.0, up, grenade->velocity);
+	VectorMA (grenade->velocity, (200 + crandom() * 10.0) * (RR_Map () ? sv_gravity->value / 800 : 1), up, grenade->velocity);
 	VectorMA (grenade->velocity, crandom() * 10.0, right, grenade->velocity);
 	VectorSet (grenade->avelocity, 300, 300, 300);
+	if (RR_Map ())	// the re-release's tumbles any way
+		VectorSet (grenade->avelocity, crandom() * 360, crandom() * 360, crandom() * 360);
 	grenade->movetype = MOVETYPE_BOUNCE;
 	grenade->clipmask = MASK_SHOT;
 	grenade->solid = SOLID_BBOX;
 	grenade->s.effects |= EF_GRENADE;
 	VectorClear (grenade->mins);
 	VectorClear (grenade->maxs);
-	grenade->s.modelindex = gi.modelindex ("models/objects/grenade2/tris.md2");
+	grenade->s.modelindex = gi.modelindex (RR_Map () ? "models/objects/grenade3/tris.md2" : "models/objects/grenade2/tris.md2");
 	grenade->owner = self;
 	grenade->touch = Grenade_Touch;
 	grenade->nextthink = level.time + timer;

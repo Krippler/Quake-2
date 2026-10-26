@@ -503,11 +503,19 @@ End Death Stuff
 
 /*QUAKED monster_parasite (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
 */
+void SP_monster_parasite_rr (edict_t *self);
+
 void SP_monster_parasite (edict_t *self)
 {
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_parasite_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_parasite_rr (self);
 		return;
 	}
 

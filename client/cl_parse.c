@@ -45,7 +45,8 @@ char *svc_strings[256] =
 	"svc_playerinfo",
 	"svc_packetentities",
 	"svc_deltapacketentities",
-	"svc_frame"
+	"svc_frame",
+	"svc_muzzleflash3"
 };
 
 //=============================================================================
@@ -778,7 +779,11 @@ void CL_ParseServerMessage (void)
 			break;
 
 		case svc_muzzleflash2:
-			CL_ParseMuzzleFlash2 ();
+			CL_ParseMuzzleFlash2 (false);
+			break;
+
+		case svc_muzzleflash3:
+			CL_ParseMuzzleFlash2 (true);
 			break;
 
 		case svc_download:

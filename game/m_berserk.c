@@ -410,11 +410,19 @@ void berserk_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 
 /*QUAKED monster_berserk (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
 */
+void SP_monster_berserk_rr (edict_t *self);
+
 void SP_monster_berserk (edict_t *self)
 {
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_berserk_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_berserk_rr (self);
 		return;
 	}
 

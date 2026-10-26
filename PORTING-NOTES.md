@@ -451,6 +451,134 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   again when it is unset. Whenever a `Q2Game.kpf` is in the mount, however
   the re-release's pak got into the game, its localization files are taken
   out into `baseq2/localization`.
+- **`qcommon/pmove.c`**, **`qcommon/cmodel.c`**: on the re-release's own
+  maps the player moves as its `p_move.cpp` moves them, ported to C beside
+  the 1997 code, which is left as it was for every other map (scripted
+  runs through both on the same maps match the old build frame for frame).
+  A map is the re-release's when its BSP has the `DECOUPLED_LM` lump only
+  the re-release's lighting has, or is under `maps/q64/`; `CM_LoadMap` says
+  so in `pm_rerelease`, and as the server and the client's prediction both
+  load the map through it they cannot disagree, with no change to the
+  protocol. `pm_n64` is the Quake 64 levels in single player. What it does
+  differently: stepping down stairs and slopes on the ground; a step's
+  edge not stood on mid-air; a slope wedged against a wall stood on; out
+  of a wall the shortest way when stuck (`G_FixStuckObject_Generic`);
+  ladders climbed with jump or forward unless looking down, descended with
+  crouch or back, crossed with strafe, and none under water; swimming up
+  and down with jump and crouch, no sinking while standing on the bottom,
+  crouched swimming at crouch speed, and a waterjump only where there is
+  somewhere dry to land, tried out first; crouching in the air; a landing
+  pause only crouched or on the N64, and a trick jump's window
+  (`PMF_TIME_TRICK`, the free bit 128 of `pm_flags`) when landing on a
+  ledge still rising; `sv_airaccelerate` as an acceleration of its own; and
+  flying twice as fast as spectator or noclip. Its full float positions are
+  the network's eighths here, and its `trace.surface2` (two planes hit at
+  once) is not in this engine's traces, so that experiment of its is left
+  out. The engine sets `sv_rerelease_map` for the game, whose players on
+  such a map are not heard jumping by monsters but are heard landing hard.
+- **`game/p_weapon.c`**, **`game/g_weapon.c`**, **`game/p_view.c`**: on
+  the same maps (`RR_Map`) the player's weapons are the re-release's
+  `p_weapon.cpp` and `g_weapon.cpp`. `P_ProjectSource` turns a shot toward
+  where a line from the eye along the view first hits, unless that is a
+  monster or player within 128 units or the eye is in a wall, which is
+  every weapon's through the one function, the mission packs' included.
+  Kicks a weapon sets in a frame become the start of a 200 ms decay
+  (`rr_kick_*`, `kick_time`, `kick_total`; the BFG's lasts `DAMAGE_TIME`
+  through `kick_length`) instead of being cleared at the frame's end, so
+  at this 10 Hz a kick is whole, then half, then gone, as the re-release's
+  is on any tick rate. Ammo goes through `P_RemoveAmmo`, which plays its
+  `weapons/lowammo.wav` at its items' `quantity_warn`. Its weapon state
+  machine, rewritten for 40 Hz (buffered fire, `weapon_think_time`),
+  behaves as 1997's at 10 Hz and is not taken; nor are its weapon chains,
+  instant or quick switching, or lag compensation.
+- **`game/m_*_rr.c`**: on the same maps the 1997 monsters are the
+  re-release's, ported whole from its `m_*.cpp` into a file of their own
+  beside 1997's, whose spawn function hands over to it on such a map.
+  Its models have the frames these need, after 1997's, and the maps'
+  models are its models. Each takes from `g_rr.c` what the re-release's
+  monsters share: `ThrowGibs` with its own gibs (`GIB_SKINNED`, and
+  `GIB_HEAD` for the monster itself), `M_CheckGib` by `gib_health`,
+  `M_ShouldReactToPain`, `monster_footstep`, `monsterinfo.setskin` for
+  the hurt skin (called after damage and death in `g_combat.c`, and in
+  the save fields). What it does at 40 Hz is done at 10, its `M_SetAnimation`
+  is `currentmove`, its sidestep scale on a move is not taken, and its
+  monsters do not find their way with its navigation files, which its
+  closed engine reads. So far: the soldier, with The Reckoning's guards
+  (`m_soldier_rr.c`), whose prone fire is the re-release's muzzle flashes
+  251 to 255; the infantry (`m_infantry_rr.c`), with its jumps
+  (`blocked_checkjump_rr`, by `drop_height` and `jump_height`); the
+  gunner (`m_gunner_rr.c`, on the gunner commander's frames); the
+  berserker (`m_berserk_rr.c`), whose leap's landing slams by its touch,
+  as there, its velocity cleared there for its `FL_KILL_VELOCITY`; the
+  gladiator (`m_gladiator_rr.c`, on 1997's frames, which are the same),
+  which is The Reckoning's plasma gladiator too by its classname, as
+  there by `style`; the parasite (`m_parasite_rr.c`, with its jump
+  frames after 1997's in `m_parasite_rr.h`), whose proboscis is an
+  entity of its own (`proboscus`, saved), a tip that flies and sticks
+  and a segment drawn as a model beam from the parasite to it, placed by
+  the re-release's `postthink`, which `G_RunEntity` calls after an
+  entity's physics. Its `GIB_UPRIGHT` is taken and needs nothing, as
+  1997's `gib_touch` lands an organic gib level; the mutant
+  (`m_mutant_rr.c`, its jump frames after 1997's in `m_mutant_rr.h`),
+  without its `combat_style`, which this game's AI has no use for. A
+  monster of the re-release's `AI_STINKY` (the infantry, the mutant) is
+  given flies by `monster_dead` every time (`M_FliesLater`), and keeps
+  the flag through `monster_death_use`, as there; the tank and tank
+  commander (`m_tank_rr.c`, on 1997's frames), whose Quake 64 guardian
+  has its health but is not drawn half as large again, there being no
+  `s.scale` here, and whose heat seekers are The Reckoning's, without
+  the re-release's turn rate (`accel`); the medic and medic commander
+  (`m_medic_rr.c`, on 1997's frames, summoning with `m_medic.c`'s
+  reinforcements, which are the re-release's), with its patients' own
+  `healer`, `badMedic1` and `badMedic2` (saved) and `medicTries`,
+  `cleanupHealTarget`, and on these maps `Killed` and `M_ReactToDamage`
+  freeing a medic's patient (`M_AbandonHeal`) and the latter's
+  `react_to_damage_time`. Its check for room to raise a corpse traces
+  down a unit onto it, as this engine's trace that does not move has a
+  box resting on the floor in it, as the re-release's does not;
+  the brain (`m_brain_rr.c`, on 1997's frames), whose eye lasers are the
+  re-release's lasting ones (`monster_fire_dabeam_rr`, its `beam` and
+  `beam2`, placed by `postthink`), not The Reckoning's of a frame.
+  The iron maiden (`m_chick_rr.c`, on 1997's frames) is The Reckoning's
+  heat-seeking one too (`monster_chick_heat`, spawned now: elsewhere
+  an iron maiden in its skin).
+  The flyer (`m_flyer.c`'s kamikaze too, in `m_flyer_rr.c`) flies by
+  the re-release's flight (`AI_ALTERNATE_FLY`, `SV_alternate_flystep` in
+  `g_rr.c`, and its `fly_*` fields): its moves steer its velocity to a
+  place about its enemy, which its physics carries it by without
+  friction, and its AI calls the move each frame though the frame moves
+  it no distance. Its numbers are for its 40 Hz frames; at 10 each frame
+  gains four of its speed-ups and keeps its old heading as four of its
+  turns would. The technician (`m_float_rr.c`) and the icarus and
+  Ground Zero's daedalus (`m_hover_rr.c`) fly by it too, and the
+  barracuda shark (`m_flipper_rr.c`) swims by it; a swimmer of it coasts
+  when not all under water, and falls by gravity then as there, where
+  1997's has gravity only out of the water.
+  The super tank (`m_supertank_rr.c`, with The Reckoning's `boss5`)
+  dies by the re-release's `BossExplode` (`BossExplode_rr`): a thing of
+  its own bursting explosions over it till it turns to its gibs, its
+  unlit ones here the ones without particles (`TE_EXPLOSION1_NP`).
+  So does the hornet (`m_boss2_rr.c`), whose sinking as it dies is
+  its `gravityVector` scaled, here its `gravity`, and whose gibs drawn
+  larger there are drawn at their own size.
+  So does the Jorg (`m_boss31_rr.c`), whose loop while it fires (its
+  `weapon_sound`) is its `s.sound`; it throws out the Makron of
+  `m_boss32_rr.c` (`MakronToss_rr`).
+  The insane marine (`m_insane_rr.c`) is the re-release's but crucified,
+  which hangs as 1997's does, the re-release's stationary monsters
+  being none of this game's.
+  Their ducks come down from `monsterinfo.base_height`, which
+  `monster_start` sets to every monster's standing height, as there.
+- **Muzzle flashes past 255**: the re-release's monsters have 289, all
+  numbered here as there (`game/q_shared.h`, `game/m_flash.c`). Those
+  past a byte go in `svc_muzzleflash3` (21), as the re-release sends them,
+  with the flash a short; `monster_muzzleflash` picks which for every
+  monster weapon, and the re-release demo player passes them all on.
+- **`client/cl_fx.c`**: footsteps on the re-release's maps are by material,
+  as its engine plays them: a trace down to the surface stepped on, its
+  texture's `textures/<name>.mat` naming the material (cached per map),
+  and `player/steps/<material>1..4.wav`. A monster's step is the new
+  entity event `EV_OTHER_FOOTSTEP`, at `ATTN_IDLE`.
 
 ## The system layer
 

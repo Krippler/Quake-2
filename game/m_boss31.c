@@ -693,11 +693,19 @@ void MakronPrecache (void);
 
 /*QUAKED monster_jorg (1 .5 0) (-80 -80 0) (90 90 140) Ambush Trigger_Spawn Sight
 */
+void SP_monster_jorg_rr (edict_t *self);
+
 void SP_monster_jorg (edict_t *self)
 {
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_boss31_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_jorg_rr (self);
 		return;
 	}
 

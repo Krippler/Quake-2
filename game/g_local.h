@@ -33,6 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // protocol bytes that can be directly added to messages
 #define	svc_muzzleflash		1
 #define	svc_muzzleflash2	2
+#define	svc_muzzleflash3	21	// the re-release's: a flash past a byte
 #define	svc_temp_entity		3
 #define	svc_layout			4
 #define	svc_inventory		5
@@ -125,6 +126,12 @@ typedef enum
 //gib types
 #define GIB_ORGANIC				0
 #define GIB_METALLIC			1
+// the re-release's, with ThrowGibs: in the monster's own skin; the
+// monster itself, as ThrowHead
+#define GIB_SKINNED				0x10
+#define GIB_HEAD				0x20
+// and kept upright where it lands, as 1997's gib_touch already lands one
+#define GIB_UPRIGHT				0x40
 
 // the re-release's summoned reinforcements
 #define	MAX_REINFORCEMENTS		5	// at once
@@ -158,6 +165,8 @@ typedef enum
 #define AI_BLOCKED				0x04000000	// the medic commander's signal to summon
 #define AI_WALK_WALLS			0x08000000	// Ground Zero's stalker: it walks on ceilings
 #define AI_CIRCLE_STRAFE		0x10000000	// Ground Zero's: it circles as it charges, sliding
+#define AI_STINKY				0x20000000	// the re-release's: its corpse always draws flies
+#define AI_ALTERNATE_FLY		0x40000000	// the re-release's flight (SV_alternate_flystep)
 // on a ceiling: Ground Zero's gravityVector, unset (zero) meaning down
 #define GRAVITY_UP(ent)			((ent)->gravityVector[2] > 0)
 
@@ -525,6 +534,38 @@ typedef struct
 	float		dodge_time;			// no dodge again till then
 	float		base_height;		// maxs[2], not ducked
 	qboolean	can_jump;
+
+	// the re-release's: its skin for how hurt it is, set after damage;
+	// and when a held frame of firing may go on
+	void		(*setskin)(edict_t *self);
+	float		fire_wait;
+
+	// the re-release's jumping: how far down and up it may, and no jump
+	// again till jump_time
+	float		drop_height, jump_height;
+	float		jump_time;
+
+	// the re-release's medics: who heals this corpse, which gave up on it,
+	// how often its cable was blocked; and when it may turn on what hurt
+	// it again
+	edict_t		*healer;
+	edict_t		*badMedic1, *badMedic2;
+	int			medicTries;
+	float		react_to_damage_time;
+
+	// the re-release's flight (AI_ALTERNATE_FLY): the speed it flies at
+	// and gains by each of its 40 Hz frames, and how near and far it
+	// keeps of its enemy; where about it it is to be (pinned, there
+	// itself) till fly_position_time; whether it hovers above it as a
+	// buzzard does, keeps above it, or charges on its thrusters; and a
+	// way out of water (or into it) it tries for a while
+	float		fly_max_distance, fly_min_distance;
+	float		fly_acceleration, fly_speed;
+	vec3_t		fly_ideal_position;
+	float		fly_position_time;
+	qboolean	fly_buzzard, fly_above, fly_pinned, fly_thrusters;
+	float		fly_recovery_time;
+	vec3_t		fly_recovery_dir;
 } monsterinfo_t;
 
 
@@ -745,6 +786,33 @@ float realrange (edict_t *self, edict_t *other);
 void ED_CallSpawn (edict_t *ent);
 
 // g_rr.c: the re-release's
+qboolean RR_Map (void);
+typedef struct
+{
+	int		count;		// 0 for 1
+	char	*gibname;	// NULL ends a list
+	int		type;		// GIB_ORGANIC or GIB_METALLIC, GIB_SKINNED, GIB_HEAD
+} gib_def_t;
+void ThrowGibs (edict_t *self, int damage, gib_def_t *gibs);
+void cleanupHealTarget (edict_t *ent);
+void monster_fire_dabeam_rr (edict_t *self, int damage, qboolean secondary, void (*update_func)(edict_t *self));
+void dabeam_update_rr (edict_t *self, qboolean damage);
+qboolean SV_alternate_flystep (edict_t *ent);
+void BossExplode_rr (edict_t *self);
+void M_AbandonHeal (edict_t *self);
+qboolean M_CheckGib (edict_t *self);
+qboolean M_ShouldReactToPain (edict_t *self);
+void monster_footstep (edict_t *self);
+#define	JUMP_NO			0	// blocked_checkjump_rr's
+#define	JUMP_TURN		1
+#define	JUMP_UP			2
+#define	JUMP_DOWN		3
+int blocked_checkjump_rr (edict_t *self, float dist);
+void monster_jump_start_rr (edict_t *self);
+qboolean monster_jump_finished_rr (edict_t *self);
+#define	RANGE_MELEE_RR		20		// the re-release's: bboxes basically touching
+#define	RANGE_NEAR_RR		440
+#define	RANGE_MID_RR		940
 #define	MELEE_DISTANCE_RR	50
 float distance_between_boxes (vec3_t absminsa, vec3_t absmaxsa, vec3_t absminsb, vec3_t absmaxsb);
 float range_to (edict_t *self, edict_t *other);
@@ -1080,6 +1148,11 @@ struct gclient_s
 	weaponstate_t	weaponstate;
 	vec3_t		kick_angles;	// weapon kicks
 	vec3_t		kick_origin;
+	// on the re-release's maps, the last kick, going down to none by
+	// kick_time over kick_total: 200 ms, or kick_length when a weapon
+	// asks for longer
+	vec3_t		rr_kick_angles, rr_kick_origin;
+	float		kick_time, kick_total, kick_length;
 	float		v_dmg_roll, v_dmg_pitch, v_dmg_time;	// damage kicks
 	float		fall_time, fall_value;		// for view drop on fall
 	float		damage_alpha;
@@ -1187,6 +1260,7 @@ struct edict_s
 	char		*deathtarget;
 	char		*healthtarget;	// used as it is hurt (g_cotm.c)
 	edict_t		*beam;			// the re-release's: its shambler's lightning
+	edict_t		*beam2;			// and a second laser (its brain's eyes)
 	edict_t		*bad_area;		// Ground Zero's: the tesla's area it stands in
 	char		*combattarget;
 	edict_t		*target_ent;
@@ -1284,5 +1358,10 @@ struct edict_s
 	// common data blocks
 	moveinfo_t		moveinfo;
 	monsterinfo_t	monsterinfo;
+
+	// the re-release's: run after this entity's physics each frame, and
+	// a parasite's proboscis (its tip; the tip's, its drawn segment)
+	void		(*postthink) (edict_t *ent);
+	edict_t		*proboscus;
 };
 

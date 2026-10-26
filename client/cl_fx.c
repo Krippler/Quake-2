@@ -426,7 +426,7 @@ void CL_ParseMuzzleFlash (void)
 CL_ParseMuzzleFlash2
 ==============
 */
-void CL_ParseMuzzleFlash2 (void) 
+void CL_ParseMuzzleFlash2 (qboolean wide)
 {
 	int			ent;
 	vec3_t		origin;
@@ -439,7 +439,7 @@ void CL_ParseMuzzleFlash2 (void)
 	if (ent < 1 || ent >= MAX_EDICTS)
 		Com_Error (ERR_DROP, "CL_ParseMuzzleFlash2: bad entity");
 
-	flash_number = MSG_ReadByte (&net_message);
+	flash_number = wide ? MSG_ReadShort (&net_message) : MSG_ReadByte (&net_message);
 	// past the end of monster_flash_offset: numbers 1997 has not got
 	if (flash_number > MZ2_WIDOW2_BEAM_SWEEP_11)
 		return;
@@ -478,6 +478,7 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_INFANTRY_MACHINEGUN_18:
 	case MZ2_INFANTRY_MACHINEGUN_19:
 	case MZ2_INFANTRY_MACHINEGUN_20:
+	case MZ2_INFANTRY_MACHINEGUN_22:
 	case MZ2_INFANTRY_MACHINEGUN_21:
 		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
 		CL_ParticleEffect (origin, vec3_origin, 0, 40);
@@ -493,6 +494,7 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_SOLDIER_MACHINEGUN_6:
 	case MZ2_SOLDIER_MACHINEGUN_7:
 	case MZ2_SOLDIER_MACHINEGUN_8:
+	case MZ2_SOLDIER_MACHINEGUN_9:
 		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
 		CL_ParticleEffect (origin, vec3_origin, 0, 40);
 		CL_SmokeAndFlash(origin);
@@ -558,6 +560,7 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_SOLDIER_BLASTER_6:
 	case MZ2_SOLDIER_BLASTER_7:
 	case MZ2_SOLDIER_BLASTER_8:
+	case MZ2_SOLDIER_BLASTER_9:
 	case MZ2_TURRET_BLASTER:			// PGM
 		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
 		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("soldier/solatck2.wav"), 1, ATTN_NORM, 0);
@@ -575,6 +578,7 @@ void CL_ParseMuzzleFlash2 (void)
 		break;
 
 	case MZ2_HOVER_BLASTER_1:
+	case MZ2_HOVER_BLASTER_2:
 		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
 		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("hover/hovatck1.wav"), 1, ATTN_NORM, 0);
 		break;
@@ -592,6 +596,7 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_SOLDIER_SHOTGUN_6:
 	case MZ2_SOLDIER_SHOTGUN_7:
 	case MZ2_SOLDIER_SHOTGUN_8:
+	case MZ2_SOLDIER_SHOTGUN_9:
 		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
 		CL_SmokeAndFlash(origin);
 		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("soldier/solatck1.wav"), 1, ATTN_NORM, 0);
@@ -662,6 +667,12 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_GUNNER_GRENADE_2:
 	case MZ2_GUNNER_GRENADE_3:
 	case MZ2_GUNNER_GRENADE_4:
+	case MZ2_GUNNER_GRENADE2_1:
+	case MZ2_GUNNER_GRENADE2_2:
+	case MZ2_GUNNER_GRENADE2_3:
+	case MZ2_GUNNER_GRENADE2_4:
+	case MZ2_SUPERTANK_GRENADE_1:
+	case MZ2_SUPERTANK_GRENADE_2:
 		dl->color[0] = 1;dl->color[1] = 0.5;dl->color[2] = 0;
 		S_StartSound (NULL, ent, CHAN_WEAPON, S_RegisterSound("gunner/gunatck3.wav"), 1, ATTN_NORM, 0);
 		break;
@@ -764,6 +775,31 @@ void CL_ParseMuzzleFlash2 (void)
 	case MZ2_STALKER_BLASTER:
 	case MZ2_DAEDALUS_BLASTER:
 	case MZ2_MEDIC_BLASTER_2:
+	case MZ2_DAEDALUS_BLASTER_2:
+	case MZ2_MEDIC_HYPERBLASTER1_1:
+	case MZ2_MEDIC_HYPERBLASTER1_2:
+	case MZ2_MEDIC_HYPERBLASTER1_3:
+	case MZ2_MEDIC_HYPERBLASTER1_4:
+	case MZ2_MEDIC_HYPERBLASTER1_5:
+	case MZ2_MEDIC_HYPERBLASTER1_6:
+	case MZ2_MEDIC_HYPERBLASTER1_7:
+	case MZ2_MEDIC_HYPERBLASTER1_8:
+	case MZ2_MEDIC_HYPERBLASTER1_9:
+	case MZ2_MEDIC_HYPERBLASTER1_10:
+	case MZ2_MEDIC_HYPERBLASTER1_11:
+	case MZ2_MEDIC_HYPERBLASTER1_12:
+	case MZ2_MEDIC_HYPERBLASTER2_1:
+	case MZ2_MEDIC_HYPERBLASTER2_2:
+	case MZ2_MEDIC_HYPERBLASTER2_3:
+	case MZ2_MEDIC_HYPERBLASTER2_4:
+	case MZ2_MEDIC_HYPERBLASTER2_5:
+	case MZ2_MEDIC_HYPERBLASTER2_6:
+	case MZ2_MEDIC_HYPERBLASTER2_7:
+	case MZ2_MEDIC_HYPERBLASTER2_8:
+	case MZ2_MEDIC_HYPERBLASTER2_9:
+	case MZ2_MEDIC_HYPERBLASTER2_10:
+	case MZ2_MEDIC_HYPERBLASTER2_11:
+	case MZ2_MEDIC_HYPERBLASTER2_12:
 	case MZ2_WIDOW_BLASTER:
 	case MZ2_WIDOW_BLASTER_SWEEP1:
 	case MZ2_WIDOW_BLASTER_SWEEP2:
@@ -2348,6 +2384,83 @@ the female events are there for backwards compatability
 */
 extern struct sfx_s	*cl_sfx_footsteps[4];
 
+/*
+==============
+CL_FootstepSound
+
+A step's sound. On the re-release's maps it is as there, of the material
+of what is stepped on: each texture has a textures/<name>.mat naming one,
+"clank", "wood", "grass" and so on, and player/steps/ has four of each.
+What has none, or a map of 1997's, steps as 1997 does.
+==============
+*/
+#define	MAX_STEP_MATERIALS	1024
+
+static struct
+{
+	char	texture[32];
+	char	material[16];	// "" for none
+}				cl_stepmats[MAX_STEP_MATERIALS];
+static int		cl_numstepmats;
+static char		cl_stepmats_map[MAX_QPATH];
+
+static char *CL_StepMaterial (char *texture)
+{
+	int		i, len;
+	char	path[MAX_QPATH], *buf, *p;
+
+	if (strcmp (cl_stepmats_map, cl.configstrings[CS_MODELS+1]))
+	{
+		cl_numstepmats = 0;
+		strncpy (cl_stepmats_map, cl.configstrings[CS_MODELS+1], sizeof(cl_stepmats_map)-1);
+	}
+	for (i=0 ; i<cl_numstepmats ; i++)
+		if (!strcmp (cl_stepmats[i].texture, texture))
+			return cl_stepmats[i].material;
+	if (cl_numstepmats == MAX_STEP_MATERIALS)
+		return "";
+
+	i = cl_numstepmats++;
+	strncpy (cl_stepmats[i].texture, texture, sizeof(cl_stepmats[i].texture)-1);
+	cl_stepmats[i].texture[sizeof(cl_stepmats[i].texture)-1] = 0;
+	cl_stepmats[i].material[0] = 0;
+	Com_sprintf (path, sizeof(path), "textures/%s.mat", texture);
+	len = FS_LoadFile (path, (void **)&buf);
+	if (buf)
+	{
+		// one word, letters only
+		for (p = buf ; p < buf + len && (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') ; p++)
+			;
+		for (len = buf + len - p, i = 0 ; i < len && i < sizeof(cl_stepmats[0].material)-1
+			&& ((p[i] >= 'a' && p[i] <= 'z') || (p[i] >= 'A' && p[i] <= 'Z')) ; i++)
+			cl_stepmats[cl_numstepmats-1].material[i] = p[i];
+		cl_stepmats[cl_numstepmats-1].material[i] = 0;
+		FS_FreeFile (buf);
+	}
+	return cl_stepmats[cl_numstepmats-1].material;
+}
+
+static struct sfx_s *CL_FootstepSound (entity_state_t *ent)
+{
+	vec3_t	end;
+	trace_t	tr;
+	char	*material, name[MAX_QPATH];
+
+	if (!pm_rerelease)
+		return cl_sfx_footsteps[rand()&3];
+
+	VectorCopy (ent->origin, end);
+	end[2] -= 64;
+	tr = CM_BoxTrace (ent->origin, end, vec3_origin, vec3_origin, 0, MASK_SOLID);
+	if (tr.fraction == 1 || !tr.surface || !tr.surface->name[0])
+		return cl_sfx_footsteps[rand()&3];
+	material = CL_StepMaterial (((mapsurface_t *)tr.surface)->rname);	// the whole name
+	if (!material[0])
+		return cl_sfx_footsteps[rand()&3];
+	Com_sprintf (name, sizeof(name), "player/steps/%s%i.wav", material, (rand()&3) + 1);
+	return S_RegisterSound (name);
+}
+
 void CL_EntityEvent (entity_state_t *ent)
 {
 	switch (ent->event)
@@ -2362,7 +2475,11 @@ void CL_EntityEvent (entity_state_t *ent)
 		break;
 	case EV_FOOTSTEP:
 		if (cl_footsteps->value)
-			S_StartSound (NULL, ent->number, CHAN_BODY, cl_sfx_footsteps[rand()&3], 1, ATTN_NORM, 0);
+			S_StartSound (NULL, ent->number, CHAN_BODY, CL_FootstepSound (ent), 1, ATTN_NORM, 0);
+		break;
+	case EV_OTHER_FOOTSTEP:		// a monster's, which carries less far
+		if (cl_footsteps->value)
+			S_StartSound (NULL, ent->number, CHAN_BODY, CL_FootstepSound (ent), 1, ATTN_IDLE, 0);
 		break;
 	case EV_FALLSHORT:
 		S_StartSound (NULL, ent->number, CHAN_AUTO, S_RegisterSound ("player/land1.wav"), 1, ATTN_NORM, 0);

@@ -29,9 +29,6 @@ static int	sound_open;
 static int	sound_search;
 static int	sound_sight;
 
-// the re-release's footsteps are an option the 1997 game hasn't
-#define	monster_footstep	NULL
-
 void guncmdr_idlesound (edict_t *self);
 void guncmdr_fidget (edict_t *self);
 void guncmdr_stand (edict_t *self);

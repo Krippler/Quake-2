@@ -191,6 +191,10 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 // flying monsters don't step up
 	if ( ent->flags & (FL_SWIM | FL_FLY) )
 	{
+		// the re-release's flight sets its velocity, which moves it
+		if ((ent->monsterinfo.aiflags & AI_ALTERNATE_FLY) && SV_alternate_flystep (ent))
+			return true;
+
 	// try one move with vertical motion, then one without
 		for (i=0 ; i<2 ; i++)
 		{
@@ -625,6 +629,14 @@ void M_MoveToGoal (edict_t *ent, float dist)
 
 	if (!ent->groundentity && !(ent->flags & (FL_FLY|FL_SWIM)))
 		return;
+
+	// the re-release's flight steers itself to where it would be
+	if (ent->monsterinfo.aiflags & AI_ALTERNATE_FLY)
+	{
+		if (goal)
+			SV_StepDirection (ent, ent->ideal_yaw, dist);
+		return;
+	}
 
 // if the next step hits the enemy, return immediately
 	if (ent->enemy &&  SV_CloseEnough (ent, ent->enemy, dist) )

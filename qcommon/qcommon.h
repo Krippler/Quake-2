@@ -226,7 +226,8 @@ enum svc_ops_e
 	svc_playerinfo,				// variable
 	svc_packetentities,			// [...]
 	svc_deltapacketentities,	// [...]
-	svc_frame
+	svc_frame,
+	svc_muzzleflash3			// the re-release's: svc_muzzleflash2, its flash a short
 };
 
 //==============================================
@@ -683,6 +684,8 @@ Common between server and client so prediction matches
 */
 
 extern float pm_airaccelerate;
+extern qboolean pm_rerelease;	// the map is the 2023 re-release's: it moves as there
+extern qboolean pm_n64;			// and is one of its Quake 64 levels, in single player
 
 void Pmove (pmove_t *pmove);
 

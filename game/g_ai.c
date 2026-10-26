@@ -107,7 +107,7 @@ void ai_stand (edict_t *self, float dist)
 {
 	vec3_t	v;
 
-	if (dist)
+	if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
 		M_walkmove (self, self->s.angles[YAW], dist);
 
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
@@ -208,7 +208,7 @@ void ai_charge (edict_t *self, float dist)
 	}
 	M_ChangeYaw (self);
 
-	if (!dist)
+	if (!dist && !(self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
 		return;
 
 	// Ground Zero's charge: a kamikaze flyer chases its goal
@@ -244,7 +244,7 @@ Distance is for slight position adjustments needed by the animations
 */
 void ai_turn (edict_t *self, float dist)
 {
-	if (dist)
+	if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
 		M_walkmove (self, self->s.angles[YAW], dist);
 
 	if (FindTarget (self))
@@ -401,6 +401,9 @@ void FoundTarget (edict_t *self)
 
 	VectorCopy(self->enemy->s.origin, self->monsterinfo.last_sighting);
 	self->monsterinfo.trail_time = level.time;
+
+	// the re-release's flyers pick a new place about it at once
+	self->monsterinfo.fly_position_time = 0;
 
 	if (!self->combattarget)
 	{

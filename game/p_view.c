@@ -205,6 +205,24 @@ void P_DamageFeedback (edict_t *player)
 
 /*
 ===============
+P_KickFactor
+
+How much of the last weapon kick is left, on the re-release's maps: all
+of it the frame it is fired, none kick_total later.
+===============
+*/
+static float P_KickFactor (edict_t *ent)
+{
+	float	f;
+
+	if (ent->client->kick_time <= level.time || ent->client->kick_total <= 0)
+		return 0;
+	f = (ent->client->kick_time - level.time) / ent->client->kick_total;
+	return f > 1 ? 1 : f;
+}
+
+/*
+===============
 SV_CalcViewOffset
 
 Auto pitching on slopes?
@@ -246,7 +264,10 @@ void SV_CalcViewOffset (edict_t *ent)
 	{
 		// add angles based on weapon kick
 
-		VectorCopy (ent->client->kick_angles, angles);
+		if (RR_Map ())
+			VectorScale (ent->client->rr_kick_angles, P_KickFactor (ent), angles);
+		else
+			VectorCopy (ent->client->kick_angles, angles);
 
 		// add angles based on damage kick
 
@@ -316,7 +337,10 @@ void SV_CalcViewOffset (edict_t *ent)
 
 	// add kick offset
 
-	VectorAdd (v, ent->client->kick_origin, v);
+	if (RR_Map ())
+		VectorMA (v, P_KickFactor (ent), ent->client->rr_kick_origin, v);
+	else
+		VectorAdd (v, ent->client->kick_origin, v);
 
 	// absolutely bound offsets
 	// so the view can never be outside the player box
@@ -581,8 +605,13 @@ void P_FallingDamage (edict_t *ent)
 	else
 	{
 		ent->s.event = EV_FALLSHORT;
-		return;
+		if (!RR_Map ())
+			return;
 	}
+
+	// the re-release's monsters hear a hard landing
+	if (RR_Map () && ent->health > 0)
+		PlayerNoise (ent, ent->s.origin, PNOISE_SELF);
 }
 
 
@@ -1081,6 +1110,17 @@ void ClientEndServerFrame (edict_t *ent)
 
 	// apply all the damage taken this frame
 	P_DamageFeedback (ent);
+
+	// a kick this frame, on the re-release's maps, to go down to none
+	if (RR_Map () && (!VectorCompare (ent->client->kick_angles, vec3_origin)
+		|| !VectorCompare (ent->client->kick_origin, vec3_origin)))
+	{
+		VectorCopy (ent->client->kick_angles, ent->client->rr_kick_angles);
+		VectorCopy (ent->client->kick_origin, ent->client->rr_kick_origin);
+		ent->client->kick_total = ent->client->kick_length ? ent->client->kick_length : 0.2;
+		ent->client->kick_length = 0;
+		ent->client->kick_time = level.time + ent->client->kick_total;
+	}
 
 	// determine the view offsets
 	SV_CalcViewOffset (ent);

@@ -393,11 +393,19 @@ void gladiator_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int da
 
 /*QUAKED monster_gladiator (1 .5 0) (-32 -32 -24) (32 32 64) Ambush Trigger_Spawn Sight
 */
+void SP_monster_gladiator_rr (edict_t *self);
+
 void SP_monster_gladiator (edict_t *self)
 {
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_gladiator_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_gladiator_rr (self);
 		return;
 	}
 
@@ -452,6 +460,12 @@ void SP_monster_gladb (edict_t *self)
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_gladiator_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_gladiator_rr (self);
 		return;
 	}
 	SP_monster_gladiator (self);

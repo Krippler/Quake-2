@@ -219,20 +219,29 @@ qboolean M_CheckClearShot (edict_t *self, vec3_t offset, vec3_t start)
 	return false;
 }
 
+void M_FliesLater (edict_t *self);
+
 // the re-release's end of a death animation
 void monster_dead (edict_t *self)
 {
 	self->movetype = MOVETYPE_TOSS;
 	self->svflags |= SVF_DEADMONSTER;
 	self->nextthink = 0;
+	// a stinky one draws flies a while after
+	if (self->monsterinfo.aiflags & AI_STINKY)
+		M_FliesLater (self);
 	gi.linkentity (self);
 }
 
 void monster_muzzleflash (edict_t *self, vec3_t start, int flashtype)
 {
-	gi.WriteByte (svc_muzzleflash2);
+	// the re-release's past a byte in a message of their own
+	gi.WriteByte (flashtype > 255 ? svc_muzzleflash3 : svc_muzzleflash2);
 	gi.WriteShort (self - g_edicts);
-	gi.WriteByte (flashtype);
+	if (flashtype > 255)
+		gi.WriteShort (flashtype);
+	else
+		gi.WriteByte (flashtype);
 	gi.multicast (start, MULTICAST_PVS);
 }
 
@@ -649,4 +658,674 @@ int M_PickReinforcements (edict_t *self, int max_slots)
 	}
 
 	return num_chosen;
+}
+
+/*
+=============
+RR_Map
+
+Whether the level is one of the re-release's own, which its player moves
+through as it does (qcommon/pmove.c): the engine says, as it loads it.
+=============
+*/
+qboolean RR_Map (void)
+{
+	static cvar_t	*sv_rerelease_map;
+
+	if (!sv_rerelease_map)
+		sv_rerelease_map = gi.cvar ("sv_rerelease_map", "0", 0);
+	return sv_rerelease_map->value != 0;
+}
+
+/*
+=============
+ThrowGibs
+
+The re-release's list of a monster's gibs: so many of each, in its own
+skin where it says, its head last, which the monster itself becomes.
+=============
+*/
+void ThrowGibs (edict_t *self, int damage, gib_def_t *gibs)
+{
+	edict_t	*gib;
+	int		i, n, skin;
+
+	for ( ; gibs->gibname ; gibs++)
+		for (n = gibs->count ? gibs->count : 1, i = 0 ; i < n ; i++)
+		{
+			if (gibs->type & GIB_HEAD)
+			{
+				skin = self->s.skinnum;
+				ThrowHead (self, gibs->gibname, damage, gibs->type & GIB_METALLIC);
+				if (gibs->type & GIB_SKINNED)
+					self->s.skinnum = skin;
+				self->monsterinfo.setskin = NULL;
+				continue;
+			}
+			gib = ThrowGib (self, gibs->gibname, damage, gibs->type & GIB_METALLIC);
+			if (gib && (gibs->type & GIB_SKINNED))
+				gib->s.skinnum = self->s.skinnum;
+		}
+}
+
+/*
+=================
+The re-release's lasting monster laser (The Reckoning's, made to stay):
+a beam its monster keeps (beam, or beam2 for a second), placed each
+frame by its update after its physics, through what it may hurt to what
+stops it, gone a fifth of a second after it was last fired.
+=================
+*/
+void dabeam_update_rr (edict_t *self, qboolean damage)
+{
+	edict_t	*ignore = self;
+	vec3_t	start, end;
+	trace_t	tr;
+
+	VectorCopy (self->s.origin, start);
+	VectorMA (start, 2048, self->movedir, end);
+
+	while (1)
+	{
+		tr = gi.trace (start, NULL, NULL, end, ignore, CONTENTS_SOLID|CONTENTS_MONSTER|CONTENTS_DEADMONSTER);
+		if (!tr.ent || tr.fraction == 1.0)
+			break;
+
+		if (damage)
+		{
+			// hurt it if we can
+			if (self->dmg > 0 && tr.ent->takedamage && !(tr.ent->flags & FL_IMMUNE_LASER) && tr.ent != self->owner)
+				T_Damage (tr.ent, self, self->owner, self->movedir, tr.endpos, vec3_origin, self->dmg, skill->value, DAMAGE_ENERGY, MOD_TARGET_LASER);
+		}
+
+		// if we hit something that's not a monster or player, we're done
+		if (!(tr.ent->svflags & SVF_MONSTER) && !tr.ent->client)
+		{
+			if (damage)
+			{
+				gi.WriteByte (svc_temp_entity);
+				gi.WriteByte (TE_LASER_SPARKS);
+				gi.WriteByte (10);
+				gi.WritePosition (tr.endpos);
+				gi.WriteDir (tr.plane.normal);
+				gi.WriteByte (self->s.skinnum);
+				gi.multicast (tr.endpos, MULTICAST_PVS);
+			}
+			break;
+		}
+
+		ignore = tr.ent;
+		VectorCopy (tr.endpos, start);
+	}
+
+	VectorMA (tr.endpos, 1.f, tr.plane.normal, self->s.old_origin);
+	gi.linkentity (self);
+}
+
+#define SPAWNFLAG_DABEAM_SECONDARY	1
+
+static void beam_think_rr (edict_t *self)
+{
+	if (self->spawnflags & SPAWNFLAG_DABEAM_SECONDARY)
+		self->owner->beam2 = NULL;
+	else
+		self->owner->beam = NULL;
+	G_FreeEdict (self);
+}
+
+void monster_fire_dabeam_rr (edict_t *self, int damage, qboolean secondary, void (*update_func)(edict_t *self))
+{
+	edict_t	**beam_ptr = secondary ? &self->beam2 : &self->beam;
+
+	if (!*beam_ptr)
+	{
+		*beam_ptr = G_Spawn ();
+
+		(*beam_ptr)->movetype = MOVETYPE_NONE;
+		(*beam_ptr)->solid = SOLID_NOT;
+		(*beam_ptr)->s.renderfx |= RF_BEAM;
+		(*beam_ptr)->s.modelindex = 1;
+		(*beam_ptr)->owner = self;
+		(*beam_ptr)->dmg = damage;
+		(*beam_ptr)->s.frame = 2;
+		(*beam_ptr)->spawnflags = secondary ? SPAWNFLAG_DABEAM_SECONDARY : 0;
+
+		if (self->monsterinfo.aiflags & AI_MEDIC)
+			(*beam_ptr)->s.skinnum = 0xf3f3f1f1;
+		else
+			(*beam_ptr)->s.skinnum = 0xf2f2f0f0;
+
+		(*beam_ptr)->think = beam_think_rr;
+		(*beam_ptr)->s.sound = gi.soundindex ("misc/lasfly.wav");
+		(*beam_ptr)->postthink = update_func;
+		(*beam_ptr)->classname = "laser";
+	}
+
+	(*beam_ptr)->nextthink = level.time + 0.2;
+	update_func (*beam_ptr);
+	dabeam_update_rr (*beam_ptr, true);
+}
+
+/*
+=================
+The re-release's flight (AI_ALTERNATE_FLY), its SV_alternate_flystep: a
+flyer steers its velocity, which its physics carries it by without
+friction, to a place about its enemy it picks now and then (around it,
+above it as a buzzard, or pinned where it is), easing off as it nears
+it, turning more slowly the faster it goes, and going round or over
+what blocks it; a swimmer keeps to water and a flyer out of it.
+
+Its numbers are for its 40 Hz frames: here each of this game's 10 Hz
+frames gains four of its speed-ups and keeps as much of its old heading
+as four of its turns would.
+=================
+*/
+#define FLY_STEPS	4	// its frames to one of these
+
+static void G_IdealHoverPosition (edict_t *ent, vec3_t out)
+{
+	float	theta, phi, dist;
+
+	if ((!ent->enemy && !(ent->monsterinfo.aiflags & AI_MEDIC)) || (ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET)))
+	{
+		VectorClear (out);	// go right for the center
+		return;
+	}
+
+	// pick random direction
+	theta = random() * 2 * M_PI;
+
+	// buzzards pick half sphere
+	if (ent->monsterinfo.fly_above)
+		phi = acos (0.7f + random() * 0.3f);
+	else if (ent->monsterinfo.fly_buzzard || (ent->monsterinfo.aiflags & AI_MEDIC))
+		phi = acos (random());
+	// non-buzzards pick a level around the center
+	else
+		phi = acos (crandom() * 0.06f);
+
+	dist = ent->monsterinfo.fly_min_distance + random() * (ent->monsterinfo.fly_max_distance - ent->monsterinfo.fly_min_distance);
+	VectorSet (out, sin (phi) * cos (theta) * dist, sin (phi) * sin (theta) * dist, cos (phi) * dist);
+}
+
+static qboolean SV_flystep_testvisposition (vec3_t start, vec3_t end, vec3_t starta, vec3_t startb, edict_t *ent)
+{
+	trace_t	tr;
+
+	tr = gi.trace (start, NULL, NULL, end, ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
+	if (tr.fraction == 1.0f)
+	{
+		tr = gi.trace (starta, ent->mins, ent->maxs, startb, ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
+		if (tr.fraction == 1.0f)
+			return true;
+	}
+	return false;
+}
+
+// the unit vectors' spherical blend, t of the way from a to b
+static void slerp_dir (vec3_t a, vec3_t b, float t, vec3_t out)
+{
+	float	dot = DotProduct (a, b), angle, s, wa, wb;
+
+	if (dot > 0.9995f || dot < -0.9995f)
+	{
+		VectorScale (a, 1 - t, out);
+		VectorMA (out, t, b, out);
+		return;
+	}
+	angle = acos (dot);
+	s = sin (angle);
+	wa = sin ((1 - t) * angle) / s;
+	wb = sin (t * angle) / s;
+	VectorScale (a, wa, out);
+	VectorMA (out, wb, b, out);
+}
+
+qboolean SV_alternate_flystep (edict_t *ent)
+{
+	vec3_t		towards_origin, towards_velocity, dir, wanted_pos, dest_diff, wanted_dir, final_dir;
+	vec3_t		end, yaw_angles, aim_fwd, aim_rgt, aim_up, a, b, mins = {-8, -8, -8}, maxs = {8, 8, 8};
+	float		current_speed, dist_to_wanted, turn_factor, speed_factor, accel, wanted_speed;
+	qboolean	bad_movement_direction = false, have_dir;
+	trace_t		tr;
+
+	// swimming monsters just follow their velocity in the air
+	if ((ent->flags & FL_SWIM) && ent->waterlevel < 3)
+		return true;
+
+	if (ent->monsterinfo.fly_position_time <= level.time ||
+		(ent->enemy && ent->monsterinfo.fly_pinned && !visible (ent, ent->enemy)))
+	{
+		ent->monsterinfo.fly_pinned = false;
+		ent->monsterinfo.fly_position_time = level.time + 3 + 7 * random();
+		G_IdealHoverPosition (ent, ent->monsterinfo.fly_ideal_position);
+	}
+
+	VectorClear (towards_velocity);
+	VectorCopy (ent->velocity, dir);
+	current_speed = VectorNormalize (dir);
+	have_dir = current_speed != 0;
+
+	if (ent->enemy && !(ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT)))
+	{
+		VectorCopy (ent->enemy->s.origin, towards_origin);
+		VectorCopy (ent->enemy->velocity, towards_velocity);
+	}
+	else if (ent->goalentity)
+		VectorCopy (ent->goalentity->s.origin, towards_origin);
+	else // what we're going towards probably died or something
+	{
+		// change speed
+		if (current_speed)
+		{
+			current_speed -= ent->monsterinfo.fly_acceleration * FLY_STEPS;
+			if (current_speed < 0)
+				current_speed = 0;
+			VectorScale (dir, current_speed, ent->velocity);
+		}
+		return true;
+	}
+
+	if (ent->monsterinfo.fly_pinned)
+		VectorCopy (ent->monsterinfo.fly_ideal_position, wanted_pos);
+	else if (ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT))
+		VectorCopy (towards_origin, wanted_pos);
+	else
+	{
+		VectorMA (towards_origin, 0.25f, towards_velocity, wanted_pos);
+		VectorAdd (wanted_pos, ent->monsterinfo.fly_ideal_position, wanted_pos);
+	}
+
+	// find a place we can fit in from here
+	tr = gi.trace (towards_origin, mins, maxs, wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
+	if (!tr.allsolid)
+		VectorCopy (tr.endpos, wanted_pos);
+
+	VectorSubtract (wanted_pos, ent->s.origin, dest_diff);
+	if (dest_diff[2] > ent->mins[2] && dest_diff[2] < ent->maxs[2])
+		dest_diff[2] = 0;
+
+	VectorCopy (dest_diff, wanted_dir);
+	dist_to_wanted = VectorNormalize (wanted_dir);
+
+	if (!(ent->monsterinfo.aiflags & AI_MANUAL_STEERING))
+	{
+		VectorSubtract (towards_origin, ent->s.origin, a);
+		ent->ideal_yaw = vectoyaw (a);
+	}
+
+	// check if we're blocked from moving this way from where we are
+	VectorMA (ent->s.origin, ent->monsterinfo.fly_acceleration * FLY_STEPS, wanted_dir, end);
+	tr = gi.trace (ent->s.origin, ent->mins, ent->maxs, end, ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
+
+	VectorSet (yaw_angles, 0, ent->s.angles[YAW], 0);
+	AngleVectors (yaw_angles, aim_fwd, aim_rgt, aim_up);
+
+	// it's a fairly close block, so we may want to shift more dramatically
+	if (tr.fraction < 0.25f)
+	{
+		qboolean	bottom_visible, top_visible, left_visible, right_visible;
+		vec3_t		p, q;
+
+		VectorCopy (ent->s.origin, p);
+		p[2] += ent->mins[2];
+		VectorCopy (ent->s.origin, q);
+		q[2] += ent->mins[2] - ent->monsterinfo.fly_acceleration * FLY_STEPS;
+		bottom_visible = SV_flystep_testvisposition (p, wanted_pos, ent->s.origin, q, ent);
+		VectorCopy (ent->s.origin, p);
+		p[2] += ent->maxs[2];
+		VectorCopy (ent->s.origin, q);
+		q[2] += ent->maxs[2] + ent->monsterinfo.fly_acceleration * FLY_STEPS;
+		top_visible = SV_flystep_testvisposition (p, wanted_pos, ent->s.origin, q, ent);
+
+		// top & bottom are same, so we need to try right/left
+		if (bottom_visible == top_visible)
+		{
+			int		i;
+
+			for (i = 0; i < 3; i++)
+			{
+				a[i] = ent->s.origin[i] + aim_fwd[i] * ent->maxs[i] - aim_rgt[i] * ent->maxs[i];
+				b[i] = ent->s.origin[i] + aim_fwd[i] * ent->maxs[i] + aim_rgt[i] * ent->maxs[i];
+			}
+			left_visible = gi.trace (a, NULL, NULL, wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
+			right_visible = gi.trace (b, NULL, NULL, wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
+
+			if (left_visible != right_visible)
+			{
+				if (right_visible)
+					VectorAdd (wanted_dir, aim_rgt, wanted_dir);
+				else
+					VectorSubtract (wanted_dir, aim_rgt, wanted_dir);
+			}
+			else
+				// we're probably stuck, push us directly away
+				VectorCopy (tr.plane.normal, wanted_dir);
+		}
+		else
+		{
+			if (top_visible)
+				VectorAdd (wanted_dir, aim_up, wanted_dir);
+			else
+				VectorSubtract (wanted_dir, aim_up, wanted_dir);
+		}
+
+		VectorNormalize (wanted_dir);
+	}
+
+	// the closer we are to zero, the more we can change dir.
+	// if we're pushed past our max speed we shouldn't
+	// turn at all.
+	if (((ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || (ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_LOST_SIGHT))) && DotProduct (dir, wanted_dir) > 0.0f)
+		turn_factor = 0.45f;
+	else
+	{
+		turn_factor = 0.84f + (0.08f * (current_speed / ent->monsterinfo.fly_speed));
+		if (turn_factor > 1)
+			turn_factor = 1;
+	}
+	// as much of its heading kept as its four turns would keep
+	turn_factor = turn_factor * turn_factor * turn_factor * turn_factor;
+
+	if (have_dir)
+		VectorCopy (dir, final_dir);
+	else
+		VectorCopy (wanted_dir, final_dir);
+
+	// swimming monsters don't exit water voluntarily, and
+	// flying monsters don't enter water voluntarily (but will
+	// try to leave it)
+	VectorMA (ent->s.origin, current_speed, wanted_dir, end);
+	if (ent->flags & FL_SWIM)
+		bad_movement_direction = !(gi.pointcontents (end) & CONTENTS_WATER);
+	else if ((ent->flags & FL_FLY) && ent->waterlevel < 3)
+		bad_movement_direction = (gi.pointcontents (end) & CONTENTS_WATER) != 0;
+
+	if (bad_movement_direction)
+	{
+		if (ent->monsterinfo.fly_recovery_time < level.time)
+		{
+			VectorSet (ent->monsterinfo.fly_recovery_dir, crandom(), crandom(), crandom());
+			VectorNormalize (ent->monsterinfo.fly_recovery_dir);
+			ent->monsterinfo.fly_recovery_time = level.time + 1;
+		}
+
+		VectorCopy (ent->monsterinfo.fly_recovery_dir, wanted_dir);
+	}
+
+	if (have_dir && turn_factor > 0)
+	{
+		slerp_dir (dir, wanted_dir, 1.0f - turn_factor, final_dir);
+		VectorNormalize (final_dir);
+	}
+
+	// the closer we are to the wanted position, we want to slow
+	// down so we don't fly past it.
+	if (!ent->enemy || (ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || (ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_LOST_SIGHT)))
+		speed_factor = 1.f;
+	else if (DotProduct (aim_fwd, wanted_dir) < -0.25 && have_dir)
+		speed_factor = 0.f;
+	else
+	{
+		speed_factor = dist_to_wanted / ent->monsterinfo.fly_speed;
+		if (speed_factor > 1)
+			speed_factor = 1;
+	}
+
+	if (bad_movement_direction)
+		speed_factor = -speed_factor;
+
+	accel = ent->monsterinfo.fly_acceleration * FLY_STEPS;
+
+	// if we're flying away from our destination, apply reverse thrusters
+	if (DotProduct (final_dir, wanted_dir) < 0.25f)
+		accel *= 2.0f;
+
+	wanted_speed = ent->monsterinfo.fly_speed * speed_factor;
+
+	if (ent->monsterinfo.aiflags & AI_MANUAL_STEERING)
+		wanted_speed = 0;
+
+	// change speed
+	if (current_speed > wanted_speed)
+	{
+		current_speed -= accel;
+		if (current_speed < wanted_speed)
+			current_speed = wanted_speed;
+	}
+	else if (current_speed < wanted_speed)
+	{
+		current_speed += accel;
+		if (current_speed > wanted_speed)
+			current_speed = wanted_speed;
+	}
+
+	if (isnan (final_dir[0]) || isnan (final_dir[1]) || isnan (final_dir[2]) || isnan (current_speed))
+		return false;
+
+	// commit
+	VectorScale (final_dir, current_speed, ent->velocity);
+
+	// for buzzards, set their pitch
+	if (ent->enemy && (ent->monsterinfo.fly_buzzard || (ent->monsterinfo.aiflags & AI_MEDIC)))
+	{
+		VectorSubtract (ent->s.origin, towards_origin, a);
+		VectorNormalize (a);
+		vectoangles (a, b);
+		ent->s.angles[PITCH] = LerpAngle (ent->s.angles[PITCH], -b[PITCH], FRAMETIME * 4.0f);
+	}
+	else
+		ent->s.angles[PITCH] = 0;
+
+	return true;
+}
+
+/*
+=================
+The re-release's boss death: explosions bursting all over it, now and
+then, from a thing of their own, till it is gone or turns to its gibs
+(its model changes)
+=================
+*/
+static void BossExplode_think (edict_t *self)
+{
+	vec3_t	org;
+
+	// owner gone or changed
+	if (!self->owner->inuse || self->owner->s.modelindex != self->style)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+
+	VectorAdd (self->owner->s.origin, self->owner->mins, org);
+	org[0] += random() * self->owner->size[0];
+	org[1] += random() * self->owner->size[1];
+	org[2] += random() * self->owner->size[2];
+
+	gi.WriteByte (svc_temp_entity);
+	// its unlit explosion between lit ones, here the one without particles
+	gi.WriteByte (!(self->viewheight % 3) ? TE_EXPLOSION1 : TE_EXPLOSION1_NP);
+	gi.WritePosition (org);
+	gi.multicast (org, MULTICAST_PVS);
+
+	self->viewheight++;
+
+	self->nextthink = level.time + 0.05 + 0.15 * random();
+}
+
+void BossExplode_rr (edict_t *self)
+{
+	edict_t	*exploder = G_Spawn ();
+
+	exploder->owner = self;
+	exploder->style = self->s.modelindex;
+	exploder->think = BossExplode_think;
+	exploder->nextthink = level.time + 0.075 + 0.175 * random();
+	exploder->viewheight = 0;
+	exploder->classname = "boss_exploder";
+}
+
+void M_SetEffects (edict_t *ent);
+
+// the re-release's: a corpse no longer being healed
+void cleanupHealTarget (edict_t *ent)
+{
+	ent->monsterinfo.healer = NULL;
+	ent->takedamage = DAMAGE_YES;
+	ent->monsterinfo.aiflags &= ~AI_RESURRECTING;
+	M_SetEffects (ent);
+}
+
+// and a medic giving up its patient, as it dies or turns on another
+void M_AbandonHeal (edict_t *self)
+{
+	if (!(self->svflags & SVF_MONSTER) || !(self->monsterinfo.aiflags & AI_MEDIC))
+		return;
+	if (self->enemy && self->enemy->inuse && (self->enemy->svflags & SVF_MONSTER))
+		cleanupHealTarget (self->enemy);
+	self->monsterinfo.aiflags &= ~AI_MEDIC;
+}
+
+// the re-release's: dead enough to be gibbed, or crushed once dead
+qboolean M_CheckGib (edict_t *self)
+{
+	if (self->deadflag && meansOfDeath == MOD_CRUSH)
+		return true;
+	return self->health <= self->gib_health;
+}
+
+// the re-release's: whether pain shows, not ducked or on a combat point,
+// nor in nightmare unless it is a chainfist
+qboolean M_ShouldReactToPain (edict_t *self)
+{
+	if (self->monsterinfo.aiflags & (AI_DUCKED | AI_COMBAT_POINT))
+		return false;
+	return meansOfDeath == MOD_CHAINFIST || skill->value < 3;
+}
+
+// the re-release's: a monster's step, which its client sounds by the
+// material stepped on (client/cl_fx.c)
+void monster_footstep (edict_t *self)
+{
+	if (self->groundentity)
+		self->s.event = EV_OTHER_FOOTSTEP;
+}
+
+/*
+=============
+blocked_checkjump_rr
+
+The re-release's jump, when a monster is blocked going after its enemy:
+down to where it stands, no more than drop_height, onto level ground and
+not into deep water; or up onto a ledge no higher than jump_height,
+facing the wall first. Not again till jump_time. It has no navigation
+paths here.
+=============
+*/
+qboolean face_wall (edict_t *self);
+
+void monster_jump_start_rr (edict_t *self)
+{
+	monster_done_dodge (self);
+	self->monsterinfo.jump_time = level.time + 3;
+}
+
+// landed, or long enough; and still going forward
+qboolean monster_jump_finished_rr (edict_t *self)
+{
+	vec3_t	forward, v;
+	float	z;
+
+	AngleVectors (self->s.angles, forward, NULL, NULL);
+	VectorSet (v, self->velocity[0] * forward[0], self->velocity[1] * forward[1], self->velocity[2] * forward[2]);
+	if (VectorLength (v) < 150)
+	{
+		z = self->velocity[2];
+		VectorScale (forward, 150, self->velocity);
+		self->velocity[2] = z;
+	}
+
+	return self->monsterinfo.jump_time < level.time;
+}
+
+#define	STEPSIZE_RR	18
+
+int blocked_checkjump_rr (edict_t *self, float dist)
+{
+	int		playerPosition;
+	trace_t	trace, deep;
+	vec3_t	pt1, pt2, forward, up, mid;
+
+	// can't jump even if we physically can, or no enemy to go after
+	if (!self->monsterinfo.can_jump || !self->enemy)
+		return JUMP_NO;
+
+	// we just jumped recently, don't try again
+	if (self->monsterinfo.jump_time > level.time)
+		return JUMP_NO;
+
+	AngleVectors (self->s.angles, forward, NULL, up);
+
+	if (self->enemy->absmin[2] > self->absmin[2] + STEPSIZE_RR)
+		playerPosition = 1;
+	else if (self->enemy->absmin[2] < self->absmin[2] - STEPSIZE_RR)
+		playerPosition = -1;
+	else
+		playerPosition = 0;
+
+	if (playerPosition == -1 && self->monsterinfo.drop_height)
+	{
+		// can it even get to the spot it is going to fall from?
+		VectorMA (self->s.origin, 48, forward, pt1);
+		trace = gi.trace (self->s.origin, self->mins, self->maxs, pt1, self, MASK_MONSTERSOLID);
+		if (trace.fraction < 1)
+			return JUMP_NO;
+
+		VectorCopy (pt1, pt2);
+		pt2[2] = self->absmin[2] - self->monsterinfo.drop_height - 1;
+
+		trace = gi.trace (pt1, vec3_origin, vec3_origin, pt2, self, MASK_MONSTERSOLID | MASK_WATER);
+		if (trace.fraction < 1 && !trace.allsolid && !trace.startsolid)
+		{
+			// how deep the water is: not over its waist
+			if (trace.contents & CONTENTS_WATER)
+			{
+				deep = gi.trace (trace.endpos, vec3_origin, vec3_origin, pt2, self, MASK_MONSTERSOLID);
+				VectorCopy (deep.endpos, mid);
+				mid[2] += (self->mins[2] + self->maxs[2]) * 0.5 - self->mins[2];
+				if (gi.pointcontents (mid) & MASK_WATER)
+					return JUMP_NO;
+			}
+
+			if (self->absmin[2] - trace.endpos[2] >= 24 && (trace.contents & (MASK_SOLID | CONTENTS_WATER)))
+			{
+				if (self->enemy->absmin[2] - trace.endpos[2] > 32)
+					return JUMP_NO;
+				if (trace.plane.normal[2] < 0.9)
+					return JUMP_NO;
+
+				monster_jump_start_rr (self);
+				return JUMP_DOWN;
+			}
+		}
+	}
+	else if (playerPosition == 1 && self->monsterinfo.jump_height)
+	{
+		VectorMA (self->s.origin, 48, forward, pt1);
+		VectorCopy (pt1, pt2);
+		pt1[2] = self->absmax[2] + self->monsterinfo.jump_height;
+
+		trace = gi.trace (pt1, vec3_origin, vec3_origin, pt2, self, MASK_MONSTERSOLID | MASK_WATER);
+		if (trace.fraction < 1 && !trace.allsolid && !trace.startsolid
+			&& trace.endpos[2] - self->absmin[2] <= self->monsterinfo.jump_height
+			&& (trace.contents & (MASK_SOLID | CONTENTS_WATER)))
+		{
+			face_wall (self);
+			monster_jump_start_rr (self);
+			return JUMP_UP;
+		}
+	}
+
+	return JUMP_NO;
 }

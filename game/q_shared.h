@@ -481,6 +481,7 @@ typedef enum
 #define	PMF_TIME_LAND		16	// pm_time is time before rejump
 #define	PMF_TIME_TELEPORT	32	// pm_time is non-moving time
 #define PMF_NO_PREDICTION	64	// temporarily disables prediction (used for grappling hook)
+#define PMF_TIME_TRICK		128	// the 2023 re-release's: pm_time is a trick jump's window
 
 // this structure needs to be communicated bit-accurate
 // from the server to the client to guarantee that
@@ -936,6 +937,48 @@ typedef struct
 #define	MZ2_GUNCMDR_GRENADE_CROUCH_2	249
 #define	MZ2_GUNCMDR_GRENADE_CROUCH_3	250
 
+// the re-release's soldiers, prone
+#define	MZ2_SOLDIER_BLASTER_9			251
+#define	MZ2_SOLDIER_SHOTGUN_9			252
+#define	MZ2_SOLDIER_MACHINEGUN_9		253
+#define	MZ2_SOLDIER_RIPPER_9			254
+#define	MZ2_SOLDIER_HYPERGUN_9			255
+
+// the re-release's past a byte, sent in svc_muzzleflash3
+#define	MZ2_GUNNER_GRENADE2_1       	256
+#define	MZ2_GUNNER_GRENADE2_2       	257
+#define	MZ2_GUNNER_GRENADE2_3       	258
+#define	MZ2_GUNNER_GRENADE2_4       	259
+#define	MZ2_INFANTRY_MACHINEGUN_22  	260
+#define	MZ2_SUPERTANK_GRENADE_1     	261
+#define	MZ2_SUPERTANK_GRENADE_2     	262
+#define	MZ2_HOVER_BLASTER_2         	263
+#define	MZ2_DAEDALUS_BLASTER_2      	264
+#define	MZ2_MEDIC_HYPERBLASTER1_1   	265
+#define	MZ2_MEDIC_HYPERBLASTER1_2   	266
+#define	MZ2_MEDIC_HYPERBLASTER1_3   	267
+#define	MZ2_MEDIC_HYPERBLASTER1_4   	268
+#define	MZ2_MEDIC_HYPERBLASTER1_5   	269
+#define	MZ2_MEDIC_HYPERBLASTER1_6   	270
+#define	MZ2_MEDIC_HYPERBLASTER1_7   	271
+#define	MZ2_MEDIC_HYPERBLASTER1_8   	272
+#define	MZ2_MEDIC_HYPERBLASTER1_9   	273
+#define	MZ2_MEDIC_HYPERBLASTER1_10  	274
+#define	MZ2_MEDIC_HYPERBLASTER1_11  	275
+#define	MZ2_MEDIC_HYPERBLASTER1_12  	276
+#define	MZ2_MEDIC_HYPERBLASTER2_1   	277
+#define	MZ2_MEDIC_HYPERBLASTER2_2   	278
+#define	MZ2_MEDIC_HYPERBLASTER2_3   	279
+#define	MZ2_MEDIC_HYPERBLASTER2_4   	280
+#define	MZ2_MEDIC_HYPERBLASTER2_5   	281
+#define	MZ2_MEDIC_HYPERBLASTER2_6   	282
+#define	MZ2_MEDIC_HYPERBLASTER2_7   	283
+#define	MZ2_MEDIC_HYPERBLASTER2_8   	284
+#define	MZ2_MEDIC_HYPERBLASTER2_9   	285
+#define	MZ2_MEDIC_HYPERBLASTER2_10  	286
+#define	MZ2_MEDIC_HYPERBLASTER2_11  	287
+#define	MZ2_MEDIC_HYPERBLASTER2_12  	288
+
 // ROGUE
 
 extern	vec3_t monster_flash_offset [];
@@ -1188,7 +1231,8 @@ typedef enum
 	EV_FALL,
 	EV_FALLFAR,
 	EV_PLAYER_TELEPORT,
-	EV_OTHER_TELEPORT
+	EV_OTHER_TELEPORT,
+	EV_OTHER_FOOTSTEP	// the re-release's: a monster's step
 } entity_event_t;
 
 

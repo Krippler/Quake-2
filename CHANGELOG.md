@@ -5,6 +5,139 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.21] — 2026-10-26
+
+### Changed
+
+- **On the re-release's maps, the player moves as in the re-release.**
+  Its movement code is ported beside the 1997 one, which every other map
+  keeps exactly. Running down stairs and slopes keeps you on the ground
+  instead of hopping step to step. Ladders climb with jump or forward,
+  go down with crouch or back, and move sideways with strafe. You swim
+  up and down with jump and crouch, and climb out of water wherever there
+  is a dry place to land. You can crouch in mid-air to clear a ledge. A
+  hard landing no longer stops you jumping straight away, and landing on
+  a ledge while still rising gives the re-release's trick jump. Noclip
+  flies twice as fast. On the Quake 64 levels in single player, as in the
+  re-release, you cannot crouch and pause briefly after every landing.
+  Monsters there no longer hear you jump, but do hear you land hard.
+- **On the re-release's maps, weapons work as in the re-release.**
+  Shots go where the crosshair is, not straight out from the side of the
+  gun, and the machinegun, chaingun and shotguns fire from the middle of
+  the view. Recoil eases off over a fifth of a second instead of snapping
+  back. The machinegun no longer climbs as it fires; the hyperblaster
+  and chaingun shake the view more. The blaster does 15 damage
+  everywhere and its bolts fly half as fast again. Launcher grenades use
+  the re-release's model, point the way they fly and spin; hand grenades
+  use its model and tumble. Bullets pass through corpses. Changing weapon
+  makes the re-release's sound, a weapon running low on ammo warns you,
+  and when one runs dry you switch to the next as the re-release orders
+  them, launchers and mission-pack weapons included.
+- **On the re-release's maps, its soldiers.** The light, machinegun and
+  shotgun guards and The Reckoning's ripper, hypergun and laser guards
+  are the re-release's own: they run at you firing, dive and fire lying
+  down, duck and sidestep your shots, blind-fire where they last saw
+  you, the shotgun guard cocks between shots, they show a hurt skin, and
+  they gib into pieces of their own.
+- **On the re-release's maps, its infantry.** Enforcers run at you
+  firing, cock their gun before shooting unless already cocked, punch up
+  close, duck and sidestep, jump up and down ledges after you, spray as
+  they fall, sometimes lose their heads, and gib into pieces of their own.
+- **On the re-release's maps, its gunners.** They chaingun you up close,
+  lob grenades judged to reach you from further off, blind-fire grenades
+  where they last saw you, duck (sometimes throwing a grenade as they go
+  down) and sidestep, jump ledges after you, and gib into pieces of their
+  own.
+- **On the re-release's maps, its berserkers.** They leap at you from
+  afar and slam down with a shockwave, swing as they run in, spike and
+  club up close, sidestep and now and then dive out of the way, jump
+  ledges after you, and gib into pieces of their own.
+- **On the re-release's maps, its gladiators.** Their gun hums while
+  they live. They fire the railgun at where you stood when they began to
+  charge it, so moving dodges it, hold off firing while you are close
+  enough to cleave, show a hurt skin, and gib into pieces of their own.
+  The Reckoning's plasma gladiators fire two bolts a charge on nightmare,
+  and their power shield takes the first of the damage.
+- **On the re-release's maps, its parasites.** The proboscis is shot at
+  you, aimed where you are heading, and flies out on a segmented stalk;
+  it sticks and drains you as long as nothing comes between you, then
+  reels back in. One that misses into a wall sticks there and the
+  parasite wrenches it free. They jump ledges after you, show a hurt
+  skin, and gib into pieces of their own.
+- **On the re-release's maps, its mutants.** They leap only to close a
+  gap and hurt only when they land on you still moving, claw left and
+  right and keep clawing while you stay close, jump ledges after you,
+  slide as they fall dead, show a hurt skin, and gib into pieces of their
+  own. Their corpses, and the enforcers', always draw flies a while
+  after, as there, not just half the time.
+- **On the re-release's maps, its tanks and tank commanders.** Their
+  blaster leads you and their rockets now and then do; they blind-fire
+  where they last saw you, sweep the machinegun only with a clear shot,
+  shrug off small hurts and don't flinch mid-attack, lose an arm as they
+  fall, show a hurt skin, and gib into pieces of their own. Quake 64's
+  heat-seeking commanders fire heat seekers.
+- **On the re-release's maps, its medics and medic commanders.** They
+  heal the strongest corpse in sight, stay with it unless badly hurt,
+  give up on one their cable can't reach and don't go back to it, and
+  gib one that would rise inside something; the risen keep the health
+  they had and lose their flies. Medics fire a hyperblaster burst after
+  their blaster, duck and sidestep, show a hurt skin, and gib into
+  pieces of their own. Monsters there turn on whoever hurt them only
+  every few seconds, as in the re-release.
+- **On the re-release's maps, its brains.** Their power screen drops
+  only while the chest is open; they claw and lash their tentacles up
+  close, suck you in with the tongue from a little further, and from
+  afar sweep you with a laser from each eye, held on you and leading
+  you; they duck, show a hurt skin, and gib into pieces of their own.
+- **On the re-release's maps, its iron maidens.** Their rockets now and
+  then lead you, they fire again only with a clear shot, blind-fire
+  where they last saw you, keep slashing while you stay close, duck and
+  sidestep, show a hurt skin, and gib into pieces of their own. The
+  Reckoning's heat-seeking iron maidens (`monster_chick_heat`) are
+  spawned too.
+- **On the re-release's maps, its flyers.** They fly as the re-release's
+  flying monsters do, sweeping and gliding rather than stepping: they
+  circle about you, now and then hold a spot to fire from, make fly-by
+  slashes on their thrusters, glance off one another in sparks, show a
+  hurt skin, and gib into pieces of their own. Ground Zero's kamikaze
+  flyers dive at you and blow up as before.
+- **On the re-release's maps, its technicians.** They fly as its flyers
+  do, keeping in close for their claws and zapper, fire their blaster
+  now straight and now circling you, may lie disguised till they wake,
+  show a hurt skin, and gib into pieces of their own.
+- **On the re-release's maps, its icarus and daedalus.** They fly as
+  its flyers do, keeping their distance, fire now straight and now
+  circling you, and as they die fall bursting into flame till they hit
+  the ground and blow apart into pieces of their own.
+- **On the re-release's maps, its barracuda sharks.** They swim as its
+  flyers fly, gliding in close to bite and keeping to the water, and
+  sink back into it when they break the surface.
+- **On the re-release's maps, its super tanks.** They fire only with a
+  clear shot, lead you with rockets and chaingun, lob grenades judged
+  to reach you (more when you are above them), won't flinch from small
+  hurts or while firing rockets, burst with explosions all over as they
+  die, longer on the Quake 64 levels, and blow apart into pieces of
+  their own. The Reckoning's shielded super tank fires heat seekers.
+- **On the re-release's maps, its hornets.** Their rockets mostly lead
+  you, spread across your path, their chainguns lead you, and they keep
+  firing while you are in front of them; Quake 64's fire hyperblasters
+  and a stream of single rockets. They are proof against lasers, sink
+  slowly as they die, bursting with explosions, and blow apart into
+  pieces of their own.
+- **On the re-release's maps, its Jorg and Makron.** The Jorg's
+  chainguns lead you as they whirr, its gun's loop sounding while it
+  fires; it seldom flinches from small hurts, bursts with explosions as
+  it dies and blows apart into pieces of its own, throwing out the
+  Makron, who leaps at you, and whose torso falls from his legs as he
+  dies, twitching, a thing of its own.
+- **On the re-release's maps, its insane marines.** They moan and
+  scream now and then rather than every moment, may be kept quiet by
+  the map, cry out in pain as a player does, step as they walk, and
+  gib.
+- **Footsteps by material on the re-release's maps.** Your footsteps, and
+  now monsters', sound like what is underfoot: metal, wood, grass, glass
+  and the rest, from the re-release's own sounds.
+
 ## [1.3.20] — 2026-10-23
 
 ### Fixed

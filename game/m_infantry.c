@@ -553,11 +553,19 @@ void infantry_attack(edict_t *self)
 
 /*QUAKED monster_infantry (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
 */
+void SP_monster_infantry_rr (edict_t *self);
+
 void SP_monster_infantry (edict_t *self)
 {
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_infantry_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_infantry_rr (self);
 		return;
 	}
 

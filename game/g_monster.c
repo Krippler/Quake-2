@@ -32,70 +32,49 @@ void monster_fire_bullet (edict_t *self, vec3_t start, vec3_t dir, int damage, i
 {
 	fire_bullet (self, start, dir, damage, kick, hspread, vspread, MOD_UNKNOWN);
 
-	gi.WriteByte (svc_muzzleflash2);
-	gi.WriteShort (self - g_edicts);
-	gi.WriteByte (flashtype);
-	gi.multicast (start, MULTICAST_PVS);
+	monster_muzzleflash (self, start, flashtype);
 }
 
 void monster_fire_shotgun (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int flashtype)
 {
 	fire_shotgun (self, start, aimdir, damage, kick, hspread, vspread, count, MOD_UNKNOWN);
 
-	gi.WriteByte (svc_muzzleflash2);
-	gi.WriteShort (self - g_edicts);
-	gi.WriteByte (flashtype);
-	gi.multicast (start, MULTICAST_PVS);
+	monster_muzzleflash (self, start, flashtype);
 }
 
 void monster_fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect)
 {
 	fire_blaster (self, start, dir, damage, speed, effect, false);
 
-	gi.WriteByte (svc_muzzleflash2);
-	gi.WriteShort (self - g_edicts);
-	gi.WriteByte (flashtype);
-	gi.multicast (start, MULTICAST_PVS);
+	monster_muzzleflash (self, start, flashtype);
 }	
 
 void monster_fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, int flashtype)
 {
 	fire_grenade (self, start, aimdir, damage, speed, 2.5, damage+40);
 
-	gi.WriteByte (svc_muzzleflash2);
-	gi.WriteShort (self - g_edicts);
-	gi.WriteByte (flashtype);
-	gi.multicast (start, MULTICAST_PVS);
+	monster_muzzleflash (self, start, flashtype);
 }
 
 void monster_fire_rocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype)
 {
 	fire_rocket (self, start, dir, damage, speed, damage+20, damage);
 
-	gi.WriteByte (svc_muzzleflash2);
-	gi.WriteShort (self - g_edicts);
-	gi.WriteByte (flashtype);
-	gi.multicast (start, MULTICAST_PVS);
+	monster_muzzleflash (self, start, flashtype);
 }	
 
 void monster_fire_railgun (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int flashtype)
 {
 	fire_rail (self, start, aimdir, damage, kick);
 
-	gi.WriteByte (svc_muzzleflash2);
-	gi.WriteShort (self - g_edicts);
-	gi.WriteByte (flashtype);
-	gi.multicast (start, MULTICAST_PVS);
+	monster_muzzleflash (self, start, flashtype);
 }
 
 void monster_fire_bfg (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, int kick, float damage_radius, int flashtype)
 {
 	fire_bfg (self, start, aimdir, damage, speed, damage_radius);
 
-	gi.WriteByte (svc_muzzleflash2);
-	gi.WriteShort (self - g_edicts);
-	gi.WriteByte (flashtype);
-	gi.multicast (start, MULTICAST_PVS);
+	monster_muzzleflash (self, start, flashtype);
 }
 
 
@@ -128,6 +107,19 @@ void M_FlyCheck (edict_t *self)
 	if (random() > 0.5)
 		return;
 
+	self->think = M_FliesOn;
+	self->nextthink = level.time + 5 + 10 * random();
+}
+
+// the re-release's: a corpse at rest, or with only its flies about it
+qboolean M_CorpseAtRest (edict_t *ent)
+{
+	return !ent->nextthink || ent->think == M_FliesOn || ent->think == M_FliesOff;
+}
+
+// the re-release's, for a stinky corpse: flies every time
+void M_FliesLater (edict_t *self)
+{
 	self->think = M_FliesOn;
 	self->nextthink = level.time + 5 + 10 * random();
 }
@@ -521,7 +513,7 @@ enemy as activator.
 void monster_death_use (edict_t *self)
 {
 	self->flags &= ~(FL_FLY|FL_SWIM);
-	self->monsterinfo.aiflags &= AI_GOOD_GUY;
+	self->monsterinfo.aiflags &= AI_GOOD_GUY | AI_STINKY;	// the re-release's stink lasts
 
 	if (self->item)
 	{
@@ -589,6 +581,9 @@ qboolean monster_start (edict_t *self)
 	// randomize what frame they start on
 	if (self->monsterinfo.currentmove)
 		self->s.frame = self->monsterinfo.currentmove->firstframe + (rand() % (self->monsterinfo.currentmove->lastframe - self->monsterinfo.currentmove->firstframe + 1));
+
+	// the re-release's: its height standing, which its ducks come down from
+	self->monsterinfo.base_height = self->maxs[2];
 
 	return true;
 }

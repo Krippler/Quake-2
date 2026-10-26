@@ -581,11 +581,19 @@ void hover_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 
 /*QUAKED monster_hover (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
 */
+void SP_monster_hover_rr (edict_t *self);
+
 void SP_monster_hover (edict_t *self)
 {
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_hover_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_hover_rr (self);
 		return;
 	}
 
@@ -636,6 +644,9 @@ void SP_monster_daedalus (edict_t *self)
 {
 	SP_monster_hover (self);
 	if (!self->inuse)
+		return;
+	// the re-release's, on its maps, is its own (m_hover_rr.c)
+	if (RR_Map ())
 		return;
 	self->style = 1;
 	self->s.skinnum = 2;

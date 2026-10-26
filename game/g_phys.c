@@ -856,12 +856,14 @@ void SV_Physics_Step (edict_t *ent)
 			{
 				if (ent->velocity[2] < sv_gravity->value*-0.1)
 					hitsound = true;
-				if (ent->waterlevel == 0)
+				// the re-release's swimmers, which coast out of the water,
+				// fall back unless all under, as its monsters do
+				if (ent->waterlevel == 0 || ((ent->monsterinfo.aiflags & AI_ALTERNATE_FLY) && ent->waterlevel < 3))
 					SV_AddGravity (ent);
 			}
 
 	// friction for flying monsters that have been given vertical velocity
-	if ((ent->flags & FL_FLY) && (ent->velocity[2] != 0))
+	if ((ent->flags & FL_FLY) && (ent->velocity[2] != 0) && !(ent->monsterinfo.aiflags & AI_ALTERNATE_FLY))
 	{
 		speed = fabs(ent->velocity[2]);
 		control = speed < sv_stopspeed ? sv_stopspeed : speed;
@@ -874,7 +876,7 @@ void SV_Physics_Step (edict_t *ent)
 	}
 
 	// friction for flying monsters that have been given vertical velocity
-	if ((ent->flags & FL_SWIM) && (ent->velocity[2] != 0))
+	if ((ent->flags & FL_SWIM) && (ent->velocity[2] != 0) && !(ent->monsterinfo.aiflags & AI_ALTERNATE_FLY))
 	{
 		speed = fabs(ent->velocity[2]);
 		control = speed < sv_stopspeed ? sv_stopspeed : speed;
@@ -889,7 +891,7 @@ void SV_Physics_Step (edict_t *ent)
 	{
 		// apply friction
 		// let dead monsters who aren't completely onground slide
-		if ((wasonground) || (ent->flags & (FL_SWIM|FL_FLY)))
+		if (((wasonground) || (ent->flags & (FL_SWIM|FL_FLY))) && !(ent->monsterinfo.aiflags & AI_ALTERNATE_FLY))
 			if (!(ent->health <= 0.0 && !M_CheckBottom(ent)))
 			{
 				vel = ent->velocity;
@@ -971,4 +973,8 @@ void G_RunEntity (edict_t *ent)
 	default:
 		gi.error ("SV_Physics: bad movetype %i", (int)ent->movetype);			
 	}
+
+	// the re-release's, after its physics (a freed entity has none)
+	if (ent->postthink)
+		ent->postthink (ent);
 }

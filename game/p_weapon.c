@@ -32,9 +32,23 @@ static byte		is_silenced;
 void weapon_grenade_fire (edict_t *ent, qboolean held);
 
 
+/*
+=================
+P_ProjectSource
+
+Where a shot leaves the gun. On the re-release's maps it goes, as there,
+not straight along the view from the side of it but toward whatever the
+crosshair is on, so it hits what is aimed at however near; forward is
+turned that way. Something close in front, a monster or a player within
+128 units, or a gun in a wall, is shot straight ahead, so a railgun
+pierces what is in front of it.
+=================
+*/
 static void P_ProjectSource (gclient_t *client, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result)
 {
-	vec3_t	_distance;
+	vec3_t	_distance, eye, end;
+	edict_t	*ent;
+	trace_t	tr;
 
 	VectorCopy (distance, _distance);
 	if (client->pers.hand == LEFT_HANDED)
@@ -42,6 +56,63 @@ static void P_ProjectSource (gclient_t *client, vec3_t point, vec3_t distance, v
 	else if (client->pers.hand == CENTER_HANDED)
 		_distance[1] = 0;
 	G_ProjectSource (point, _distance, forward, right, result);
+
+	if (!RR_Map ())
+		return;
+
+	ent = g_edicts + 1 + (client - game.clients);
+	VectorCopy (ent->s.origin, eye);
+	eye[2] += ent->viewheight;
+	VectorMA (eye, 8192, forward, end);
+	tr = gi.trace (eye, NULL, NULL, end, ent, MASK_SHOT & ~CONTENTS_DEADMONSTER);
+	if (tr.startsolid || (tr.ent && ((tr.ent->svflags & SVF_MONSTER) || tr.ent->client)
+		&& tr.fraction * 8192 < 128))
+		return;
+	VectorSubtract (tr.endpos, result, forward);
+	VectorNormalize (forward);
+}
+
+/*
+=================
+P_RemoveAmmo
+
+A shot's ammo, and on the re-release's maps its warning as the weapon's
+ammo runs low: when it falls to its quantity_warn, or for a weapon
+without one, to none.
+=================
+*/
+static int P_QuantityWarn (gitem_t *weapon)
+{
+	static struct { char *classname; int warn; } warns[] = {
+		{"weapon_supershotgun", 10}, {"weapon_machinegun", 30},
+		{"weapon_chaingun", 60}, {"ammo_grenades", 2}, {"ammo_tesla", 1},
+		{"weapon_hyperblaster", 30}, {"weapon_plasmabeam", 50},
+		{"weapon_bfg", 50}, {NULL, 0}
+	};
+	int		i;
+
+	for (i=0 ; warns[i].classname ; i++)
+		if (!strcmp (weapon->classname, warns[i].classname))
+			return warns[i].warn;
+	return 0;
+}
+
+static void P_RemoveAmmo (edict_t *ent, int count)
+{
+	int			*ammo = &ent->client->pers.inventory[ent->client->ammo_index];
+	int			warn;
+	qboolean	warned;
+
+	if (!RR_Map () || !ent->client->pers.weapon)
+	{
+		*ammo -= count;
+		return;
+	}
+	warn = P_QuantityWarn (ent->client->pers.weapon);
+	warned = *ammo <= warn;
+	*ammo -= count;
+	if (!warned && *ammo <= warn)
+		gi.sound (ent, CHAN_AUTO, gi.soundindex ("weapons/lowammo.wav"), 1, ATTN_NORM, 0);
 }
 
 
@@ -190,6 +261,11 @@ void ChangeWeapon (edict_t *ent)
 		ent->client->grenade_time = 0;
 	}
 
+	// the re-release's sound of a weapon being changed for another
+	if (RR_Map () && ent->client->pers.weapon && ent->client->newweapon
+		&& ent->client->newweapon != ent->client->pers.weapon)
+		gi.sound (ent, CHAN_WEAPON, gi.soundindex ("weapons/change.wav"), 1, ATTN_NORM, 0);
+
 	ent->client->pers.lastweapon = ent->client->pers.weapon;
 	ent->client->pers.weapon = ent->client->newweapon;
 	ent->client->newweapon = NULL;
@@ -240,6 +316,36 @@ NoAmmoWeaponChange
 */
 void NoAmmoWeaponChange (edict_t *ent)
 {
+	// the re-release's order, which takes up launchers and the mission
+	// packs' weapons too, rather than 1997's blaster
+	if (RR_Map ())
+	{
+		static char *order[] = {
+			"weapon_disintegrator", "weapon_railgun", "weapon_plasmabeam",
+			"weapon_hyperblaster", "weapon_chaingun", "weapon_machinegun",
+			"weapon_supershotgun", "weapon_shotgun", "weapon_phalanx",
+			"weapon_rocketlauncher", "weapon_grenadelauncher",
+			"weapon_chainfist", "weapon_blaster", NULL
+		};
+		gitem_t	*item, *ammo;
+		int		i;
+
+		for (i=0 ; order[i] ; i++)
+		{
+			item = FindItemByClassname (order[i]);
+			if (!item || !ent->client->pers.inventory[ITEM_INDEX(item)])
+				continue;
+			if (item->ammo)
+			{
+				ammo = FindItem (item->ammo);
+				if (!ammo || ent->client->pers.inventory[ITEM_INDEX(ammo)] < item->quantity)
+					continue;
+			}
+			ent->client->newweapon = item;
+			return;
+		}
+	}
+
 	if ( ent->client->pers.inventory[ITEM_INDEX(FindItem("slugs"))]
 		&&  ent->client->pers.inventory[ITEM_INDEX(FindItem("railgun"))] )
 	{
@@ -586,6 +692,18 @@ void weapon_grenade_fire (edict_t *ent, qboolean held)
 
 	VectorSet(offset, 8, 8, ent->viewheight-8);
 	AngleVectors (ent->client->v_angle, forward, right, NULL);
+	if (RR_Map ())
+	{
+		// thrown from low in the middle, and not so far up as to go
+		// behind
+		vec3_t	angles;
+
+		VectorCopy (ent->client->v_angle, angles);
+		if (angles[PITCH] < -62.5)
+			angles[PITCH] = -62.5;
+		AngleVectors (angles, forward, right, NULL);
+		VectorSet(offset, 2, 0, ent->viewheight-14);
+	}
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
 
 	timer = ent->client->grenade_time - level.time;
@@ -593,7 +711,7 @@ void weapon_grenade_fire (edict_t *ent, qboolean held)
 	fire_grenade2 (ent, start, forward, damage, speed, timer, radius, held);
 
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+		P_RemoveAmmo (ent, 1);
 
 	ent->client->grenade_time = level.time + 1.0;
 
@@ -746,6 +864,17 @@ void weapon_grenadelauncher_fire (edict_t *ent)
 
 	VectorSet(offset, 8, 8, ent->viewheight-8);
 	AngleVectors (ent->client->v_angle, forward, right, NULL);
+	if (RR_Map ())
+	{
+		// from the middle, and not so far up as to go behind
+		vec3_t	angles;
+
+		VectorCopy (ent->client->v_angle, angles);
+		if (angles[PITCH] < -62.5)
+			angles[PITCH] = -62.5;
+		AngleVectors (angles, forward, right, NULL);
+		VectorSet(offset, 8, 0, ent->viewheight-8);
+	}
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
 
 	VectorScale (forward, -2, ent->client->kick_origin);
@@ -763,7 +892,7 @@ void weapon_grenadelauncher_fire (edict_t *ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+		P_RemoveAmmo (ent, 1);
 }
 
 void Weapon_GrenadeLauncher (edict_t *ent)
@@ -816,7 +945,7 @@ void Weapon_RocketLauncher_Fire (edict_t *ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+		P_RemoveAmmo (ent, 1);
 }
 
 void Weapon_RocketLauncher (edict_t *ent)
@@ -850,8 +979,16 @@ void Blaster_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, in
 
 	VectorScale (forward, -2, ent->client->kick_origin);
 	ent->client->kick_angles[0] = -1;
+	// the re-release's hyperblaster shakes the view, and its blaster's
+	// bolts are faster, "because it is a completely useless gun"
+	if (hyper && RR_Map ())
+	{
+		ent->client->kick_angles[0] = crandom() * 0.7;
+		ent->client->kick_angles[1] = crandom() * 0.7;
+		ent->client->kick_angles[2] = crandom() * 0.7;
+	}
 
-	fire_blaster (ent, start, forward, damage, 1000, effect, hyper);
+	fire_blaster (ent, start, forward, damage, (!hyper && RR_Map ()) ? 1500 : 1000, effect, hyper);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);
@@ -870,7 +1007,8 @@ void Weapon_Blaster_Fire (edict_t *ent)
 {
 	int		damage;
 
-	if (deathmatch->value)
+	// the re-release's is 15 everywhere, not only in deathmatch
+	if (deathmatch->value || RR_Map ())
 		damage = 15;
 	else
 		damage = 10;
@@ -928,7 +1066,7 @@ void Weapon_HyperBlaster_Fire (edict_t *ent)
 				damage = 20;
 			Blaster_Fire (ent, offset, damage, true, effect);
 			if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-				ent->client->pers.inventory[ent->client->ammo_index]--;
+				P_RemoveAmmo (ent, 1);
 
 			ent->client->anim_priority = ANIM_ATTACK;
 			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
@@ -1017,18 +1155,29 @@ void Machinegun_Fire (edict_t *ent)
 	ent->client->kick_origin[0] = crandom() * 0.35;
 	ent->client->kick_angles[0] = ent->client->machinegun_shots * -1.5;
 
-	// raise the gun as it is firing
-	if (!deathmatch->value)
+	// the re-release's does not climb as it fires, shakes the same way
+	// on every axis, fires where the view is and from its middle
+	if (RR_Map ())
 	{
-		ent->client->machinegun_shots++;
-		if (ent->client->machinegun_shots > 9)
-			ent->client->machinegun_shots = 9;
+		ent->client->kick_angles[0] = crandom() * 0.7;
+		AngleVectors (ent->client->v_angle, forward, right, NULL);
+		VectorSet(offset, 0, 0, ent->viewheight-8);
 	}
+	else
+	{
+		// raise the gun as it is firing
+		if (!deathmatch->value)
+		{
+			ent->client->machinegun_shots++;
+			if (ent->client->machinegun_shots > 9)
+				ent->client->machinegun_shots = 9;
+		}
 
-	// get start / end positions
-	VectorAdd (ent->client->v_angle, ent->client->kick_angles, angles);
-	AngleVectors (angles, forward, right, NULL);
-	VectorSet(offset, 0, 8, ent->viewheight-8);
+		// get start / end positions
+		VectorAdd (ent->client->v_angle, ent->client->kick_angles, angles);
+		AngleVectors (angles, forward, right, NULL);
+		VectorSet(offset, 0, 8, ent->viewheight-8);
+	}
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
 	fire_bullet (ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_MACHINEGUN);
 
@@ -1040,7 +1189,7 @@ void Machinegun_Fire (edict_t *ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+		P_RemoveAmmo (ent, 1);
 
 	ent->client->anim_priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
@@ -1153,13 +1302,16 @@ void Chaingun_Fire (edict_t *ent)
 	{
 		ent->client->kick_origin[i] = crandom() * 0.35;
 		ent->client->kick_angles[i] = crandom() * 0.7;
+		// the re-release's shakes the more the more it fires at once
+		if (RR_Map ())
+			ent->client->kick_angles[i] = crandom() * (0.5 + shots * 0.15);
 	}
 
 	for (i=0 ; i<shots ; i++)
 	{
-		// get start / end positions
+		// get start / end positions; the re-release's about its middle
 		AngleVectors (ent->client->v_angle, forward, right, up);
-		r = 7 + crandom()*4;
+		r = (RR_Map () ? 0 : 7) + crandom()*4;
 		u = crandom()*4;
 		VectorSet(offset, 0, r, u + ent->viewheight-8);
 		P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
@@ -1176,7 +1328,7 @@ void Chaingun_Fire (edict_t *ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index] -= shots;
+		P_RemoveAmmo (ent, shots);
 }
 
 
@@ -1216,7 +1368,8 @@ void weapon_shotgun_fire (edict_t *ent)
 	VectorScale (forward, -2, ent->client->kick_origin);
 	ent->client->kick_angles[0] = -2;
 
-	VectorSet(offset, 0, 8,  ent->viewheight-8);
+	// the re-release's from the middle
+	VectorSet(offset, 0, RR_Map () ? 0 : 8,  ent->viewheight-8);
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
 
 	damage *= damage_multiplier;
@@ -1237,7 +1390,7 @@ void weapon_shotgun_fire (edict_t *ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+		P_RemoveAmmo (ent, 1);
 }
 
 void Weapon_Shotgun (edict_t *ent)
@@ -1263,7 +1416,8 @@ void weapon_supershotgun_fire (edict_t *ent)
 	VectorScale (forward, -2, ent->client->kick_origin);
 	ent->client->kick_angles[0] = -2;
 
-	VectorSet(offset, 0, 8,  ent->viewheight-8);
+	// the re-release's from the middle
+	VectorSet(offset, 0, RR_Map () ? 0 : 8,  ent->viewheight-8);
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
 
 	damage *= damage_multiplier;
@@ -1272,10 +1426,14 @@ void weapon_supershotgun_fire (edict_t *ent)
 	v[PITCH] = ent->client->v_angle[PITCH];
 	v[YAW]   = ent->client->v_angle[YAW] - 5;
 	v[ROLL]  = ent->client->v_angle[ROLL];
-	AngleVectors (v, forward, NULL, NULL);
+	AngleVectors (v, forward, right, NULL);
+	if (RR_Map ())	// each barrel at what it is pointed at
+		P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
 	fire_shotgun (ent, start, forward, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT/2, MOD_SSHOTGUN);
 	v[YAW]   = ent->client->v_angle[YAW] + 5;
-	AngleVectors (v, forward, NULL, NULL);
+	AngleVectors (v, forward, right, NULL);
+	if (RR_Map ())
+		P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
 	fire_shotgun (ent, start, forward, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT/2, MOD_SSHOTGUN);
 
 	// send muzzle flash
@@ -1288,7 +1446,7 @@ void weapon_supershotgun_fire (edict_t *ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index] -= 2;
+		P_RemoveAmmo (ent, 2);
 }
 
 void Weapon_SuperShotgun (edict_t *ent)
@@ -1350,7 +1508,7 @@ void weapon_railgun_fire (edict_t *ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+		P_RemoveAmmo (ent, 1);
 }
 
 
@@ -1411,10 +1569,20 @@ void weapon_bfg_fire (edict_t *ent)
 
 	VectorScale (forward, -2, ent->client->kick_origin);
 
-	// make a big pitch kick with an inverse fall
-	ent->client->v_dmg_pitch = -40;
-	ent->client->v_dmg_roll = crandom()*8;
-	ent->client->v_dmg_time = level.time + DAMAGE_TIME;
+	// make a big pitch kick with an inverse fall; the re-release's half
+	// as big, as a weapon's kick
+	if (RR_Map ())
+	{
+		ent->client->kick_angles[0] = -20;
+		ent->client->kick_angles[2] = crandom()*8;
+		ent->client->kick_length = DAMAGE_TIME;
+	}
+	else
+	{
+		ent->client->v_dmg_pitch = -40;
+		ent->client->v_dmg_roll = crandom()*8;
+		ent->client->v_dmg_time = level.time + DAMAGE_TIME;
+	}
 
 	VectorSet(offset, 8, 8, ent->viewheight-8);
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
@@ -1425,7 +1593,7 @@ void weapon_bfg_fire (edict_t *ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index] -= 50;
+		P_RemoveAmmo (ent, 50);
 }
 
 void Weapon_BFG (edict_t *ent)
@@ -1481,7 +1649,7 @@ void weapon_phalanx_fire (edict_t *ent)
 		fire_plasma (ent, start, forward, damage, 725, damage_radius, radius_damage);
 
 		if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-			ent->client->pers.inventory[ent->client->ammo_index]--;
+			P_RemoveAmmo (ent, 1);
 	}
 	else
 	{
@@ -1539,7 +1707,7 @@ void weapon_chainfist_fire (edict_t *ent)
 	PlayerNoise (ent, start, PNOISE_WEAPON);
 
 	ent->client->ps.gunframe++;
-	ent->client->pers.inventory[ent->client->ammo_index] -= ent->client->pers.weapon->quantity;
+	P_RemoveAmmo (ent, ent->client->pers.weapon->quantity);
 }
 
 // smoke from its motor: it's a two-stroke, you know
@@ -1658,7 +1826,7 @@ void weapon_tracker_fire (edict_t *self)
 
 	self->client->ps.gunframe++;
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		self->client->pers.inventory[self->client->ammo_index] -= self->client->pers.weapon->quantity;
+		P_RemoveAmmo (self, self->client->pers.weapon->quantity);
 }
 
 void Weapon_Disintegrator (edict_t *ent)
@@ -1722,7 +1890,7 @@ void Heatbeam_Fire (edict_t *ent)
 	PlayerNoise (ent, start, PNOISE_WEAPON);
 
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index] -= ent->client->pers.weapon->quantity;
+		P_RemoveAmmo (ent, ent->client->pers.weapon->quantity);
 
 	ent->client->anim_priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
@@ -1799,7 +1967,7 @@ void weapon_tesla_fire (edict_t *ent, qboolean held)
 	fire_tesla (ent, start, forward, damage_multiplier, speed);
 
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+		P_RemoveAmmo (ent, 1);
 
 	ent->client->grenade_time = level.time + 1.0;
 

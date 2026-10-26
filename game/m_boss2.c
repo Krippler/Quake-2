@@ -633,11 +633,19 @@ qboolean Boss2_CheckAttack (edict_t *self)
 
 /*QUAKED monster_boss2 (1 .5 0) (-56 -56 0) (56 56 80) Ambush Trigger_Spawn Sight
 */
+void SP_monster_boss2_rr (edict_t *self);
+
 void SP_monster_boss2 (edict_t *self)
 {
 	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
+		return;
+	}
+	// the re-release's own, on its maps (m_boss2_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_boss2_rr (self);
 		return;
 	}
 

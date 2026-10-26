@@ -1706,7 +1706,10 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		if (ent->groundentity && !pm.groundentity && (pm.cmd.upmove >= 10) && (pm.waterlevel == 0))
 		{
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
-			PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
+			// the re-release's monsters do not hear a jump, for
+			// ambushes, nor those round corners; they hear a fall
+			if (!RR_Map ())
+				PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
 		}
 
 		ent->viewheight = pm.viewheight;
