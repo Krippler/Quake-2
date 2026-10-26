@@ -1446,6 +1446,8 @@ stalker_die(edict_t *self, edict_t *inflictor /* unused */, edict_t *attacker /*
  *
  * ONROOF - Monster starts sticking to the roof.
  */
+void SP_monster_stalker_rr (edict_t *self);
+
 void
 SP_monster_stalker(edict_t *self)
 {
@@ -1457,6 +1459,12 @@ SP_monster_stalker(edict_t *self)
 	if (deathmatch->value)
 	{
 		G_FreeEdict(self);
+		return;
+	}
+	// the re-release's own, on its maps (m_stalker_rr.c)
+	if (RR_Map ())
+	{
+		SP_monster_stalker_rr (self);
 		return;
 	}
 

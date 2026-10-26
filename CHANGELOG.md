@@ -13,6 +13,11 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   and leap from the water at you, spit acid from afar, leap and claw up
   close, pull themselves up ledges as they land, jump ledges after you,
   heal as they search, and gib into acid pieces of their own.
+- **On the re-release's maps, its stalkers.** They pounce only when they
+  can land by you, now and then lead their shots and fire as they jump,
+  circle you as they fire, feign death when badly hurt and heal, jump
+  ledges after you, fall from a ceiling they are knocked off, show a
+  hurt skin, and gib into pieces of their own.
 
 ## [1.3.21] — 2026-10-26
 

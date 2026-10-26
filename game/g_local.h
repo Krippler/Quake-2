@@ -568,6 +568,9 @@ typedef struct
 	qboolean	fly_buzzard, fly_above, fly_pinned, fly_thrusters;
 	float		fly_recovery_time;
 	vec3_t		fly_recovery_dir;
+
+	// the re-release's: told as it gains or loses its ground (its stalker)
+	void		(*physics_change)(edict_t *self);
 } monsterinfo_t;
 
 

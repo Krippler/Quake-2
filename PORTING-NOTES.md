@@ -570,7 +570,12 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
 - **The mission packs' monsters, the re-release's**: likewise, the
   gekk (`m_gekk_rr.c`, on The Reckoning's frames), which swims by the
   re-release's flight and gibs by `ThrowGibs` into acid gibs
-  (`GIB_ACID`: the green trail, full bright).
+  (`GIB_ACID`: the green trail, full bright); the stalker
+  (`m_stalker_rr.c`, on Ground Zero's frames and its ceiling walking),
+  told by `monsterinfo.physics_change` (saved) as it gains or loses its
+  ground, which the step physics now calls as the re-release's does, and
+  marked to circle as it fires (`AI_CIRCLE_STRAFE`), as this game's
+  `ai_charge` circles only those it marks.
   Their ducks come down from `monsterinfo.base_height`, which
   `monster_start` sets to every monster's standing height, as there.
 - **Muzzle flashes past 255**: the re-release's monsters have 289, all
