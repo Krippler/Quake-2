@@ -366,6 +366,17 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				message = "was caught in";
 				message2 = "'s trap";
 				break;
+			case MOD_ETF_RIFLE:
+				message = "was perforated by";
+				break;
+			case MOD_PROX:
+				message = "got too close to";
+				message2 = "'s proximity mine";
+				break;
+			case MOD_NUKE:
+				message = "was nuked by";
+				message2 = "'s antimatter bomb";
+				break;
 			case MOD_PHALANX:
 				message = "was evaporated by";
 				break;
@@ -645,6 +656,8 @@ void InitClientPersistant (gclient_t *client)
 	client->pers.max_tesla		= 50;
 	client->pers.max_rounds		= 100;
 	client->pers.max_trap		= 5;
+	client->pers.max_flechettes	= 200;
+	client->pers.max_prox		= 50;
 
 	client->pers.connected = true;
 }

@@ -551,9 +551,11 @@ static standin_t	standins[] =
 
 	// weapons
 	{"weapon_heatbeam",				"weapon_plasmabeam"},	// Ground Zero's other name for it
+	{"weapon_nailgun",				"weapon_etf_rifle"},	// the re-release's, as it spawns them
 
 	// ammunition and items
 	{"item_legacy_head",			"item_ancient_head"},
+	{"ammo_nails",					"ammo_flechettes"},
 
 	{NULL, NULL}
 };

@@ -330,6 +330,16 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     lighter than 400 into a food cube (`item_foodcube`) of a tenth of
     its mass in health, past the most, and whirls its gibs round as it
     chews. The green key too.
+    Ground Zero's ETF rifle (flechettes), prox launcher (prox) and A-M
+    bomb (`ammo_nuke`, used, as a powerup is) likewise, their
+    projectiles in `g_rogue.c` (`fire_prox`, `fire_nuke`,
+    `T_RadiusNukeDamage`); `weapon_nailgun` and `ammo_nails`, which the
+    re-release spawns as them, are stand-ins for them. The ETF's second
+    barrel and the prox have no flashes of their own here (the
+    re-release made them new ones): the first barrel's, and the grenade
+    launcher's, which the re-release's prox flash sounds like. The bomb's
+    flash is `client->nuke_framenum`, a white blend fading over two
+    seconds.
   - `ref_soft/r_image.c`: a skin is allocated with two rows and more
     either side of it (`R_AllocPixels`): drawing an alias model steps a
     texture pointer along each span, and where a triangle is clipped at

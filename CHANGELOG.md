@@ -16,6 +16,13 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   eating it into a food cube that gives you health past your most. The
   Reckoning's green key is there too. Before, these were left out of
   the levels that had them.
+- **Ground Zero's ETF rifle, prox launcher and A-M bomb.** The ETF
+  rifle fires flechettes from each barrel in turn (the re-release's
+  nailgun and nails are it); the prox launcher lobs mines that stick
+  where they land and go off when a monster comes near; the A-M bomb,
+  set down, goes off ten seconds later, killing everything within a
+  wide radius through walls, blinding whoever sees it and shaking the
+  ground. Ground Zero's antimatter bomb key is there too.
 
 ## [1.3.23] — 2026-10-27
 

@@ -87,7 +87,7 @@ static int P_QuantityWarn (gitem_t *weapon)
 		{"weapon_supershotgun", 10}, {"weapon_machinegun", 30},
 		{"weapon_chaingun", 60}, {"ammo_grenades", 2}, {"ammo_tesla", 1},
 		{"weapon_hyperblaster", 30}, {"weapon_plasmabeam", 50},
-		{"weapon_bfg", 50}, {"weapon_boomer", 30}, {"ammo_trap", 1}, {NULL, 0}
+		{"weapon_bfg", 50}, {"weapon_boomer", 30}, {"ammo_trap", 1}, {"weapon_etf_rifle", 30}, {NULL, 0}
 	};
 	int		i;
 
@@ -322,9 +322,9 @@ void NoAmmoWeaponChange (edict_t *ent)
 	{
 		static char *order[] = {
 			"weapon_disintegrator", "weapon_railgun", "weapon_plasmabeam",
-			"weapon_boomer", "weapon_hyperblaster", "weapon_chaingun", "weapon_machinegun",
+			"weapon_boomer", "weapon_hyperblaster", "weapon_etf_rifle", "weapon_chaingun", "weapon_machinegun",
 			"weapon_supershotgun", "weapon_shotgun", "weapon_phalanx",
-			"weapon_rocketlauncher", "weapon_grenadelauncher",
+			"weapon_rocketlauncher", "weapon_grenadelauncher", "weapon_proxlauncher",
 			"weapon_chainfist", "weapon_blaster", NULL
 		};
 		gitem_t	*item, *ammo;
@@ -2107,6 +2107,144 @@ void Weapon_Tesla (edict_t *ent)
 
 	// (no prime sound, as the re-release has it)
 	Throw_Generic (ent, 8, 32, -1, NULL, 1, 2, pause_frames, 0, NULL, weapon_tesla_fire);
+}
+
+/*
+======================================================================
+
+Ground Zero's ETF rifle and prox launcher, as the re-release has them
+
+======================================================================
+*/
+
+/*
+The ETF rifle: flechettes from each barrel in turn, while the button is
+held
+*/
+void weapon_etf_rifle_fire (edict_t *ent)
+{
+	vec3_t	forward, right, start, offset, angles;
+	int		damage = 10;
+	int		kick = 3;
+	int		i;
+
+	if (!(ent->client->buttons & BUTTON_ATTACK))
+	{
+		ent->client->ps.gunframe = 8;
+		return;
+	}
+
+	if (ent->client->ps.gunframe == 6)
+		ent->client->ps.gunframe = 7;
+	else
+		ent->client->ps.gunframe = 6;
+
+	if (ent->client->pers.inventory[ent->client->ammo_index] < ent->client->pers.weapon->quantity)
+	{
+		ent->client->ps.gunframe = 8;
+		if (level.time >= ent->pain_debounce_time)
+		{
+			gi.sound (ent, CHAN_VOICE, gi.soundindex ("weapons/noammo.wav"), 1, ATTN_NORM, 0);
+			ent->pain_debounce_time = level.time + 1;
+		}
+		NoAmmoWeaponChange (ent);
+		return;
+	}
+
+	damage *= damage_multiplier;
+	kick *= damage_multiplier;
+
+	for (i = 0; i < 3; i++)
+	{
+		ent->client->kick_origin[i] = crandom () * 0.85;
+		ent->client->kick_angles[i] = crandom () * 0.85;
+	}
+
+	// get start / end positions
+	VectorAdd (ent->client->v_angle, ent->client->kick_angles, angles);
+	AngleVectors (angles, forward, right, NULL);
+	if (ent->client->ps.gunframe == 6)
+		VectorSet (offset, 15, 8, ent->viewheight-8);
+	else
+		VectorSet (offset, 15, 6, ent->viewheight-8);
+	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
+	fire_flechette (ent, start, forward, damage, 1150, kick);
+
+	// send muzzle flash (one for both barrels: this client has no
+	// second)
+	gi.WriteByte (svc_muzzleflash);
+	gi.WriteShort (ent-g_edicts);
+	gi.WriteByte (MZ_ETF_RIFLE | is_silenced);
+	gi.multicast (ent->s.origin, MULTICAST_PVS);
+
+	PlayerNoise (ent, start, PNOISE_WEAPON);
+
+	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+		P_RemoveAmmo (ent, ent->client->pers.weapon->quantity);
+
+	ent->client->anim_priority = ANIM_ATTACK;
+	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+	{
+		ent->s.frame = FRAME_crattak1 - (int) (random () + 0.25);
+		ent->client->anim_end = FRAME_crattak9;
+	}
+	else
+	{
+		ent->s.frame = FRAME_attack1 - (int) (random () + 0.25);
+		ent->client->anim_end = FRAME_attack8;
+	}
+}
+
+void Weapon_ETF_Rifle (edict_t *ent)
+{
+	static int	pause_frames[]	= {18, 28, 0};
+	static int	fire_frames[]	= {6, 7, 0};
+
+	Weapon_Generic (ent, 4, 7, 37, 41, pause_frames, fire_frames, weapon_etf_rifle_fire);
+}
+
+/*
+The prox launcher: a mine lobbed as a grenade is, that sticks where it
+lands and goes off when something comes near
+*/
+void weapon_prox_fire (edict_t *ent)
+{
+	vec3_t	offset, forward, right, start, angles;
+
+	// not so far up as to fire behind
+	VectorCopy (ent->client->v_angle, angles);
+	if (angles[PITCH] < -62.5)
+		angles[PITCH] = -62.5;
+	AngleVectors (angles, forward, right, NULL);
+
+	VectorSet (offset, 8, 0, ent->viewheight-8);
+	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
+
+	VectorScale (forward, -2, ent->client->kick_origin);
+	ent->client->kick_angles[0] = -1;
+
+	fire_prox (ent, start, forward, damage_multiplier, 600);
+
+	// the grenade launcher's flash and sound, as the re-release's own is
+	gi.WriteByte (svc_muzzleflash);
+	gi.WriteShort (ent-g_edicts);
+	gi.WriteByte (MZ_GRENADE | is_silenced);
+	gi.multicast (ent->s.origin, MULTICAST_PVS);
+
+	PlayerNoise (ent, start, PNOISE_WEAPON);
+
+	ent->client->ps.gunframe++;
+
+	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+		P_RemoveAmmo (ent, 1);
+}
+
+void Weapon_ProxLauncher (edict_t *ent)
+{
+	static int	pause_frames[]	= {34, 51, 59, 0};
+	static int	fire_frames[]	= {6, 0};
+
+	Weapon_Generic (ent, 5, 16, 59, 64, pause_frames, fire_frames, weapon_prox_fire);
 }
 
 /*

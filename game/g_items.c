@@ -42,6 +42,8 @@ void Weapon_Heatbeam (edict_t *ent);
 void Weapon_Tesla (edict_t *ent);
 void Weapon_Ionripper (edict_t *ent);
 void Weapon_Trap (edict_t *ent);
+void Weapon_ETF_Rifle (edict_t *ent);
+void Weapon_ProxLauncher (edict_t *ent);
 
 gitem_armor_t jacketarmor_info	= { 25,  50, .30, .00, ARMOR_JACKET};
 gitem_armor_t combatarmor_info	= { 50, 100, .60, .30, ARMOR_COMBAT};
@@ -243,6 +245,8 @@ qboolean Pickup_Bandolier (edict_t *ent, edict_t *other)
 		other->client->pers.max_magslug = 75;
 	if (other->client->pers.max_rounds < 150)
 		other->client->pers.max_rounds = 150;
+	if (other->client->pers.max_flechettes < 250)
+		other->client->pers.max_flechettes = 250;
 
 	item = FindItem("Bullets");
 	if (item)
@@ -289,6 +293,8 @@ qboolean Pickup_Pack (edict_t *ent, edict_t *other)
 		other->client->pers.max_magslug = 100;
 	if (other->client->pers.max_rounds < 200)
 		other->client->pers.max_rounds = 200;
+	if (other->client->pers.max_flechettes < 300)
+		other->client->pers.max_flechettes = 300;
 
 	item = FindItem("Bullets");
 	if (item)
@@ -342,6 +348,15 @@ qboolean Pickup_Pack (edict_t *ent, edict_t *other)
 		other->client->pers.inventory[index] += item->quantity;
 		if (other->client->pers.inventory[index] > other->client->pers.max_slugs)
 			other->client->pers.inventory[index] = other->client->pers.max_slugs;
+	}
+
+	item = FindItem("Flechettes");
+	if (item)
+	{
+		index = ITEM_INDEX(item);
+		other->client->pers.inventory[index] += item->quantity;
+		if (other->client->pers.inventory[index] > other->client->pers.max_flechettes)
+			other->client->pers.inventory[index] = other->client->pers.max_flechettes;
 	}
 
 	if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
@@ -506,6 +521,42 @@ qboolean Pickup_Key (edict_t *ent, edict_t *other)
 	return true;
 }
 
+/*
+Ground Zero's A-M bomb: one carried at a time, set down to go off after
+ten seconds, a quad or double damage making it worse
+*/
+qboolean Pickup_Nuke (edict_t *ent, edict_t *other)
+{
+	int		index = ITEM_INDEX(ent->item);
+
+	if (other->client->pers.inventory[index] >= 1)
+		return false;
+
+	other->client->pers.inventory[index]++;
+
+	if (deathmatch->value && !(ent->spawnflags & DROPPED_ITEM))
+		SetRespawn (ent, ent->item->quantity);
+
+	return true;
+}
+
+void Use_Nuke (edict_t *ent, gitem_t *item)
+{
+	vec3_t	forward, right;
+	int		damage_modifier = 1;
+
+	ent->client->pers.inventory[ITEM_INDEX(item)]--;
+	ValidateSelectedItem (ent);
+
+	if (ent->client->quad_framenum > level.framenum)
+		damage_modifier = 4;
+	if (ent->client->double_framenum > level.framenum && (deathmatch->value || damage_modifier == 1))
+		damage_modifier *= 2;
+
+	AngleVectors (ent->client->v_angle, forward, right, NULL);
+	fire_nuke (ent, ent->s.origin, forward, 100, damage_modifier);
+}
+
 //======================================================================
 
 qboolean Add_Ammo (edict_t *ent, gitem_t *item, int count)
@@ -536,6 +587,10 @@ qboolean Add_Ammo (edict_t *ent, gitem_t *item, int count)
 		max = ent->client->pers.max_rounds;
 	else if (item->tag == AMMO_TRAP)
 		max = ent->client->pers.max_trap;
+	else if (item->tag == AMMO_FLECHETTES)
+		max = ent->client->pers.max_flechettes;
+	else if (item->tag == AMMO_PROX)
+		max = ent->client->pers.max_prox;
 	else
 		return false;
 
@@ -2398,6 +2453,151 @@ The Reckoning's green key
 		NULL,
 		"k_green",
 		"Green Key",
+		2,
+		0,
+		NULL,
+		IT_STAY_COOP|IT_KEY,
+		0,
+		NULL,
+		0,
+/* precache */ ""
+	},
+
+/*QUAKED weapon_etf_rifle (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's flechette rifle
+*/
+	{
+		"weapon_etf_rifle",
+		Pickup_Weapon,
+		Use_Weapon,
+		Drop_Weapon,
+		Weapon_ETF_Rifle,
+		"misc/w_pkup.wav",
+		"models/weapons/g_etf_rifle/tris.md2", EF_ROTATE,
+		"models/weapons/v_etf_rifle/tris.md2",
+/* icon */		"w_etf_rifle",
+/* pickup */	"ETF Rifle",
+		0,
+		1,
+		"Flechettes",
+		IT_WEAPON|IT_STAY_COOP,
+		WEAP_ETFRIFLE,
+		NULL,
+		0,
+/* precache */ "weapons/nail1.wav models/proj/flechette/tris.md2"
+	},
+
+/*QUAKED ammo_flechettes (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's, for the ETF rifle
+*/
+	{
+		"ammo_flechettes",
+		Pickup_Ammo,
+		NULL,
+		Drop_Ammo,
+		NULL,
+		"misc/am_pkup.wav",
+		"models/ammo/am_flechette/tris.md2", 0,
+		NULL,
+/* icon */		"a_flechettes",
+/* pickup */	"Flechettes",
+/* width */		3,
+		50,
+		NULL,
+		IT_AMMO,
+		0,
+		NULL,
+		AMMO_FLECHETTES,
+/* precache */ ""
+	},
+
+/*QUAKED weapon_proxlauncher (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's prox launcher
+*/
+	{
+		"weapon_proxlauncher",
+		Pickup_Weapon,
+		Use_Weapon,
+		Drop_Weapon,
+		Weapon_ProxLauncher,
+		"misc/w_pkup.wav",
+		"models/weapons/g_plaunch/tris.md2", EF_ROTATE,
+		"models/weapons/v_plaunch/tris.md2",
+/* icon */		"w_proxlaunch",
+/* pickup */	"Prox Launcher",
+		0,
+		1,
+		"Prox",
+		IT_WEAPON|IT_STAY_COOP,
+		WEAP_PROXLAUNCH,
+		NULL,
+		AMMO_PROX,
+/* precache */ "weapons/grenlf1a.wav weapons/grenlr1b.wav weapons/grenlb1b.wav weapons/proxwarn.wav weapons/proxopen.wav"
+	},
+
+/*QUAKED ammo_prox (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's prox mines, for the prox launcher
+*/
+	{
+		"ammo_prox",
+		Pickup_Ammo,
+		NULL,
+		Drop_Ammo,
+		NULL,
+		"misc/am_pkup.wav",
+		"models/ammo/am_prox/tris.md2", 0,
+		NULL,
+/* icon */		"a_prox",
+/* pickup */	"Prox",
+/* width */		3,
+		5,
+		NULL,
+		IT_AMMO,
+		0,
+		NULL,
+		AMMO_PROX,
+/* precache */ "models/weapons/g_prox/tris.md2 weapons/proxwarn.wav"
+	},
+
+/*QUAKED ammo_nuke (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's A-M bomb
+*/
+	{
+		"ammo_nuke",
+		Pickup_Nuke,
+		Use_Nuke,
+		Drop_Ammo,
+		NULL,
+		"misc/am_pkup.wav",
+		"models/weapons/g_nuke/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_nuke",
+/* pickup */	"A-M Bomb",
+/* width */		3,
+		300,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "weapons/nukewarn2.wav world/rumble.wav"
+	},
+
+/*QUAKED key_nuke (0 .5 .8) (-16 -16 -16) (16 16 16)
+Ground Zero's antimatter bomb, to be set down where it says (rammo1,
+rboss)
+*/
+	{
+		"key_nuke",
+		Pickup_Key,
+		NULL,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/weapons/g_nuke/tris.md2", EF_ROTATE,
+		NULL,
+		"i_nuke",
+		"Antimatter Bomb",
 		2,
 		0,
 		NULL,

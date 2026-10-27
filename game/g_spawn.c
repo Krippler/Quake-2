@@ -1055,6 +1055,8 @@ void SP_worldspawn (edict_t *ent)
 	gi.modelindex ("#w_plasma.md2");
 	gi.modelindex ("#w_ripper.md2");
 	gi.modelindex ("#a_trap.md2");
+	gi.modelindex ("#w_etfrifle.md2");
+	gi.modelindex ("#w_plauncher.md2");
 
 	//-------------------
 

@@ -108,7 +108,9 @@ typedef enum
 	AMMO_MAGSLUG,		// The Reckoning's phalanx
 	AMMO_TESLA,			// Ground Zero's tesla mines
 	AMMO_DISRUPTOR,		// Ground Zero's disruptor rounds
-	AMMO_TRAP			// The Reckoning's traps
+	AMMO_TRAP,			// The Reckoning's traps
+	AMMO_FLECHETTES,	// Ground Zero's
+	AMMO_PROX
 } ammo_t;
 
 
@@ -272,6 +274,8 @@ typedef struct
 #define WEAP_PLASMA				15		// the heatbeam
 #define WEAP_IONRIPPER			16
 #define WEAP_TRAP				17
+#define WEAP_ETFRIFLE			18
+#define WEAP_PROXLAUNCH			19
 
 typedef struct gitem_s
 {
@@ -646,6 +650,8 @@ extern	int	body_armor_index;
 #define HEALTH_TIMED		2
 
 #define MOD_TRAP			45		// The Reckoning's: eaten by a trap
+#define MOD_PROX			46		// Ground Zero's
+#define MOD_NUKE			47
 #define MOD_BLASTOFF		44		// the re-release's: under a fixbot taking off
 #define MOD_FRIENDLY_FIRE	0x8000000
 
@@ -787,6 +793,8 @@ void G_SetGoal (void);
 // g_xatrix.c
 void monster_fire_blueblaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
 void monster_fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
+void fire_prox (edict_t *self, vec3_t start, vec3_t aimdir, int prox_damage_multiplier, int speed);
+void fire_nuke (edict_t *self, vec3_t start, vec3_t aimdir, int speed, int damage_modifier);
 void fire_trap (edict_t *self, vec3_t start, vec3_t aimdir, int speed);
 void fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
 void monster_dabeam (edict_t *self);
@@ -1108,6 +1116,8 @@ typedef struct
 	int			max_tesla;
 	int			max_rounds;
 	int			max_trap;
+	int			max_flechettes;
+	int			max_prox;
 
 	gitem_t		*weapon;
 	gitem_t		*lastweapon;
@@ -1203,6 +1213,7 @@ struct gclient_s
 	// powerup timers
 	float		quad_framenum;
 	float		double_framenum;			// Ground Zero's double damage
+	float		nuke_framenum;				// and the A-M bomb's flash, till then
 	float		quadfire_framenum;			// The Reckoning's DualFire
 	float		invincible_framenum;
 	float		breather_framenum;
