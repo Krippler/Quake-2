@@ -64,6 +64,7 @@ cvar_t	*bob_pitch;
 cvar_t	*bob_roll;
 
 cvar_t	*sv_cheats;
+cvar_t	*huntercam;
 
 cvar_t	*flood_msgs;
 cvar_t	*flood_persecond;

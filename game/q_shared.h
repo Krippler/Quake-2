@@ -654,8 +654,8 @@ typedef struct
 
 //ROGUE
 #define MZ_ETF_RIFLE		30
-#define MZ_UNUSED			31
-#define MZ_SHOTGUN2			32
+#define MZ_PROX				31	// the re-release's; Ground Zero's MZ_UNUSED
+#define MZ_ETF_RIFLE_2		32	// the re-release's, the second barrel; Ground Zero's unused MZ_SHOTGUN2
 #define MZ_HEATBEAM			33
 #define MZ_BLASTER2			34
 #define	MZ_TRACKER			35

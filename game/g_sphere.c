@@ -197,6 +197,14 @@ static void hunter_touch (edict_t *self, edict_t *other, cplane_t *plane, csurfa
 	if (other == world)
 		return;
 
+	// an owner riding along stops with it
+	if (self->owner && (self->owner->flags & FL_SAM_RAIMI))
+	{
+		VectorClear (self->owner->velocity);
+		self->owner->movetype = MOVETYPE_NONE;
+		gi.linkentity (self->owner);
+	}
+
 	if (self->spawnflags & SPHERE_DOPPLEGANGER)
 		sphere_touch (self, other, plane, surf, MOD_DOPPLE_HUNTER);
 	else
@@ -235,9 +243,20 @@ Its owner's hurt (T_Damage tells it, as other its attacker): the hunter
 rouses only once they are dead, the vengeance sphere once they are under
 25 health, the defender at once.
 */
+static void body_gib (edict_t *self)
+{
+	int		n;
+
+	gi.sound (self, CHAN_BODY, gi.soundindex ("misc/udeath.wav"), 1, ATTN_NORM, 0);
+	for (n = 0; n < 4; n++)
+		ThrowGib (self, "models/objects/gibs/sm_meat/tris.md2", 50, GIB_ORGANIC);
+	ThrowGib (self, "models/objects/gibs/skull/tris.md2", 50, GIB_ORGANIC);
+}
+
 static void hunter_pain (edict_t *self, edict_t *other, float kick, int damage)
 {
 	edict_t	*owner;
+	vec3_t	dir;
 
 	// if we're already chasing someone, don't switch
 	if (self->enemy)
@@ -265,6 +284,42 @@ static void hunter_pain (edict_t *self, edict_t *other, float kick, int damage)
 	self->s.effects |= EF_BLASTER | EF_TRACKER;
 	self->touch = hunter_touch;
 	self->enemy = other;
+
+	// its dead owner's view goes with it (the "sam raimi cam"), unless
+	// a doppleganger's, forced respawn is on, or huntercam is 0
+	if ((self->spawnflags & SPHERE_DOPPLEGANGER) || !(owner && owner->client))
+		return;
+	if (((int)dmflags->value & DF_FORCE_RESPAWN) || !huntercam->value)
+		return;
+
+	VectorSubtract (other->s.origin, self->s.origin, dir);
+	if (VectorLength (dir) < 192)
+		return;
+
+	// the body is gibbed as if it had just died, and its owner, as
+	// small as the sphere and unseen, put where its eyes were, the
+	// sphere with them
+	owner->movetype = MOVETYPE_FLYMISSILE;
+	body_gib (owner);
+
+	VectorCopy (owner->s.origin, self->s.origin);
+	self->s.origin[2] += owner->viewheight;
+
+	VectorCopy (self->s.origin, owner->s.origin);
+	VectorCopy (self->s.angles, owner->s.angles);
+	VectorCopy (self->s.angles, owner->client->v_angle);
+	VectorSet (owner->mins, -5, -5, -5);
+	VectorSet (owner->maxs, 5, 5, 5);
+	owner->client->ps.fov = 140;
+	owner->s.modelindex = 0;
+	owner->s.modelindex2 = 0;
+	owner->viewheight = 8;
+	owner->solid = SOLID_NOT;
+	owner->flags |= FL_SAM_RAIMI;
+	gi.linkentity (owner);
+
+	self->solid = SOLID_BBOX;
+	gi.linkentity (self);
 }
 
 static void defender_pain (edict_t *self, edict_t *other, float kick, int damage)
@@ -371,7 +426,31 @@ static void hunter_think (edict_t *self)
 	M_ChangeYaw (self);
 
 	if (self->enemy)
+	{
 		sphere_chase (self, 0);
+
+		// an owner riding along is moved with it, looking at its quarry
+		if (owner && (owner->flags & FL_SAM_RAIMI))
+		{
+			if (self->inuse)
+			{
+				owner->movetype = MOVETYPE_FLYMISSILE;
+				LookAtKiller (owner, self, self->enemy);
+				owner->viewheight = (int) (self->s.origin[2] - owner->s.origin[2]);
+				VectorCopy (self->s.origin, owner->s.origin);
+				VectorCopy (self->velocity, owner->velocity);
+				VectorClear (owner->mins);
+				VectorClear (owner->maxs);
+				gi.linkentity (owner);
+			}
+			else	// it timed out
+			{
+				VectorClear (owner->velocity);
+				owner->movetype = MOVETYPE_NONE;
+				gi.linkentity (owner);
+			}
+		}
+	}
 	else
 		sphere_fly (self);
 

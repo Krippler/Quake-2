@@ -380,9 +380,17 @@ void CL_ParseMuzzleFlash (void)
 		dl->color[0] = 0.9;dl->color[1] = 0.7;dl->color[2] = 0;
 		S_StartSound (NULL, i, CHAN_WEAPON, S_RegisterSound("weapons/nail1.wav"), volume, ATTN_NORM, 0);
 		break;
-	case MZ_SHOTGUN2:
-		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;
-		S_StartSound (NULL, i, CHAN_WEAPON, S_RegisterSound("weapons/shotg2.wav"), volume, ATTN_NORM, 0);
+	// the re-release's: the ETF rifle's other barrel, in what was
+	// Ground Zero's MZ_SHOTGUN2, which nothing sent
+	case MZ_ETF_RIFLE_2:
+		dl->color[0] = 0.9;dl->color[1] = 0.7;dl->color[2] = 0;
+		S_StartSound (NULL, i, CHAN_WEAPON, S_RegisterSound("weapons/nail1.wav"), volume, ATTN_NORM, 0);
+		break;
+	// and the prox launcher's
+	case MZ_PROX:
+		dl->color[0] = 1;dl->color[1] = 0.5;dl->color[2] = 0;
+		S_StartSound (NULL, i, CHAN_WEAPON, S_RegisterSound("weapons/grenlf1a.wav"), volume, ATTN_NORM, 0);
+		S_StartSound (NULL, i, CHAN_AUTO, S_RegisterSound("weapons/proxlr1a.wav"), volume, ATTN_NORM, 0.1);
 		break;
 	case MZ_HEATBEAM:
 		dl->color[0] = 1;dl->color[1] = 1;dl->color[2] = 0;

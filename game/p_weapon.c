@@ -2178,11 +2178,10 @@ void weapon_etf_rifle_fire (edict_t *ent)
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
 	fire_flechette (ent, start, forward, damage, 1150, kick);
 
-	// send muzzle flash (one for both barrels: this client has no
-	// second)
+	// send muzzle flash, one for each barrel
 	gi.WriteByte (svc_muzzleflash);
 	gi.WriteShort (ent-g_edicts);
-	gi.WriteByte (MZ_ETF_RIFLE | is_silenced);
+	gi.WriteByte ((ent->client->ps.gunframe == 6 ? MZ_ETF_RIFLE : MZ_ETF_RIFLE_2) | is_silenced);
 	gi.multicast (ent->s.origin, MULTICAST_PVS);
 
 	PlayerNoise (ent, start, PNOISE_WEAPON);
@@ -2233,10 +2232,9 @@ void weapon_prox_fire (edict_t *ent)
 
 	fire_prox (ent, start, forward, damage_multiplier, 600);
 
-	// the grenade launcher's flash and sound, as the re-release's own is
 	gi.WriteByte (svc_muzzleflash);
 	gi.WriteShort (ent-g_edicts);
-	gi.WriteByte (MZ_GRENADE | is_silenced);
+	gi.WriteByte (MZ_PROX | is_silenced);
 	gi.multicast (ent->s.origin, MULTICAST_PVS);
 
 	PlayerNoise (ent, start, PNOISE_WEAPON);

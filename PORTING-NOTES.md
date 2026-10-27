@@ -347,14 +347,20 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     projectiles in `g_rogue.c` (`fire_prox`, `fire_nuke`,
     `T_RadiusNukeDamage`); `weapon_nailgun` and `ammo_nails`, which the
     re-release spawns as them, are stand-ins for them. The ETF's second
-    barrel and the prox have no flashes of their own here (the
-    re-release made them new ones): the first barrel's, and the grenade
-    launcher's, which the re-release's prox flash sounds like. The bomb's
+    barrel and the prox have the re-release's own flashes, `MZ_ETF_RIFLE_2`
+    (32) and `MZ_PROX` (31): Ground Zero's `MZ_SHOTGUN2` and `MZ_UNUSED`,
+    which nothing sent, renumbered as the re-release did, so its demos
+    draw them too. The bomb's
     flash is `client->nuke_framenum`, a white blend fading over two
     seconds.
     The spheres and the doppelganger are `g_sphere.c`; a player's one
     sphere is `client->owned_sphere` (saved), which `T_Damage` halves
     their hurt for (the defender) and tells who hurt them (its pain).
+    A dead player's hunter, rousing 192 or more away from who killed
+    them, takes their view with it (`FL_SAM_RAIMI`, the "sam raimi cam":
+    the body gibbed, the view at the sphere, at a field of view of 140,
+    looking at its quarry), unless `huntercam` is 0 or dmflags forces a
+    respawn, as the re-release has it.
     The IR goggles set `RDF_IRGOGGLES`, which the software renderer
     already draws by; every entity spawned, every gib and every player
     is `RF_IR_VISIBLE`, as the re-release has them.

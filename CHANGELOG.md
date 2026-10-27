@@ -20,6 +20,12 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   say), not the box round it, are so now, and its hurting triggers can
   be kept off players or off monsters.
 
+- **The hunter sphere's camera.** Killed with a hunter sphere out, you
+  see through it as it flies at whoever killed you, as in Ground Zero
+  and the re-release (`huntercam 0` turns it off).
+- **The ETF rifle's second barrel and the prox launcher have flashes and
+  sounds of their own**, the re-release's, in the game and in its demos.
+
 ### Changed
 
 - **The flashlight is a beam.** It shines in a cone from your eyes

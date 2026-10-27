@@ -74,6 +74,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define FL_TRAP					0x00010000	// the re-release's: a hazard its paths keep off (grenades, barrels, lasers on)
 #define FL_LASER_FIELD			0x00020000	// the re-release's: a laser, whose beam its paths keep off
 #define FL_FLASHLIGHT			0x00040000	// the re-release's: a player's flashlight is on
+#define FL_SAM_RAIMI			0x00080000	// Ground Zero's: a dead player riding their hunter sphere
 #define FL_RESPAWN				0x80000000	// used for item respawning
 
 
@@ -792,6 +793,7 @@ extern	cvar_t	*bob_pitch;
 extern	cvar_t	*bob_roll;
 
 extern	cvar_t	*sv_cheats;
+extern	cvar_t	*huntercam;		// Ground Zero's: a dead player rides a hunter sphere
 extern	cvar_t	*maxclients;
 extern	cvar_t	*maxspectators;
 
@@ -1067,6 +1069,7 @@ void M_CheckGround (edict_t *ent);
 void ThrowHead (edict_t *self, char *gibname, int damage, int type);
 void ThrowClientHead (edict_t *self, int damage);
 edict_t *ThrowGib (edict_t *self, char *gibname, int damage, int type);
+void LookAtKiller (edict_t *self, edict_t *inflictor, edict_t *attacker);
 void BecomeExplosion1(edict_t *self);
 void G_ClearShadowLights (void);
 void G_SetupShadowLights (void);
