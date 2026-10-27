@@ -383,8 +383,14 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     Zero's `TOGGLE` (it starts off; being used turns it on and off,
     instead of firing it), and 16 the re-release's `LATCHED` (it fires
     as the first thing it is for comes into it and as the last leaves,
-    looked for each frame). Its `CLIP` (32, a box touched by the brush's
-    shape, not its bounds) is not here: the game has no `gi.clip`.
+    looked for each frame), and 32 its `CLIP`: a thing sets it off only
+    if its box touches the brush's shape, not just its bounds. That is
+    `gi.Clip` (appended to `game_import_t`, `SV_Clip` in
+    `server/sv_world.c`: one box trace against one entity's model). The
+    same goes for `trigger_push`'s 16 and `trigger_hurt`'s 128, which
+    also takes the re-release's `NO_PLAYERS` (32) and `NO_MONSTERS` (64).
+    `info_world_text` is in `g_misc.c`: its text is drawn only with the
+    re-release's developer tools, so here it is just a point.
   - `game/g_nav.c` (new): the re-release's navigation nodes,
     `bots/navigation/<map>.nav` (versions 2 to 6), and its A* over them.
     The re-release's engine does this, closed; this is the GPL code id

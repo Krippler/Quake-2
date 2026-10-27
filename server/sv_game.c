@@ -407,6 +407,7 @@ void SV_InitGameProgs (void)
 	import.LoadFile = FS_LoadFile;
 	import.FreeFile = FS_FreeFile;
 	import.SetEntityScale = PF_SetEntityScale;
+	import.Clip = SV_Clip;
 	import.SetAreaPortalState = CM_SetAreaPortalState;
 	import.AreasConnected = CM_AreasConnected;
 

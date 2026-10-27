@@ -15,6 +15,11 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   the final level and the black light and orb of Ground Zero's last
   are as big as they are there, and so are their boxes and gibs.
 
+- **Triggers that go by their brush's shape.** The re-release's triggers
+  marked to be touched only by their brush (a sloped or L-shaped one,
+  say), not the box round it, are so now, and its hurting triggers can
+  be kept off players or off monsters.
+
 ### Changed
 
 - **The flashlight is a beam.** It shines in a cone from your eyes

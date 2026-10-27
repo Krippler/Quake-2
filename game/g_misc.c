@@ -2383,3 +2383,19 @@ void SP_game_mode_only (edict_t *self)
 {
 	G_FreeEdict (self);
 }
+
+/*QUAKED info_world_text (1.0 1.0 0.0) (-16 -16 0) (16 16 32)
+The re-release's: text a designer put in the world for debugging, which
+its engine draws by a debug call of its own that this one hasn't; here it
+is kept, and shows nothing.
+*/
+void SP_info_world_text (edict_t *self)
+{
+	if (!self->message)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+	self->svflags |= SVF_NOCLIENT;
+}
+

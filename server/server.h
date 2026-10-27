@@ -343,6 +343,7 @@ int SV_PointContents (vec3_t p);
 
 
 trace_t SV_Trace (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, edict_t *passedict, int contentmask);
+trace_t SV_Clip (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int contentmask);
 // mins and maxs are relative
 
 // if the entire move stays in a solid volume, trace.allsolid will be set,
