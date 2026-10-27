@@ -1281,9 +1281,105 @@ void door_go_up (edict_t *self, edict_t *activator)
 		door_use_areaportals (self, true);
 }
 
+/*
+ * Ground Zero's smart water (rmine2's lava, func_water's spawnflag 2):
+ * once used it rises, faster the further below it the lowest player is
+ * ("accel" divides that distance; "speed" is the most), up to "health".
+ */
+void smart_water_blocked (edict_t *self, edict_t *other)
+{
+	if (!(other->svflags & SVF_MONSTER) && (!other->client))
+	{
+		// give it a chance to go away on its own terms (like gibs)
+		T_Damage (other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_LAVA);
+		// if it's still there, nuke it
+		if (other && other->inuse && other->solid)
+			BecomeExplosion1 (other);
+		return;
+	}
+
+	T_Damage (other, self, self, vec3_origin, other->s.origin, vec3_origin, 100, 1, 0, MOD_LAVA);
+}
+
+void smart_water_go_up (edict_t *self)
+{
+	float	distance, lowestPlayerPt;
+	edict_t	*lowestPlayer, *ent;
+	int		i;
+
+	if (self->moveinfo.state == STATE_TOP)
+	{	// reset top wait time
+		if (self->moveinfo.wait >= 0)
+			self->nextthink = level.time + self->moveinfo.wait;
+		return;
+	}
+
+	if (self->health && self->absmax[2] >= self->health)
+	{
+		VectorClear (self->velocity);
+		self->nextthink = 0;
+		self->moveinfo.state = STATE_TOP;
+		return;
+	}
+
+	if (!(self->flags & FL_TEAMSLAVE) && self->moveinfo.sound_start)
+		gi.sound (self, CHAN_NO_PHS_ADD+CHAN_VOICE, self->moveinfo.sound_start, 1, ATTN_STATIC, 0);
+
+	self->s.sound = self->moveinfo.sound_middle;
+
+	// find the lowest player point
+	lowestPlayerPt = 999999;
+	lowestPlayer = NULL;
+	for (i = 0; i < game.maxclients; i++)
+	{
+		ent = &g_edicts[1 + i];
+
+		// don't count dead or unused player slots
+		if (ent->inuse && ent->health > 0 && ent->absmin[2] < lowestPlayerPt)
+		{
+			lowestPlayerPt = ent->absmin[2];
+			lowestPlayer = ent;
+		}
+	}
+
+	if (!lowestPlayer)
+		return;
+
+	distance = lowestPlayerPt - self->absmax[2];
+
+	// for the calculations, make sure we intend to go up at least a little
+	if (distance < self->accel)
+	{
+		distance = 100;
+		self->moveinfo.speed = 5;
+	}
+	else
+		self->moveinfo.speed = distance / self->accel;
+
+	if (self->moveinfo.speed < 5)
+		self->moveinfo.speed = 5;
+	else if (self->moveinfo.speed > self->speed)
+		self->moveinfo.speed = self->speed;
+
+	VectorSet (self->moveinfo.dir, 0, 0, 1);
+	VectorScale (self->moveinfo.dir, self->moveinfo.speed, self->velocity);
+	self->moveinfo.remaining_distance = distance;
+
+	if (self->moveinfo.state != STATE_UP)
+	{
+		G_UseTargets (self, lowestPlayer);
+		door_use_areaportals (self, true);
+		self->moveinfo.state = STATE_UP;
+	}
+
+	self->think = smart_water_go_up;
+	self->nextthink = level.time + FRAMETIME;
+}
+
 void door_use (edict_t *self, edict_t *other, edict_t *activator)
 {
 	edict_t	*ent;
+	vec3_t	center;
 
 	if (self->flags & FL_TEAMSLAVE)
 		return;
@@ -1301,6 +1397,18 @@ void door_use (edict_t *self, edict_t *other, edict_t *activator)
 			}
 			return;
 		}
+	}
+
+	// Ground Zero's smart water is different
+	VectorAdd (self->mins, self->maxs, center);
+	VectorScale (center, 0.5, center);
+	if (self->blocked == smart_water_blocked && (gi.pointcontents (center) & MASK_WATER))
+	{
+		self->message = NULL;
+		self->touch = NULL;
+		self->enemy = activator;
+		smart_water_go_up (self);
+		return;
 	}
 	
 	// trigger all paired doors
@@ -1551,6 +1659,10 @@ void SP_func_door (edict_t *ent)
 		gi.soundindex ("misc/talk.wav");
 		ent->touch = door_touch;
 	}
+	// the re-release's paths: a door opened by a trigger is shut to them
+	if (!ent->health && ent->targetname)
+		ent->flags |= FL_LOCKED;
+	ent->flags |= FL_DOOR;
 	
 	ent->moveinfo.speed = ent->speed;
 	ent->moveinfo.accel = ent->accel;
@@ -1613,6 +1725,7 @@ REVERSE will cause the door to rotate in the opposite direction.
 
 void SP_func_door_rotating (edict_t *ent)
 {
+	ent->flags |= FL_DOOR;		// for the re-release's paths
 	VectorClear (ent->s.angles);
 
 	// set the axis of rotation
@@ -1781,6 +1894,15 @@ void SP_func_water (edict_t *self)
 	if (!self->speed)
 		self->speed = 25;
 	self->moveinfo.accel = self->moveinfo.decel = self->moveinfo.speed = self->speed;
+
+	// Ground Zero's smart water: "accel" is the divisor of the lowest
+	// player's distance that makes its speed, "speed" its most
+	if (self->spawnflags & 2)
+	{
+		if (!self->accel)
+			self->accel = 20;
+		self->blocked = smart_water_blocked;
+	}
 
 	if (!self->wait)
 		self->wait = -1;
@@ -2324,6 +2446,8 @@ void SP_func_door_secret (edict_t *ent)
 	float	side;
 	float	width;
 	float	length;
+
+	ent->flags |= FL_DOOR;		// for the re-release's paths
 
 	ent->moveinfo.sound_start = gi.soundindex  ("doors/dr1_strt.wav");
 	ent->moveinfo.sound_middle = gi.soundindex  ("doors/dr1_mid.wav");

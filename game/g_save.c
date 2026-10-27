@@ -103,6 +103,7 @@ field_t fields[] = {
 	{"attenuation", FOFS(attenuation), F_FLOAT},
 	{"map", FOFS(map), F_LSTRING},
 	{"origin", FOFS(s.origin), F_VECTOR},
+	{"frame", FOFS(s.frame), F_INT},		// the re-release's
 	{"angles", FOFS(s.angles), F_VECTOR},
 	{"angle", FOFS(s.angles), F_ANGLEHACK},
 
@@ -149,6 +150,7 @@ field_t fields[] = {
 	{"currentmove", FOFS(monsterinfo.currentmove), F_MMOVE, FFL_NOSPAWN},
 	{"commander", FOFS(monsterinfo.commander), F_EDICT, FFL_NOSPAWN},
 	{"healer", FOFS(monsterinfo.healer), F_EDICT, FFL_NOSPAWN},
+	{"goal_hint", FOFS(monsterinfo.goal_hint), F_EDICT, FFL_NOSPAWN},
 	{"badMedic1", FOFS(monsterinfo.badMedic1), F_EDICT, FFL_NOSPAWN},
 	{"badMedic2", FOFS(monsterinfo.badMedic2), F_EDICT, FFL_NOSPAWN},
 	{"beam", FOFS(beam), F_EDICT, FFL_NOSPAWN},
@@ -201,6 +203,8 @@ field_t fields[] = {
 	{"monster_slots", STOFS(monster_slots), F_INT, FFL_SPAWNTEMP},
 	{"healthtarget", FOFS(healthtarget), F_LSTRING},
 	{"goals", STOFS(goals), F_LSTRING, FFL_SPAWNTEMP},
+	{"image", STOFS(image), F_LSTRING, FFL_SPAWNTEMP},
+	{"music", STOFS(music), F_LSTRING, FFL_SPAWNTEMP},
 	{"rgba", FOFS(s.skinnum), F_INT},
 
 //need for item field in edict struct, FFL_SPAWNTEMP item will be skipped on saves
@@ -227,6 +231,7 @@ field_t		levelfields[] =
                    
 	{"sight_client", LLOFS(sight_client), F_EDICT},
 	{"sight_entity", LLOFS(sight_entity), F_EDICT},
+	{"disguise_violator", LLOFS(disguise_violator), F_EDICT},
 	{"sound_entity", LLOFS(sound_entity), F_EDICT},
 	{"sound2_entity", LLOFS(sound2_entity), F_EDICT},
 
@@ -238,6 +243,8 @@ field_t		clientfields[] =
 	{"pers.weapon", CLOFS(pers.weapon), F_ITEM},
 	{"pers.lastweapon", CLOFS(pers.lastweapon), F_ITEM},
 	{"newweapon", CLOFS(newweapon), F_ITEM},
+	{"owned_sphere", CLOFS(owned_sphere), F_EDICT},
+	{"flashlight", CLOFS(flashlight), F_EDICT},
 
 	{NULL, 0, F_INT}
 };
@@ -883,4 +890,7 @@ void ReadLevel (char *filename)
 			if (strcmp(ent->classname, "target_crosslevel_target") == 0)
 				ent->nextthink = level.time + ent->delay;
 	}
+
+	InitHintPaths ();
+	Nav_Load (level.mapname);
 }

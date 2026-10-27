@@ -68,6 +68,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	FL_TEAMSLAVE			0x00000400	// not the first on the team
 #define FL_NO_KNOCKBACK			0x00000800
 #define FL_POWER_ARMOR			0x00001000	// power armor (if any) is active
+#define FL_DISGUISED			0x00002000	// Ground Zero's: monsters do not know it
+#define FL_LOCKED				0x00004000	// the re-release's: a door that a trigger opens, for its paths
+#define FL_DOOR					0x00008000	// the re-release's: a door, which its paths go through
+#define FL_TRAP					0x00010000	// the re-release's: a hazard its paths keep off (grenades, barrels, lasers on)
+#define FL_LASER_FIELD			0x00020000	// the re-release's: a laser, whose beam its paths keep off
+#define FL_FLASHLIGHT			0x00040000	// the re-release's: a player's flashlight is on
 #define FL_RESPAWN				0x80000000	// used for item respawning
 
 
@@ -107,7 +113,10 @@ typedef enum
 	AMMO_SLUGS,
 	AMMO_MAGSLUG,		// The Reckoning's phalanx
 	AMMO_TESLA,			// Ground Zero's tesla mines
-	AMMO_DISRUPTOR		// Ground Zero's disruptor rounds
+	AMMO_DISRUPTOR,		// Ground Zero's disruptor rounds
+	AMMO_TRAP,			// The Reckoning's traps
+	AMMO_FLECHETTES,	// Ground Zero's
+	AMMO_PROX
 } ammo_t;
 
 
@@ -160,6 +169,7 @@ typedef enum
 #define AI_TARGET_ANGER			0x00020000	// Ground Zero's widow: blocked running, so mad at its target
 #define AI_DODGING				0x00040000	// Ground Zero's: in a dodge
 #define AI_CHARGING				0x00080000	// Ground Zero's kamikaze flyer: chasing
+#define AI_HINT_PATH			0x00100000	// Ground Zero's: following hint paths
 #define AI_IGNORE_SHOTS			0x00200000	// not angered by a monster's shot
 #define AI_DO_NOT_COUNT			0x00400000	// not in the level's count of monsters
 #define AI_SPAWNED_CARRIER		0x00800000	// summoned by a carrier
@@ -170,6 +180,7 @@ typedef enum
 #define AI_CIRCLE_STRAFE		0x10000000	// Ground Zero's: it circles as it charges, sliding
 #define AI_STINKY				0x20000000	// the re-release's: its corpse always draws flies
 #define AI_ALTERNATE_FLY		0x40000000	// the re-release's flight (SV_alternate_flystep)
+#define AI_PATHING				0x80000000	// the re-release's: following its navigation nodes
 // on a ceiling: Ground Zero's gravityVector, unset (zero) meaning down
 #define GRAVITY_UP(ent)			((ent)->gravityVector[2] > 0)
 
@@ -269,6 +280,10 @@ typedef struct
 #define WEAP_DISRUPTOR			13
 #define WEAP_PHALANX			14
 #define WEAP_PLASMA				15		// the heatbeam
+#define WEAP_IONRIPPER			16
+#define WEAP_TRAP				17
+#define WEAP_ETFRIFLE			18
+#define WEAP_PROXLAUNCH			19
 
 typedef struct gitem_s
 {
@@ -360,6 +375,9 @@ typedef struct
 
 	edict_t		*sight_entity;
 	int			sight_entity_framenum;
+	edict_t		*disguise_violator;			// Ground Zero's: a disguised player who fired,
+	int			disguise_violation_framenum;	// known till then
+	int			disguise_icon;				// the re-release's: its health icon
 	edict_t		*sound_entity;
 	int			sound_entity_framenum;
 	edict_t		*sound2_entity;
@@ -419,6 +437,8 @@ typedef struct
 	char		*sl_styletarget;
 	float		radius;			// the re-release's target_light
 	char		*goals;			// and worldspawn's Quake 64 objectives
+	char		*image;			// the re-release's mannequin's skin
+	char		*music;			// and worldspawn's music, by its file's name
 	float		health_multiplier;	// a monster's health, scaled
 	char		*reinforcements;	// the re-release's summoners': "classname strength;..."
 	int			monster_slots;		// and how much they may have summoned at once
@@ -470,6 +490,57 @@ typedef struct
 	mframe_t	*frame;
 	void		(*endfunc)(edict_t *self);
 } mmove_t;
+
+// the re-release's navigation (g_nav.c): a request for a path, and where
+// it says to go
+#define PathFlags_Water			0x01	// swim to your goal
+#define PathFlags_Walk			0x02	// walk to your goal
+#define PathFlags_WalkOffLedge	0x04	// allow walking over ledges
+#define PathFlags_LongJump		0x08	// allow jumping over gaps
+#define PathFlags_BarrierJump	0x10	// allow jumping over low barriers
+#define PathFlags_Elevator		0x20	// allow using elevators
+#define PathFlags_All			-1
+
+enum {
+	PathReturnCode_ReachedGoal,			// we're at our destination
+	PathReturnCode_ReachedPathEnd,		// as close to the goal as a path gets
+	PathReturnCode_TraversalPending,	// the next segment is a traversal (a jump)
+	PathReturnCode_RawPathFound,		// just a raw path, as asked
+	PathReturnCode_InProgress,			// pathing in progress
+	PathReturnCode_StartPathErrors,		// any code after this one is an error
+	PathReturnCode_InvalidStart,
+	PathReturnCode_InvalidGoal,
+	PathReturnCode_NoNavAvailable,		// no nav file for this map
+	PathReturnCode_NoStartNode,
+	PathReturnCode_NoGoalNode,
+	PathReturnCode_NoPathFound,
+	PathReturnCode_MissingWalkOrSwimFlag
+};
+
+typedef struct
+{
+	vec3_t		start, goal;
+	int			pathFlags;
+	float		moveDist;
+
+	qboolean	ignoreNodeFlags;
+	float		minHeight, maxHeight;	// how far below and above it a node may be
+	float		radius;					// and across
+
+	float		dropHeight, jumpHeight;	// its traversals' most
+
+	vec3_t		*points;				// the whole path, if wanted
+	int			maxPoints;
+} nav_request_t;
+
+typedef struct
+{
+	int			numPathPoints;
+	float		pathDistSqr;
+	vec3_t		firstMovePoint;
+	vec3_t		secondMovePoint;
+	int			returnCode;
+} nav_info_t;
 
 typedef struct
 {
@@ -576,6 +647,22 @@ typedef struct
 
 	// the re-release's: told as it gains or loses its ground (its stalker)
 	void		(*physics_change)(edict_t *self);
+
+	// Ground Zero's hint paths: when it last looked for one, and which it
+	// is heading for
+	float		last_hint_time;
+	edict_t		*goal_hint;
+
+	// the re-release's pathing on its navigation nodes: where the path
+	// says to go, till nav_path_cache_time; how long it has been blocked
+	// on it, and no paths again till path_wait_time; none ever, on a map
+	// that has none; and a turn of its own till random_change_time
+	nav_info_t	nav_path;
+	float		nav_path_cache_time;
+	float		path_blocked_counter;
+	float		path_wait_time;
+	qboolean	no_path_finding;
+	float		random_change_time;
 } monsterinfo_t;
 
 
@@ -639,6 +726,25 @@ extern	int	body_armor_index;
 #define MOD_TRACKER			41		// Ground Zero's disruptor
 #define MOD_HEATBEAM		42		// Ground Zero's plasma beam
 #define MOD_TESLA_MINE		43		// Ground Zero's tesla mine
+#define HEALTH_IGNORE_MAX	1		// health styles
+#define HEALTH_TIMED		2
+
+#define MOD_TRAP			45		// The Reckoning's: eaten by a trap
+#define MOD_PROX			46		// Ground Zero's
+#define MOD_NUKE			47
+#define MOD_VENGEANCE_SPHERE	48
+#define MOD_HUNTER_SPHERE	49
+#define MOD_DEFENDER_SPHERE	50
+#define MOD_DOPPLE_EXPLODE	51
+#define MOD_DOPPLE_VENGEANCE	52
+#define MOD_DOPPLE_HUNTER	53
+
+// Ground Zero's spheres (their spawnflags)
+#define SPHERE_DEFENDER		0x0001
+#define SPHERE_HUNTER		0x0002
+#define SPHERE_VENGEANCE	0x0004
+#define SPHERE_DOPPLEGANGER	0x0100
+#define SPHERE_TYPE			(SPHERE_DEFENDER | SPHERE_HUNTER | SPHERE_VENGEANCE)
 #define MOD_BLASTOFF		44		// the re-release's: under a fixbot taking off
 #define MOD_FRIENDLY_FIRE	0x8000000
 
@@ -780,6 +886,14 @@ void G_SetGoal (void);
 // g_xatrix.c
 void monster_fire_blueblaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
 void monster_fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
+void fire_prox (edict_t *self, vec3_t start, vec3_t aimdir, int prox_damage_multiplier, int speed);
+void fire_nuke (edict_t *self, vec3_t start, vec3_t aimdir, int speed, int damage_modifier);
+edict_t *Sphere_Spawn (edict_t *owner, int spawnflags);
+void Defender_Launch (edict_t *self);
+void Hunter_Launch (edict_t *self);
+void Vengeance_Launch (edict_t *self);
+void fire_doppleganger (edict_t *ent, vec3_t start, vec3_t aimdir);
+void fire_trap (edict_t *self, vec3_t start, vec3_t aimdir, int speed);
 void fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
 void monster_dabeam (edict_t *self);
 
@@ -794,6 +908,16 @@ edict_t *CreateGroundMonster (vec3_t origin, vec3_t angles, vec3_t entMins, vec3
 void SpawnGrow_Spawn (vec3_t startpos, int size);
 edict_t *PickCoopTarget (edict_t *self);
 float realrange (edict_t *self, edict_t *other);
+qboolean has_valid_enemy (edict_t *self);
+qboolean monsterlost_checkhint (edict_t *self);
+
+// g_nav.c
+void Nav_Load (char *mapname);
+void Nav_Frame (void);
+qboolean Nav_Available (void);
+qboolean Nav_GetPathToGoal (nav_request_t *request, nav_info_t *info);
+void hintpath_stop (edict_t *self);
+void InitHintPaths (void);
 void ED_CallSpawn (edict_t *ent);
 
 // g_rr.c: the re-release's
@@ -960,6 +1084,7 @@ void ai_charge (edict_t *self, float dist);
 int range (edict_t *self, edict_t *other);
 
 void FoundTarget (edict_t *self);
+void HuntTarget (edict_t *self);
 qboolean infront (edict_t *self, edict_t *other);
 qboolean visible (edict_t *self, edict_t *other);
 qboolean FacingIdeal(edict_t *self);
@@ -1099,6 +1224,9 @@ typedef struct
 	int			max_magslug;	// the mission packs'
 	int			max_tesla;
 	int			max_rounds;
+	int			max_trap;
+	int			max_flechettes;
+	int			max_prox;
 
 	gitem_t		*weapon;
 	gitem_t		*lastweapon;
@@ -1194,6 +1322,10 @@ struct gclient_s
 	// powerup timers
 	float		quad_framenum;
 	float		double_framenum;			// Ground Zero's double damage
+	float		nuke_framenum;				// and the A-M bomb's flash, till then
+	float		ir_framenum;				// and the IR goggles
+	edict_t		*owned_sphere;				// and the sphere about them
+	edict_t		*flashlight;				// the re-release's: the light of theirs, where they look
 	float		quadfire_framenum;			// The Reckoning's DualFire
 	float		invincible_framenum;
 	float		breather_framenum;
@@ -1379,5 +1511,12 @@ struct edict_s
 	// a parasite's proboscis (its tip; the tip's, its drawn segment)
 	void		(*postthink) (edict_t *ent);
 	edict_t		*proboscus;
+
+	// Ground Zero's hint_path: the next on its chain, which chain, and its
+	// links as monsterlost_checkhint sorts them
+	edict_t		*hint_chain;
+	edict_t		*monster_hint_chain;
+	edict_t		*target_hint_chain;
+	int			hint_chain_id;
 };
 

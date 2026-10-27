@@ -4,6 +4,10 @@ void CDAudio_Play(int track, qboolean looping)
 {
 }
 
+void CDAudio_PlayName(char *name, qboolean looping)
+{
+}
+
 
 void CDAudio_Stop(void)
 {

@@ -33,6 +33,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // and matched without regard to case: the GOG release ships Track02.ogg, a
 // rip from most tools is track02.ogg, and every other source port settled on
 // the same names, so an existing music directory works without renaming.
+// A bare 02.<ext> is taken too, as Yamagi's and Quake II RTX's CD rips are
+// named. The re-release numbers all its music as one soundtrack -- the base
+// game's 2 to 11, the mission packs' 12 to 21, Quake 64's 64 to 79 -- and a
+// map of its can name a file instead (worldspawn's "music"), which is
+// looked for as it is named, or with each extension.
 //
 // Decoding is libsndfile's: Ogg Vorbis, FLAC, WAV, Opus and, where the
 // installed build has it, MP3. Build with MUSIC=none to leave it out, and
@@ -63,8 +68,11 @@ static cvar_t	*cd_musicdir;
 static qboolean	music_enabled = false;		// built with a decoder, and not -nocdaudio
 static qboolean	music_paused = false;
 static qboolean	music_looping = false;
-static int		music_track = 0;			// 0 = nothing playing
-static int		music_wanted = 0;			// what the map asked for, playing or not
+// What is playing, and what the map asked for, playing or not: a track's
+// number ("4"), or the re-release's file name ("D_DDTBLU.ogg"). Empty is
+// nothing.
+static char		music_track[MAX_QPATH];
+static char		music_wanted[MAX_QPATH];
 static char		music_dir[MAX_OSPATH];
 static char		music_dir_game[MAX_OSPATH];	// the game directory music_dir was found for
 
@@ -154,7 +162,8 @@ static qboolean CDAudio_DirHasFiles (const char *dir)
 		const char	*ext;
 		int			i;
 
-		if (Q_strncasecmp (e->d_name, "track", 5))
+		if (Q_strncasecmp (e->d_name, "track", 5)
+			&& !(e->d_name[0] >= '0' && e->d_name[0] <= '9'))
 			continue;
 
 		ext = strrchr (e->d_name, '.');
@@ -260,6 +269,26 @@ static void CDAudio_CheckGamedir (void)
 }
 
 
+/*
+==================
+CDAudio_TrackNumber
+
+A track's number, if the name is one; 0 if it is a file's name.
+==================
+*/
+static int CDAudio_TrackNumber (const char *track)
+{
+	const char	*c;
+
+	if (!*track)
+		return 0;
+	for (c = track; *c; c++)
+		if (*c < '0' || *c > '9')
+			return 0;
+	return atoi (track);
+}
+
+
 #ifdef QUAKE_MUSIC_SNDFILE
 
 /*
@@ -274,42 +303,68 @@ static void CDAudio_CloseTrack (void)
 		sf_close (music_sf);
 		music_sf = NULL;
 	}
-	music_track = 0;
+	music_track[0] = 0;
 	music_eof = false;
 }
 
 
 /*
 ==================
-CDAudio_OpenTrack
+CDAudio_TryFile
 
-Tries each extension in turn. Returns false with nothing open if none of them
-is there, which is not an error: a partial rip is the normal case.
+Opens want in the music directory, if it is there and decodes.
 ==================
 */
-static qboolean CDAudio_OpenTrack (int track)
+static qboolean CDAudio_TryFile (const char *want, char *path, int pathsize)
 {
-	char	want[32];
+	if (!CDAudio_FindFile (music_dir, want, path, pathsize))
+		return false;
+
+	memset (&music_info, 0, sizeof(music_info));
+	music_sf = sf_open (path, SFM_READ, &music_info);
+	if (music_sf)
+		return true;
+
+	Com_Printf ("CDAudio: cannot decode %s: %s\n", path, sf_strerror (NULL));
+	return false;
+}
+
+/*
+==================
+CDAudio_OpenTrack
+
+A track's number as trackNN or NN with each extension in turn; a name as it
+is, or with each. Returns false with nothing open if none of them is there,
+which is not an error: a partial rip is the normal case.
+==================
+*/
+static qboolean CDAudio_OpenTrack (const char *track)
+{
+	char	want[MAX_QPATH + 8];
 	char	path[MAX_OSPATH];
-	int		i;
+	int		i, number;
 
 	CDAudio_CloseTrack ();
 
 	if (!music_dir[0] || !dma.speed)
 		return false;
 
-	for (i = 0; music_exts[i]; i++)
+	number = CDAudio_TrackNumber (track);
+	if (!number && strchr (track, '.'))
+		CDAudio_TryFile (track, path, sizeof(path));
+
+	for (i = 0; music_exts[i] && !music_sf; i++)
 	{
-		Com_sprintf (want, sizeof(want), "track%02d.%s", track, music_exts[i]);
-		if (!CDAudio_FindFile (music_dir, want, path, sizeof(path)))
-			continue;
-
-		memset (&music_info, 0, sizeof(music_info));
-		music_sf = sf_open (path, SFM_READ, &music_info);
-		if (music_sf)
-			break;
-
-		Com_Printf ("CDAudio: cannot decode %s: %s\n", path, sf_strerror (NULL));
+		if (number)
+		{
+			Com_sprintf (want, sizeof(want), "track%02d.%s", number, music_exts[i]);
+			if (CDAudio_TryFile (want, path, sizeof(path)))
+				break;
+			Com_sprintf (want, sizeof(want), "%02d.%s", number, music_exts[i]);
+		}
+		else
+			Com_sprintf (want, sizeof(want), "%s.%s", track, music_exts[i]);
+		CDAudio_TryFile (want, path, sizeof(path));
 	}
 
 	if (!music_sf)
@@ -317,7 +372,7 @@ static qboolean CDAudio_OpenTrack (int track)
 
 	if (music_info.channels < 1 || music_info.channels > 2)
 	{
-		Com_Printf ("CDAudio: track %d has %d channels; only mono and stereo\n",
+		Com_Printf ("CDAudio: track %s has %d channels; only mono and stereo\n",
 					track, music_info.channels);
 		CDAudio_CloseTrack ();
 		return false;
@@ -325,7 +380,7 @@ static qboolean CDAudio_OpenTrack (int track)
 
 	if (music_info.samplerate < 1)
 	{
-		Com_Printf ("CDAudio: track %d reports a sample rate of %d\n",
+		Com_Printf ("CDAudio: track %s reports a sample rate of %d\n",
 					track, music_info.samplerate);
 		CDAudio_CloseTrack ();
 		return false;
@@ -336,7 +391,7 @@ static qboolean CDAudio_OpenTrack (int track)
 	music_prev[0] = music_prev[1] = 0;
 	music_next[0] = music_next[1] = 0;
 	music_eof = false;
-	music_track = track;
+	Com_sprintf (music_track, sizeof(music_track), "%s", (char *)track);
 
 	Com_Printf ("CDAudio: playing %s (%d Hz, %s)\n", path,
 				music_info.samplerate,
@@ -460,10 +515,10 @@ void CDAudio_MixPaintBuffer (portable_samplepair_t *buffer, int count)
 
 static void CDAudio_CloseTrack (void)
 {
-	music_track = 0;
+	music_track[0] = 0;
 }
 
-static qboolean CDAudio_OpenTrack (int track)
+static qboolean CDAudio_OpenTrack (const char *track)
 {
 	return false;
 }
@@ -473,26 +528,32 @@ static qboolean CDAudio_OpenTrack (int track)
 
 /*
 ==================
-CDAudio_Play
+CDAudio_PlayName
+
+A track by its number ("4") or the re-release's by its file's name.
 ==================
 */
-void CDAudio_Play (int track, qboolean looping)
+void CDAudio_PlayName (char *name, qboolean looping)
 {
+	int		number;
+
 	if (!music_enabled)
 		return;
 
 	// A map with no "sounds" key on its worldspawn asks for track 0, which
 	// is silence; so does the cinematic code, on its way out.
-	if (track < FIRST_MUSIC_TRACK || track > MAX_MUSIC_TRACK)
+	number = CDAudio_TrackNumber (name);
+	if (!name[0] || (number == 0 && name[0] == '0')
+		|| (number && (number < FIRST_MUSIC_TRACK || number > MAX_MUSIC_TRACK)))
 	{
-		if (track)
-			Com_DPrintf ("CDAudio: track %d out of range\n", track);
-		music_wanted = 0;
+		if (number)
+			Com_DPrintf ("CDAudio: track %d out of range\n", number);
+		music_wanted[0] = 0;
 		CDAudio_CloseTrack ();
 		return;
 	}
 
-	music_wanted = track;
+	Com_sprintf (music_wanted, sizeof(music_wanted), "%s", name);
 	music_looping = looping;
 
 	if (cd_nocd->value)
@@ -500,14 +561,19 @@ void CDAudio_Play (int track, qboolean looping)
 
 	CDAudio_CheckGamedir ();
 
-	if (music_track == track && !music_paused)
+	if (!strcmp (music_track, music_wanted) && !music_paused)
 		return;						// already playing it
 
 	music_paused = false;
 
-	if (!CDAudio_OpenTrack (track))
-		Com_DPrintf ("CDAudio: no file for track %d in %s\n", track,
+	if (!CDAudio_OpenTrack (music_wanted))
+		Com_DPrintf ("CDAudio: no file for track %s in %s\n", music_wanted,
 					 music_dir[0] ? music_dir : "(no music directory)");
+}
+
+void CDAudio_Play (int track, qboolean looping)
+{
+	CDAudio_PlayName (va ("%d", track), looping);
 }
 
 
@@ -523,7 +589,7 @@ void CDAudio_Stop (void)
 
 static void CDAudio_Pause (void)
 {
-	if (!music_enabled || !music_track)
+	if (!music_enabled || !music_track[0])
 		return;
 
 	music_paused = true;
@@ -532,7 +598,7 @@ static void CDAudio_Pause (void)
 
 static void CDAudio_Resume (void)
 {
-	if (!music_enabled || !music_track)
+	if (!music_enabled || !music_track[0])
 		return;
 
 	music_paused = false;
@@ -559,8 +625,8 @@ void CDAudio_Update (void)
 		cd_nocd->modified = false;
 		if (cd_nocd->value)
 			CDAudio_Stop ();
-		else if (music_wanted)
-			CDAudio_Play (music_wanted, music_looping);
+		else if (music_wanted[0])
+			CDAudio_PlayName (music_wanted, music_looping);
 	}
 }
 
@@ -600,13 +666,13 @@ static void CD_f (void)
 
 	if (Q_stricmp (command, "play") == 0)
 	{
-		CDAudio_Play (atoi (Cmd_Argv (2)), false);
+		CDAudio_PlayName (Cmd_Argv (2), false);
 		return;
 	}
 
 	if (Q_stricmp (command, "loop") == 0)
 	{
-		CDAudio_Play (atoi (Cmd_Argv (2)), true);
+		CDAudio_PlayName (Cmd_Argv (2), true);
 		return;
 	}
 
@@ -650,12 +716,12 @@ static void CD_f (void)
 						"<basedir>/" BASEDIRNAME "/music and <basedir>/music.\n");
 		else
 			Com_Printf ("Music directory: %s\n", music_dir);
-		if (music_track)
-			Com_Printf ("Playing track %d%s%s\n", music_track,
+		if (music_track[0])
+			Com_Printf ("Playing track %s%s%s\n", music_track,
 						music_looping ? ", looping" : "",
 						music_paused ? ", paused" : "");
-		else if (music_wanted)
-			Com_Printf ("Track %d wanted, %s\n", music_wanted,
+		else if (music_wanted[0])
+			Com_Printf ("Track %s wanted, %s\n", music_wanted,
 						cd_nocd->value ? "but CD music is off" : "but there is no file for it");
 		else
 			Com_Printf ("Nothing playing\n");

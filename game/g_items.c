@@ -40,6 +40,10 @@ void Weapon_ChainFist (edict_t *ent);
 void Weapon_Disintegrator (edict_t *ent);
 void Weapon_Heatbeam (edict_t *ent);
 void Weapon_Tesla (edict_t *ent);
+void Weapon_Ionripper (edict_t *ent);
+void Weapon_Trap (edict_t *ent);
+void Weapon_ETF_Rifle (edict_t *ent);
+void Weapon_ProxLauncher (edict_t *ent);
 
 gitem_armor_t jacketarmor_info	= { 25,  50, .30, .00, ARMOR_JACKET};
 gitem_armor_t combatarmor_info	= { 50, 100, .60, .30, ARMOR_COMBAT};
@@ -51,8 +55,6 @@ int	body_armor_index;
 static int	power_screen_index;
 static int	power_shield_index;
 
-#define HEALTH_IGNORE_MAX	1
-#define HEALTH_TIMED		2
 
 void Use_Quad (edict_t *ent, gitem_t *item);
 static int	quad_drop_timeout_hack;
@@ -243,6 +245,8 @@ qboolean Pickup_Bandolier (edict_t *ent, edict_t *other)
 		other->client->pers.max_magslug = 75;
 	if (other->client->pers.max_rounds < 150)
 		other->client->pers.max_rounds = 150;
+	if (other->client->pers.max_flechettes < 250)
+		other->client->pers.max_flechettes = 250;
 
 	item = FindItem("Bullets");
 	if (item)
@@ -289,6 +293,8 @@ qboolean Pickup_Pack (edict_t *ent, edict_t *other)
 		other->client->pers.max_magslug = 100;
 	if (other->client->pers.max_rounds < 200)
 		other->client->pers.max_rounds = 200;
+	if (other->client->pers.max_flechettes < 300)
+		other->client->pers.max_flechettes = 300;
 
 	item = FindItem("Bullets");
 	if (item)
@@ -342,6 +348,15 @@ qboolean Pickup_Pack (edict_t *ent, edict_t *other)
 		other->client->pers.inventory[index] += item->quantity;
 		if (other->client->pers.inventory[index] > other->client->pers.max_slugs)
 			other->client->pers.inventory[index] = other->client->pers.max_slugs;
+	}
+
+	item = FindItem("Flechettes");
+	if (item)
+	{
+		index = ITEM_INDEX(item);
+		other->client->pers.inventory[index] += item->quantity;
+		if (other->client->pers.inventory[index] > other->client->pers.max_flechettes)
+			other->client->pers.inventory[index] = other->client->pers.max_flechettes;
 	}
 
 	if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
@@ -506,6 +521,178 @@ qboolean Pickup_Key (edict_t *ent, edict_t *other)
 	return true;
 }
 
+/*
+Ground Zero's A-M bomb: one carried at a time, set down to go off after
+ten seconds, a quad or double damage making it worse
+*/
+qboolean Pickup_Nuke (edict_t *ent, edict_t *other)
+{
+	int		index = ITEM_INDEX(ent->item);
+
+	if (other->client->pers.inventory[index] >= 1)
+		return false;
+
+	other->client->pers.inventory[index]++;
+
+	if (deathmatch->value && !(ent->spawnflags & DROPPED_ITEM))
+		SetRespawn (ent, ent->item->quantity);
+
+	return true;
+}
+
+void Use_Nuke (edict_t *ent, gitem_t *item)
+{
+	vec3_t	forward, right;
+	int		damage_modifier = 1;
+
+	ent->client->pers.inventory[ITEM_INDEX(item)]--;
+	ValidateSelectedItem (ent);
+
+	if (ent->client->quad_framenum > level.framenum)
+		damage_modifier = 4;
+	if (ent->client->double_framenum > level.framenum && (deathmatch->value || damage_modifier == 1))
+		damage_modifier *= 2;
+
+	AngleVectors (ent->client->v_angle, forward, right, NULL);
+	fire_nuke (ent, ent->s.origin, forward, 100, damage_modifier);
+}
+
+/*
+Ground Zero's spheres: one carried at a time on hard (two on medium),
+one about you at a time
+*/
+qboolean Pickup_Sphere (edict_t *ent, edict_t *other)
+{
+	int		quantity;
+
+	if (other->client && other->client->owned_sphere)
+		return false;
+
+	quantity = other->client->pers.inventory[ITEM_INDEX(ent->item)];
+	if ((skill->value == 1 && quantity >= 2) || (skill->value >= 2 && quantity >= 1))
+		return false;
+
+	if ((coop->value) && (ent->item->flags & IT_STAY_COOP) && (quantity > 0))
+		return false;
+
+	other->client->pers.inventory[ITEM_INDEX(ent->item)]++;
+
+	if (deathmatch->value && !(ent->spawnflags & DROPPED_ITEM))
+		SetRespawn (ent, ent->item->quantity);
+
+	return true;
+}
+
+static qboolean Use_Sphere_Ok (edict_t *ent, gitem_t *item)
+{
+	if (ent->client && ent->client->owned_sphere)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Only one sphere at a time!\n");
+		return false;
+	}
+
+	ent->client->pers.inventory[ITEM_INDEX(item)]--;
+	ValidateSelectedItem (ent);
+	return true;
+}
+
+void Use_Defender (edict_t *ent, gitem_t *item)
+{
+	if (Use_Sphere_Ok (ent, item))
+		Defender_Launch (ent);
+}
+
+void Use_Hunter (edict_t *ent, gitem_t *item)
+{
+	if (Use_Sphere_Ok (ent, item))
+		Hunter_Launch (ent);
+}
+
+void Use_Vengeance (edict_t *ent, gitem_t *item)
+{
+	if (Use_Sphere_Ok (ent, item))
+		Vengeance_Launch (ent);
+}
+
+// the doppelganger: deathmatch only, as the re-release has it
+qboolean Pickup_Doppleganger (edict_t *ent, edict_t *other)
+{
+	int		index = ITEM_INDEX(ent->item);
+
+	if (!deathmatch->value)
+		return false;
+
+	if (other->client->pers.inventory[index] >= 1)
+		return false;
+
+	other->client->pers.inventory[index]++;
+
+	if (!(ent->spawnflags & DROPPED_ITEM))
+		SetRespawn (ent, ent->item->quantity);
+
+	return true;
+}
+
+void Use_Doppleganger (edict_t *ent, gitem_t *item)
+{
+	vec3_t	forward, right, createPt, spawnPt, ang;
+
+	ang[PITCH] = 0;
+	ang[YAW] = ent->client->v_angle[YAW];
+	ang[ROLL] = 0;
+	AngleVectors (ang, forward, right, NULL);
+
+	VectorMA (ent->s.origin, 48, forward, createPt);
+
+	if (!FindSpawnPoint (createPt, ent->mins, ent->maxs, spawnPt, 32))
+		return;
+
+	if (!CheckGroundSpawnPoint (spawnPt, ent->mins, ent->maxs, 64, -1))
+		return;
+
+	ent->client->pers.inventory[ITEM_INDEX(item)]--;
+	ValidateSelectedItem (ent);
+
+	SpawnGrow_Spawn (spawnPt, 0);
+	fire_doppleganger (ent, spawnPt, forward);
+}
+
+// the IR goggles: a minute of seeing the living, red, in the dark
+/*
+ * the re-release's flashlight: kept, and used to switch it on and off
+ */
+qboolean Pickup_Flashlight (edict_t *ent, edict_t *other)
+{
+	if (other->client->pers.inventory[ITEM_INDEX(ent->item)])
+		return false;	// already has one
+
+	other->client->pers.inventory[ITEM_INDEX(ent->item)] = 1;
+
+	if (!(ent->spawnflags & DROPPED_ITEM) && deathmatch->value)
+		SetRespawn (ent, ent->item->quantity);
+
+	return true;
+}
+
+void Use_Flashlight (edict_t *ent, gitem_t *item)
+{
+	ent->flags ^= FL_FLASHLIGHT;
+	gi.sound (ent, CHAN_AUTO, gi.soundindex ((ent->flags & FL_FLASHLIGHT) ? "items/flashlight_on.wav" : "items/flashlight_off.wav"), 1, ATTN_STATIC, 0);
+}
+
+void Use_IR (edict_t *ent, gitem_t *item)
+{
+	ent->client->pers.inventory[ITEM_INDEX(item)]--;
+	ValidateSelectedItem (ent);
+
+	if (ent->client->ir_framenum > level.framenum)
+		ent->client->ir_framenum += 600;
+	else
+		ent->client->ir_framenum = level.framenum + 600;
+
+	gi.sound (ent, CHAN_ITEM, gi.soundindex ("misc/ir_start.wav"), 1, ATTN_NORM, 0);
+}
+
 //======================================================================
 
 qboolean Add_Ammo (edict_t *ent, gitem_t *item, int count)
@@ -534,6 +721,12 @@ qboolean Add_Ammo (edict_t *ent, gitem_t *item, int count)
 		max = ent->client->pers.max_tesla;
 	else if (item->tag == AMMO_DISRUPTOR)
 		max = ent->client->pers.max_rounds;
+	else if (item->tag == AMMO_TRAP)
+		max = ent->client->pers.max_trap;
+	else if (item->tag == AMMO_FLECHETTES)
+		max = ent->client->pers.max_flechettes;
+	else if (item->tag == AMMO_PROX)
+		max = ent->client->pers.max_prox;
 	else
 		return false;
 
@@ -2331,6 +2524,391 @@ The Reckoning's, for the phalanx
 		0,
 		NULL,
 		AMMO_MAGSLUG,
+/* precache */ ""
+	},
+
+/*QUAKED weapon_boomer (.3 .3 1) (-16 -16 -16) (16 16 16)
+The Reckoning's ion ripper
+*/
+	{
+		"weapon_boomer",
+		Pickup_Weapon,
+		Use_Weapon,
+		Drop_Weapon,
+		Weapon_Ionripper,
+		"misc/w_pkup.wav",
+		"models/weapons/g_boom/tris.md2", EF_ROTATE,
+		"models/weapons/v_boomer/tris.md2",
+/* icon */		"w_ripper",
+/* pickup */	"Ionripper",
+		0,
+		2,
+		"Cells",
+		IT_WEAPON|IT_STAY_COOP,
+		WEAP_IONRIPPER,
+		NULL,
+		0,
+/* precache */ "weapons/rippfire.wav models/objects/boomrang/tris.md2 misc/lasfly.wav"
+	},
+
+/*QUAKED ammo_trap (.3 .3 1) (-16 -16 -16) (16 16 16)
+The Reckoning's traps: ammo, and thrown
+*/
+	{
+		"ammo_trap",
+		Pickup_Ammo,
+		Use_Weapon,
+		Drop_Ammo,
+		Weapon_Trap,
+		"misc/am_pkup.wav",
+		"models/weapons/g_trap/tris.md2", EF_ROTATE,
+		"models/weapons/v_trap/tris.md2",
+/* icon */		"a_trap",
+/* pickup */	"Trap",
+/* width */		3,
+		1,
+		"Trap",
+		IT_AMMO|IT_WEAPON,
+		WEAP_TRAP,
+		NULL,
+		AMMO_TRAP,
+/* precache */ "misc/fhit3.wav weapons/trapcock.wav weapons/traploop.wav weapons/trapsuck.wav weapons/trapdown.wav items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav models/weapons/z_trap/tris.md2 models/objects/trapfx/tris.md2"
+	},
+
+/*QUAKED key_green_key (0 .5 .8) (-16 -16 -16) (16 16 16)
+The Reckoning's green key
+*/
+	{
+		"key_green_key",
+		Pickup_Key,
+		NULL,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/items/keys/green_key/tris.md2", EF_ROTATE,
+		NULL,
+		"k_green",
+		"Green Key",
+		2,
+		0,
+		NULL,
+		IT_STAY_COOP|IT_KEY,
+		0,
+		NULL,
+		0,
+/* precache */ ""
+	},
+
+/*QUAKED weapon_etf_rifle (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's flechette rifle
+*/
+	{
+		"weapon_etf_rifle",
+		Pickup_Weapon,
+		Use_Weapon,
+		Drop_Weapon,
+		Weapon_ETF_Rifle,
+		"misc/w_pkup.wav",
+		"models/weapons/g_etf_rifle/tris.md2", EF_ROTATE,
+		"models/weapons/v_etf_rifle/tris.md2",
+/* icon */		"w_etf_rifle",
+/* pickup */	"ETF Rifle",
+		0,
+		1,
+		"Flechettes",
+		IT_WEAPON|IT_STAY_COOP,
+		WEAP_ETFRIFLE,
+		NULL,
+		0,
+/* precache */ "weapons/nail1.wav models/proj/flechette/tris.md2"
+	},
+
+/*QUAKED ammo_flechettes (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's, for the ETF rifle
+*/
+	{
+		"ammo_flechettes",
+		Pickup_Ammo,
+		NULL,
+		Drop_Ammo,
+		NULL,
+		"misc/am_pkup.wav",
+		"models/ammo/am_flechette/tris.md2", 0,
+		NULL,
+/* icon */		"a_flechettes",
+/* pickup */	"Flechettes",
+/* width */		3,
+		50,
+		NULL,
+		IT_AMMO,
+		0,
+		NULL,
+		AMMO_FLECHETTES,
+/* precache */ ""
+	},
+
+/*QUAKED weapon_proxlauncher (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's prox launcher
+*/
+	{
+		"weapon_proxlauncher",
+		Pickup_Weapon,
+		Use_Weapon,
+		Drop_Weapon,
+		Weapon_ProxLauncher,
+		"misc/w_pkup.wav",
+		"models/weapons/g_plaunch/tris.md2", EF_ROTATE,
+		"models/weapons/v_plaunch/tris.md2",
+/* icon */		"w_proxlaunch",
+/* pickup */	"Prox Launcher",
+		0,
+		1,
+		"Prox",
+		IT_WEAPON|IT_STAY_COOP,
+		WEAP_PROXLAUNCH,
+		NULL,
+		AMMO_PROX,
+/* precache */ "weapons/grenlf1a.wav weapons/grenlr1b.wav weapons/grenlb1b.wav weapons/proxwarn.wav weapons/proxopen.wav"
+	},
+
+/*QUAKED ammo_prox (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's prox mines, for the prox launcher
+*/
+	{
+		"ammo_prox",
+		Pickup_Ammo,
+		NULL,
+		Drop_Ammo,
+		NULL,
+		"misc/am_pkup.wav",
+		"models/ammo/am_prox/tris.md2", 0,
+		NULL,
+/* icon */		"a_prox",
+/* pickup */	"Prox",
+/* width */		3,
+		5,
+		NULL,
+		IT_AMMO,
+		0,
+		NULL,
+		AMMO_PROX,
+/* precache */ "models/weapons/g_prox/tris.md2 weapons/proxwarn.wav"
+	},
+
+/*QUAKED ammo_nuke (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's A-M bomb
+*/
+	{
+		"ammo_nuke",
+		Pickup_Nuke,
+		Use_Nuke,
+		Drop_Ammo,
+		NULL,
+		"misc/am_pkup.wav",
+		"models/weapons/g_nuke/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_nuke",
+/* pickup */	"A-M Bomb",
+/* width */		3,
+		300,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "weapons/nukewarn2.wav world/rumble.wav"
+	},
+
+/*QUAKED key_nuke (0 .5 .8) (-16 -16 -16) (16 16 16)
+Ground Zero's antimatter bomb, to be set down where it says (rammo1,
+rboss)
+*/
+	{
+		"key_nuke",
+		Pickup_Key,
+		NULL,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/weapons/g_nuke/tris.md2", EF_ROTATE,
+		NULL,
+		"i_nuke",
+		"Antimatter Bomb",
+		2,
+		0,
+		NULL,
+		IT_STAY_COOP|IT_KEY,
+		0,
+		NULL,
+		0,
+/* precache */ ""
+	},
+
+/*QUAKED item_sphere_vengeance (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's vengeance sphere
+*/
+	{
+		"item_sphere_vengeance",
+		Pickup_Sphere,
+		Use_Vengeance,
+		NULL,
+		NULL,
+		"items/pkup.wav",
+		"models/items/vengnce/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_vengeance",
+/* pickup */	"vengeance sphere",
+/* width */		2,
+		60,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "spheres/v_idle.wav"
+	},
+
+/*QUAKED item_sphere_hunter (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's hunter sphere
+*/
+	{
+		"item_sphere_hunter",
+		Pickup_Sphere,
+		Use_Hunter,
+		NULL,
+		NULL,
+		"items/pkup.wav",
+		"models/items/hunter/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_hunter",
+/* pickup */	"hunter sphere",
+/* width */		2,
+		120,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "spheres/h_idle.wav spheres/h_active.wav spheres/h_lurk.wav"
+	},
+
+/*QUAKED item_sphere_defender (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's defender sphere
+*/
+	{
+		"item_sphere_defender",
+		Pickup_Sphere,
+		Use_Defender,
+		NULL,
+		NULL,
+		"items/pkup.wav",
+		"models/items/defender/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_defender",
+/* pickup */	"defender sphere",
+/* width */		2,
+		60,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "models/objects/laser/tris.md2 models/items/shell/tris.md2 spheres/d_idle.wav"
+	},
+
+/*QUAKED item_doppleganger (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's doppelganger (deathmatch only)
+*/
+	{
+		"item_doppleganger",
+		Pickup_Doppleganger,
+		Use_Doppleganger,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/items/dopple/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_doppleganger",
+/* pickup */	"Doppelganger",
+/* width */		2,
+		90,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "models/objects/dopplebase/tris.md2 models/items/spawngro3/tris.md2 medic_commander/monsterspawn1.wav models/items/hunter/tris.md2 models/items/vengnce/tris.md2"
+	},
+
+/*QUAKED item_ir_goggles (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's IR goggles
+*/
+	{
+		"item_ir_goggles",
+		Pickup_Powerup,
+		Use_IR,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/items/goggles/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_ir",
+/* pickup */	"IR Goggles",
+/* width */		2,
+		60,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "misc/ir_start.wav"
+	},
+
+/*QUAKED item_flashlight (.3 .3 1) (-16 -16 -16) (16 16 16)
+The re-release's flashlight (xswamp): used, it switches on and off.
+*/
+	{
+		"item_flashlight",
+		Pickup_Flashlight,
+		Use_Flashlight,
+		NULL,
+		NULL,
+		"items/pkup.wav",
+		"models/items/flashlight/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_torch",
+/* pickup */	"Flashlight",
+/* width */		2,
+		60,
+		NULL,
+		IT_STAY_COOP,
+		0,
+		NULL,
+		0,
+/* precache */ "items/flashlight_on.wav items/flashlight_off.wav"
+	},
+
+/*QUAKED key_nuke_container (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's antimatter pod (rammo1)
+*/
+	{
+		"key_nuke_container",
+		Pickup_Key,
+		NULL,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/weapons/g_nuke/tris.md2", EF_ROTATE,
+		NULL,
+		"i_contain",
+		"Antimatter Pod",
+		2,
+		0,
+		NULL,
+		IT_STAY_COOP|IT_KEY,
+		0,
+		NULL,
+		0,
 /* precache */ ""
 	},
 

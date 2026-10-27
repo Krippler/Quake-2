@@ -126,6 +126,18 @@ built for Yamagi Quake II, whose game API is id's, drops in.
   `baseq2`, and again whenever the game directory changes. The `cd` command
   and the menu's CD music switch (`cd_nocd`) work as before; `cd_volume`
   scales it.
+- **`linux/cd_stream.c`**, **`client/cl_parse.c`**: the track is what
+  `CS_CDTRACK` says, a number or (the re-release's worldspawn "music") a
+  file's name, which `CDAudio_PlayName` looks for as it is or with each
+  extension; `cd play` and `cd loop` take either. A number is also looked
+  for as a bare `NN.<ext>`, as Yamagi's and Quake II RTX's rips are named.
+  The re-release's numbering (its mission packs' 12 to 21, Quake 64's 64
+  to 79) is played as it is. Its `CS_CD_LOOP_COUNT` is not: a track loops
+  for good here, as on the CD. Every map that sets it (Call of the
+  Machine's, and Quake 64's by the game) sets 0, taken to mean the same;
+  what its engine does without it is not known here. The game sends `target_goal`'s "sounds" when the last goal is
+  done (unless KEEP_MUSIC) and `target_camera`'s when it starts, as the
+  re-release does. `cd_linux.c`'s drive has numbers only.
 - **`client/menu.c`**: Options has a music volume slider, for `cd_volume`,
   in the place of "sound compatibility", which set `s_primary`, a DirectSound
   setting that nothing outside Windows ever read.
@@ -323,6 +335,111 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     tesla), double damage and DualFire. Weapons multiply their damage by
     `damage_multiplier` (quad 4, double damage 2), and under DualFire
     `Weapon_Generic` runs a weapon's frames twice a frame.
+    The Reckoning's ion ripper (`weapon_boomer`, on cells) and trap
+    (`ammo_trap`, thrown as the tesla is, by `Throw_Generic`, which now
+    takes the re-release's prime sound and the loop it makes while held)
+    are its too, as the re-release has them; the trap eats a monster
+    lighter than 400 into a food cube (`item_foodcube`) of a tenth of
+    its mass in health, past the most, and whirls its gibs round as it
+    chews. The green key too.
+    Ground Zero's ETF rifle (flechettes), prox launcher (prox) and A-M
+    bomb (`ammo_nuke`, used, as a powerup is) likewise, their
+    projectiles in `g_rogue.c` (`fire_prox`, `fire_nuke`,
+    `T_RadiusNukeDamage`); `weapon_nailgun` and `ammo_nails`, which the
+    re-release spawns as them, are stand-ins for them. The ETF's second
+    barrel and the prox have no flashes of their own here (the
+    re-release made them new ones): the first barrel's, and the grenade
+    launcher's, which the re-release's prox flash sounds like. The bomb's
+    flash is `client->nuke_framenum`, a white blend fading over two
+    seconds.
+    The spheres and the doppelganger are `g_sphere.c`; a player's one
+    sphere is `client->owned_sphere` (saved), which `T_Damage` halves
+    their hurt for (the defender) and tells who hurt them (its pain).
+    The IR goggles set `RDF_IRGOGGLES`, which the software renderer
+    already draws by; every entity spawned, every gib and every player
+    is `RF_IR_VISIBLE`, as the re-release has them.
+  - `game/g_rogue.c`, `game/g_ai.c`: Ground Zero's hint paths
+    (`hint_path`, `InitHintPaths`, `monsterlost_checkhint`), as the
+    re-release has them. `ai_run` looks for one when the monster has not
+    seen its enemy for five seconds (and not looked for ten); following
+    one is `AI_HINT_PATH`, which `FindTarget` and seeing the enemy end.
+    The chains are made anew after a level is loaded, not saved; the
+    monster's goal on its chain (`monsterinfo.goal_hint`) is. The
+    re-release clears no stale `target_hint_chain` link before building
+    its list; here each is.
+  - `game/g_rogue.c`: Ground Zero's `trigger_disguise`
+    (`FL_DISGUISED`): the sight client passes over a disguised player,
+    a monster's `use` and its trigger spawn do not take one for their
+    enemy, `PlayerNoise` hears only their shots, and a shot makes them
+    `level.disguise_violator` for half a second, whom `FindTarget` takes
+    next after a sighting; `FoundTarget` ends the disguise. The player
+    wears `RF_USE_DISGUISE`, which the client already draws, and the
+    re-release's `i_disguise` health icon where its pak is.
+    `target_blacklight` and `target_orb` are Ground Zero's, on its
+    `spawngro2` model: the re-release scales a smaller one up, which this
+    protocol cannot. `info_nav_lock` is there, and does nothing: what it
+    locks is for the re-release's bots' navigation.
+  - `game/g_trigger.c`: `trigger_multiple`'s spawnflag 8 is Ground
+    Zero's `TOGGLE` (it starts off; being used turns it on and off,
+    instead of firing it), and 16 the re-release's `LATCHED` (it fires
+    as the first thing it is for comes into it and as the last leaves,
+    looked for each frame). Its `CLIP` (32, a box touched by the brush's
+    shape, not its bounds) is not here: the game has no `gi.clip`.
+  - `game/g_nav.c` (new): the re-release's navigation nodes,
+    `bots/navigation/<map>.nav` (versions 2 to 6), and its A* over them.
+    The re-release's engine does this, closed; this is the GPL code id
+    and Nightdive gave q2pro-ng (`src/server/nav.c`), in the game, with
+    a binary heap for its open list. The game reads the file by
+    `gi.LoadFile`/`gi.FreeFile`, which this engine's `game_import_t` now
+    ends with (a game built for the original engine never reaches
+    them). A nav edict's model is the mover's modelindex as it is here
+    (`*N` is N+1). What the re-release marks with `SVF_DOOR`,
+    `SVF_LOCKED`, `SVF_TRAP` and `SVF_LASER_FIELD` is `FL_DOOR` (the
+    three doors), `FL_LOCKED` (a `func_door` a trigger opens),
+    `FL_TRAP` (grenades, barrels, a laser on) and `FL_LASER_FIELD`
+    here. The nodes are loaded anew with the level, and after a save
+    is loaded. `nav_enable 0` leaves them out.
+  - `game/m_move.c`: the re-release's `M_MoveToPath` and
+    `M_NavPathToGoal` before `M_MoveToGoal`'s own moves, on a map with
+    nodes: `AI_PATHING` (its last free bit), the path cached two seconds
+    (`monsterinfo.nav_path`), given up after a while blocked
+    (`path_blocked_counter`, `path_wait_time`), and the request's node
+    search as q2pro-ng's game makes it (within 512, twice its height
+    below and above). Its combat styles are worked out: the berserker,
+    the mutant and a monster with only a melee close right in; the rest
+    to 440. `SV_NewChaseDir` takes a point too. `FacingIdeal` wants
+    five degrees on a path; the flight (`g_rr.c`) and the old flying
+    step's height go for the path's point; `blocked_checkjump_rr` jumps
+    where a traversal is next, facing along it; hint paths and the
+    pursuit's next marker are not taken while pathing. Its temporary
+    melee rush after being blocked is left out.
+  - `game/g_ai.c`: `ai_run`'s temporary goal is freed with its
+    `freetime` cleared, for G_Spawn to have again at once: it is never
+    linked or sent, and holding a slot half a second for each monster
+    chasing what it can't see ran rbase1 and rware1 out of edicts with
+    a hundred of them after the player.
+  - `game/g_func.c`: Ground Zero's smart water (`func_water` spawnflag
+    2, rmine2's lava): `smart_water_go_up` and `smart_water_blocked`,
+    as the re-release has them. Our `func_water` is classnamed
+    `func_door`, so smart water is known by its `blocked` instead.
+    `p_client.c`'s coop spawns on rmine2 are the lowest
+    `info_player_coop_lava` above it.
+  - `game/g_xatrix.c`: The Reckoning's `rotating_light`,
+    `misc_viper_missile`, `misc_transport`, `misc_amb4` and
+    `target_mal_laser`, from the re-release's.
+  - `game/p_view.c`, `game/g_items.c`: the re-release's flashlight
+    (`item_flashlight`, `FL_FLASHLIGHT`). It draws a spotlight by an
+    effect this protocol hasn't the bits for; here it is a light entity
+    of the player's (`client->flashlight`) at where they look,
+    `RF_CUSTOMLIGHT` as `target_light`'s, wider further off.
+  - `game/g_misc.c`: the re-release's `misc_model` (with the `frame`
+    key, which an entity now takes, as there) and
+    `misc_player_mannequin`, a player model of a client slot from 253
+    up, as its skin configstring; a mannequin it scales down (boss2's
+    three at .45) is left out, as this protocol can't scale it. The CTF
+    banners wave; `info_player_team1`/`2` do nothing, and the CTF flags
+    and `dm_tag_token` are freed, as outside those games there. Its
+    CTF and Ground Zero's tag are not here.
   - `ref_soft/r_image.c`: a skin is allocated with two rows and more
     either side of it (`R_AllocPixels`): drawing an alias model steps a
     texture pointer along each span, and where a triangle is clipped at
@@ -411,8 +528,8 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   `func_plat2` from `rogue/src/g_func.c` with the re-release's changes
   (spawnflag 8 is `START_ACTIVE`; a trigger's call is not held back; a
   blocker killed does not turn it round). What the 1997 game still passes
-  over is the re-release's decoration and bot hints (`target_poi`, `info_landmark`, `info_nav_lock`, `func_animation`,
-  `misc_model`, `misc_player_mannequin`).
+  over is the re-release's decoration (`misc_model`,
+  `misc_player_mannequin`).
 - **`game/g_misc.c`**, **`client/cl_fx.c`**, **`ref_soft/r_light.c`**: the
   re-release's real-time lights, a `dynamic_light` at each lamp (or
   `shadowlight` keys on a `light`), up to 69 a map: radius, intensity, a

@@ -5,6 +5,84 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.24] — 2026-10-27
+
+### Added
+
+- **Monsters find their way to you, on the re-release's maps.** The
+  re-release ships navigation nodes for 174 of its maps (the base game,
+  both mission packs, Quake 64 and Call of the Machine); a monster that
+  can't see you, or is too far off to fight, now follows them round
+  corners, up and down stairs and over the jumps it is able for, as
+  the re-release's do, instead of wandering where it lost you. A door the
+  map opens with a trigger, a plat or train, a wall still to be blown
+  open and live grenades, barrels and lasers are kept off, as there.
+  `nav_enable 0` turns it off.
+- **The re-release's music.** It numbers the whole soundtrack as one --
+  the base game's tracks 2 to 11, the mission packs' 12 to 21 and Quake
+  64's 64 to 79 -- and a map can name a file instead (the CTF map
+  ndctf0's); both are played from the music directory, and a rip named
+  `02.ogg` as well as `track02.ogg`. Quake 64's objectives and endings
+  play its victory music, and Call of the Machine's change track as
+  they're done, as there.
+- **The rising lava of Ground Zero's lava mine (rmine2).** Once it
+  starts, it climbs after you, faster the further above it you are,
+  and coop players come back in above it, as in Ground Zero. Before, it
+  rose at one steady speed.
+- **The Reckoning's alarm lights, flashing lasers, bomber missiles,
+  ambient hum and Maxx's transport,** on its ship, refinery, hangar and
+  moon base, which had been left out; and the re-release's
+  **flashlight** (the swamp): used, it lights where you look.
+- **The re-release's decoration:** the gibs and shells and the
+  mannequin of the final level (boss2), and the CTF maps' waving
+  banners. Its CTF flags and team starts, and Ground Zero's tag token,
+  are taken out of a game that isn't theirs, as there.
+
+- **The Reckoning's ion ripper and trap, on the re-release's maps and
+  any other.** The ion ripper fires a boomerang of cells that rebounds
+  off walls; the trap, thrown like a grenade (the longer you hold it,
+  the further), opens where it lands and sucks in the nearest monster,
+  eating it into a food cube that gives you health past your most. The
+  Reckoning's green key is there too. Before, these were left out of
+  the levels that had them.
+- **Ground Zero's ETF rifle, prox launcher and A-M bomb.** The ETF
+  rifle fires flechettes from each barrel in turn (the re-release's
+  nailgun and nails are it); the prox launcher lobs mines that stick
+  where they land and go off when a monster comes near; the A-M bomb,
+  set down, goes off ten seconds later, killing everything within a
+  wide radius through walls, blinding whoever sees it and shaking the
+  ground. Ground Zero's antimatter bomb key is there too.
+- **Ground Zero's spheres, IR goggles and doppelganger.** The defender
+  sphere floats over you shooting at whoever hurts you and halves what
+  you take; the vengeance sphere flies at whoever hurts you once you are
+  low; the hunter does the same once you are dead. The IR goggles show
+  the living bright against the dark for a minute. The doppelganger, a
+  decoy of you, is for deathmatch only, as in the re-release. The
+  antimatter pod and core of the ammo depot are there too.
+- **Ground Zero's hint paths.** A monster that has lost sight of you
+  for a while now follows the level's hint paths, as Ground Zero's do,
+  up stairs and round corners toward where you were, instead of
+  waiting where it lost you. They are on twelve of Ground Zero's maps.
+- **Ground Zero's disguise, on the ammo depot.** Passing through it,
+  monsters take you for one of theirs (you wear the disguise, with the
+  re-release's health icon for it) until you fire or one sees through
+  it. The black light and orb of Ground Zero's final level are there
+  too.
+
+### Fixed
+
+- **No more "no free edicts" with a horde after you.** A monster
+  chasing what it can't see took a slot each frame it couldn't have
+  back for half a second; with a hundred at once (the warehouse, the
+  research base), the level ran out of them.
+- **The ammo depot no longer sends you on to the next level four
+  seconds in.** Its exit, and 34 other triggers on twelve maps
+  (Ground Zero's, Call of the Machine's, Quake 64's orbit, the
+  factory's help computers), are Ground Zero's toggled triggers, which
+  being used turns on and off; they went off at once instead. The
+  re-release's latched triggers, firing as you go in and as you leave,
+  are there too (Call of the Machine's).
+
 ## [1.3.23] — 2026-10-27
 
 ### Fixed

@@ -393,3 +393,575 @@ void monster_fire_heat (edict_t *self, vec3_t start, vec3_t dir, int damage, int
 	fire_heat (self, start, dir, damage, speed, damage, damage);
 	Xatrix_MuzzleFlash (self, start, flashtype);
 }
+
+/*
+=================
+The Reckoning's trap, as the re-release has it: thrown, it opens on the
+ground and sucks in the nearest monster in sight (anyone, in
+deathmatch), and one light enough it eats, giving back a food cube of
+health in proportion; one too heavy, or its half minute up, it blows
+up. The gibs of what it ate whirl round it as it chews.
+=================
+*/
+void SP_item_foodcube (edict_t *self);
+
+static void Trap_Gib_Think (edict_t *ent)
+{
+	vec3_t	forward, right, up, diff, vec, new_origin;
+	float	degrees;
+	trace_t	tr;
+
+	if (ent->owner->s.frame != 5)
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+
+	AngleVectors (ent->owner->s.angles, forward, right, up);
+
+	// rotate us around the center
+	degrees = (150.f * FRAMETIME) + ent->owner->delay;
+	VectorSubtract (ent->owner->s.origin, ent->s.origin, diff);
+	RotatePointAroundVector (vec, up, diff, degrees);
+	ent->s.angles[1] += degrees;
+	VectorSubtract (ent->owner->s.origin, vec, new_origin);
+
+	tr = gi.trace (ent->s.origin, NULL, NULL, new_origin, ent, MASK_SOLID);
+	VectorCopy (tr.endpos, ent->s.origin);
+
+	// pull us towards the trap's center
+	VectorNormalize (diff);
+	VectorMA (ent->s.origin, 15.0f * FRAMETIME, diff, ent->s.origin);
+
+	ent->watertype = gi.pointcontents (ent->s.origin);
+	if (ent->watertype & MASK_WATER)
+		ent->waterlevel = 1;
+
+	ent->nextthink = level.time + FRAMETIME;
+	gi.linkentity (ent);
+}
+
+static void trap_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
+{
+	BecomeExplosion1 (self);
+}
+
+static void Trap_Think (edict_t *ent)
+{
+	edict_t	*target = NULL;
+	edict_t	*best = NULL;
+	vec3_t	vec;
+	float	len, max_speed, pull;
+	float	oldlen = 8000;
+	int		i;
+
+	if (ent->timestamp < level.time)
+	{
+		BecomeExplosion1 (ent);
+		return;
+	}
+
+	ent->nextthink = level.time + FRAMETIME;
+
+	if (!ent->groundentity)
+		return;
+
+	// ok lets do the blood effect
+	if (ent->s.frame > 4)
+	{
+		if (ent->s.frame == 5)
+		{
+			qboolean spawn = ent->wait == 64;
+
+			ent->wait -= 2;
+
+			if (spawn)
+				gi.sound (ent, CHAN_VOICE, gi.soundindex ("weapons/trapdown.wav"), 1, ATTN_IDLE, 0);
+
+			ent->delay += 2.f;
+
+			if (ent->wait < 19)
+				ent->s.frame++;
+
+			return;
+		}
+		ent->s.frame++;
+		if (ent->s.frame == 8)
+		{
+			ent->nextthink = level.time + 1;
+			ent->think = G_FreeEdict;
+			ent->s.effects &= ~EF_TRAP;
+
+			best = G_Spawn ();
+			best->count = ent->mass;
+			SP_item_foodcube (best);
+			VectorCopy (ent->s.origin, best->s.origin);
+			best->s.origin[2] += 24;
+			best->s.angles[YAW] = random () * 360;
+			best->velocity[2] = 400;
+			best->think (best);
+			best->nextthink = 0;
+			VectorCopy (best->s.origin, best->s.old_origin);
+			gi.linkentity (best);
+
+			gi.sound (best, CHAN_AUTO, gi.soundindex ("misc/fhit3.wav"), 1.f, ATTN_NORM, 0.f);
+			return;
+		}
+		return;
+	}
+
+	ent->s.effects &= ~EF_TRAP;
+	if (ent->s.frame >= 4)
+	{
+		ent->s.effects |= EF_TRAP;
+		// clear the owner if in deathmatch
+		if (deathmatch->value)
+			ent->owner = NULL;
+	}
+
+	if (ent->s.frame < 4)
+	{
+		ent->s.frame++;
+		return;
+	}
+
+	while ((target = findradius (target, ent->s.origin, 256)) != NULL)
+	{
+		if (target == ent)
+			continue;
+
+		// not near flags, teleporters or spawn points in deathmatch
+		if (target->classname && deathmatch->value &&
+			(!strncmp (target->classname, "info_player_", 12) ||
+			 !strcmp (target->classname, "misc_teleporter_dest") ||
+			 !strncmp (target->classname, "item_flag_", 10)) &&
+			visible (target, ent))
+		{
+			BecomeExplosion1 (ent);
+			return;
+		}
+
+		if (!(target->svflags & SVF_MONSTER) && !target->client)
+			continue;
+		// players only in deathmatch, and not its owner
+		if (target->client && (!deathmatch->value || target == ent->teammaster))
+			continue;
+		if (target->health <= 0)
+			continue;
+		if (!visible (ent, target))
+			continue;
+		VectorSubtract (ent->s.origin, target->s.origin, vec);
+		len = VectorLength (vec);
+		if (!best)
+		{
+			best = target;
+			oldlen = len;
+			continue;
+		}
+		if (len < oldlen)
+		{
+			oldlen = len;
+			best = target;
+		}
+	}
+
+	// pull the enemy in
+	if (best)
+	{
+		if (best->groundentity)
+		{
+			best->s.origin[2] += 1;
+			best->groundentity = NULL;
+		}
+		VectorSubtract (ent->s.origin, best->s.origin, vec);
+		len = VectorNormalize (vec);
+
+		max_speed = best->client ? 290.f : 150.f;
+		pull = max_speed - len;
+		if (pull < 64)
+			pull = 64;
+		if (pull > max_speed)
+			pull = max_speed;
+		VectorMA (best->velocity, pull, vec, best->velocity);
+
+		ent->s.sound = gi.soundindex ("weapons/trapsuck.wav");
+
+		if (len < 48)
+		{
+			if (best->mass < 400)
+			{
+				ent->takedamage = DAMAGE_NO;
+				ent->solid = SOLID_NOT;
+				ent->die = NULL;
+
+				T_Damage (best, ent, ent->teammaster, vec3_origin, best->s.origin, vec3_origin, 100000, 1, 0, MOD_TRAP);
+
+				ent->enemy = best;
+				ent->wait = 64;
+				VectorCopy (ent->s.origin, ent->s.old_origin);
+				ent->timestamp = level.time + 30;
+				ent->accel = best->mass;
+				if (deathmatch->value)
+					ent->mass = best->mass / 4;
+				else
+					ent->mass = best->mass / 10;
+				// ok spawn the food cube
+				ent->s.frame = 5;
+
+				// link up any gibs that this monster may have spawned
+				for (i = 0; i < globals.num_edicts; i++)
+				{
+					edict_t *e = &g_edicts[i];
+
+					if (!e->inuse || !e->classname)
+						continue;
+					else if (strcmp (e->classname, "gib"))
+						continue;
+					VectorSubtract (e->s.origin, ent->s.origin, vec);
+					if (VectorLength (vec) > 128.f)
+						continue;
+
+					e->movetype = MOVETYPE_NONE;
+					e->nextthink = level.time + FRAMETIME;
+					e->think = Trap_Gib_Think;
+					e->owner = ent;
+					Trap_Gib_Think (e);
+				}
+			}
+			else
+			{
+				BecomeExplosion1 (ent);
+				return;
+			}
+		}
+	}
+}
+
+void fire_trap (edict_t *self, vec3_t start, vec3_t aimdir, int speed)
+{
+	edict_t	*trap;
+	vec3_t	dir;
+	vec3_t	forward, right, up;
+	float	gravityAdjustment = sv_gravity->value / 800.f;
+
+	vectoangles (aimdir, dir);
+	AngleVectors (dir, forward, right, up);
+
+	trap = G_Spawn ();
+	VectorCopy (start, trap->s.origin);
+	VectorScale (aimdir, speed, trap->velocity);
+	VectorMA (trap->velocity, (200 + crandom () * 10.0f) * gravityAdjustment, up, trap->velocity);
+	VectorMA (trap->velocity, crandom () * 10.0f, right, trap->velocity);
+	VectorSet (trap->avelocity, 0, 300, 0);
+	trap->movetype = MOVETYPE_BOUNCE;
+	trap->clipmask = MASK_SHOT & ~CONTENTS_DEADMONSTER;
+	trap->solid = SOLID_BBOX;
+	trap->takedamage = DAMAGE_YES;
+	VectorSet (trap->mins, -4, -4, 0);
+	VectorSet (trap->maxs, 4, 4, 8);
+	trap->die = trap_die;
+	trap->health = 20;
+	trap->s.modelindex = gi.modelindex ("models/weapons/z_trap/tris.md2");
+	trap->owner = trap->teammaster = self;
+	trap->nextthink = level.time + 1;
+	trap->think = Trap_Think;
+	trap->classname = "food_cube_trap";
+	trap->s.sound = gi.soundindex ("weapons/traploop.wav");
+	gi.linkentity (trap);
+
+	trap->timestamp = level.time + 30;
+}
+
+/*
+The trap's food cube: health, as much as a tenth of what it ate (a
+quarter, in deathmatch), past the most
+*/
+void SP_item_foodcube (edict_t *self)
+{
+	if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH))
+	{
+		G_FreeEdict (self);
+		return;
+	}
+
+	self->model = "models/objects/trapfx/tris.md2";
+	SpawnItem (self, FindItem ("Health"));
+	self->spawnflags |= DROPPED_ITEM;
+	self->style = HEALTH_IGNORE_MAX;
+	self->classname = "item_foodcube";
+	self->s.effects |= EF_GIB;
+}
+
+/*QUAKED rotating_light (0 .5 .8) (-8 -8 -8) (8 8 8) START_OFF ALARM
+The Reckoning's. "health"	if set, the light may be killed.
+*/
+static void rotating_light_alarm (edict_t *self)
+{
+	if (self->spawnflags & 1)
+	{
+		self->think = NULL;
+		self->nextthink = 0;
+	}
+	else
+	{
+		gi.sound (self, CHAN_NO_PHS_ADD+CHAN_VOICE, self->moveinfo.sound_start, 1, ATTN_STATIC, 0);
+		self->nextthink = level.time + 1;
+	}
+}
+
+static void rotating_light_killed (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
+{
+	gi.WriteByte (svc_temp_entity);
+	gi.WriteByte (TE_WELDING_SPARKS);
+	gi.WriteByte (30);
+	gi.WritePosition (self->s.origin);
+	gi.WriteDir (vec3_origin);
+	gi.WriteByte (0xe0 + (rand()&7));
+	gi.multicast (self->s.origin, MULTICAST_PVS);
+
+	self->s.effects &= ~EF_SPINNINGLIGHTS;
+	self->use = NULL;
+
+	self->think = G_FreeEdict;
+	self->nextthink = level.time + FRAMETIME;
+}
+
+static void rotating_light_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	if (self->spawnflags & 1)
+	{
+		self->spawnflags &= ~1;
+		self->s.effects |= EF_SPINNINGLIGHTS;
+
+		if (self->spawnflags & 2)
+		{
+			self->think = rotating_light_alarm;
+			self->nextthink = level.time + FRAMETIME;
+		}
+	}
+	else
+	{
+		self->spawnflags |= 1;
+		self->s.effects &= ~EF_SPINNINGLIGHTS;
+	}
+}
+
+void SP_rotating_light (edict_t *self)
+{
+	self->movetype = MOVETYPE_STOP;
+	self->solid = SOLID_BBOX;
+
+	self->s.modelindex = gi.modelindex ("models/objects/light/tris.md2");
+	self->s.frame = 0;
+
+	self->use = rotating_light_use;
+
+	if (self->spawnflags & 1)
+		self->s.effects &= ~EF_SPINNINGLIGHTS;
+	else
+		self->s.effects |= EF_SPINNINGLIGHTS;
+
+	if (!self->speed)
+		self->speed = 32;
+
+	if (!self->health)
+		self->health = 10;
+	self->max_health = self->health;
+	self->die = rotating_light_killed;
+	self->takedamage = DAMAGE_YES;
+
+	if (self->spawnflags & 2)
+		self->moveinfo.sound_start = gi.soundindex ("misc/alarm.wav");
+
+	gi.linkentity (self);
+}
+
+/*QUAKED misc_viper_missile (1 0 0) (-8 -8 -8) (8 8 8)
+The Reckoning's. "dmg"	how much boom should the bomb make? the default value is 250
+*/
+static void misc_viper_missile_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	vec3_t	start, dir;
+
+	self->enemy = G_Find (NULL, FOFS(targetname), self->target);
+	if (!self->enemy)
+	{
+		gi.dprintf ("misc_viper_missile at %s: target %s not found\n", vtos (self->s.origin), self->target ? self->target : "");
+		return;
+	}
+
+	VectorCopy (self->s.origin, start);
+	VectorSubtract (self->enemy->s.origin, start, dir);
+	VectorNormalize (dir);
+
+	monster_fire_rocket (self, start, dir, self->dmg, 500, MZ2_CHICK_ROCKET_1);
+
+	self->nextthink = level.time + FRAMETIME;
+	self->think = G_FreeEdict;
+}
+
+void SP_misc_viper_missile (edict_t *self)
+{
+	self->movetype = MOVETYPE_NONE;
+	self->solid = SOLID_NOT;
+	VectorSet (self->mins, -8, -8, -8);
+	VectorSet (self->maxs, 8, 8, 8);
+
+	if (!self->dmg)
+		self->dmg = 250;
+
+	self->s.modelindex = gi.modelindex ("models/objects/bomb/tris.md2");
+
+	self->use = misc_viper_missile_use;
+	self->svflags |= SVF_NOCLIENT;
+
+	gi.linkentity (self);
+}
+
+/*QUAKED misc_transport (1 0 0) (-8 -8 -8) (8 8 8)
+The Reckoning's: Maxx's transport at end of game.
+*/
+void func_train_find (edict_t *self);
+void misc_strogg_ship_use (edict_t *self, edict_t *other, edict_t *activator);
+
+void SP_misc_transport (edict_t *ent)
+{
+	if (!ent->target)
+	{
+		gi.dprintf ("%s without a target at %s\n", ent->classname, vtos(ent->absmin));
+		G_FreeEdict (ent);
+		return;
+	}
+
+	if (!ent->speed)
+		ent->speed = 300;
+
+	ent->movetype = MOVETYPE_PUSH;
+	ent->solid = SOLID_NOT;
+	ent->s.modelindex = gi.modelindex ("models/objects/ship/tris.md2");
+
+	VectorSet (ent->mins, -16, -16, 0);
+	VectorSet (ent->maxs, 16, 16, 32);
+
+	ent->think = func_train_find;
+	ent->nextthink = level.time + FRAMETIME;
+	ent->use = misc_strogg_ship_use;
+	ent->svflags |= SVF_NOCLIENT;
+	ent->moveinfo.accel = ent->moveinfo.decel = ent->moveinfo.speed = ent->speed;
+
+	ent->spawnflags |= 1;	// TRAIN_START_ON
+
+	gi.linkentity (ent);
+}
+
+/*QUAKED misc_amb4 (1 0 0) (-16 -16 -16) (16 16 16)
+The Reckoning's: Mal's amb4 loop entity.
+*/
+static void amb4_think (edict_t *ent)
+{
+	ent->nextthink = level.time + 2.7;
+	gi.sound (ent, CHAN_VOICE, ent->noise_index, 1, ATTN_NONE, 0);
+}
+
+void SP_misc_amb4 (edict_t *ent)
+{
+	ent->think = amb4_think;
+	ent->nextthink = level.time + 1;
+	ent->noise_index = gi.soundindex ("world/amb4.wav");
+	gi.linkentity (ent);
+}
+
+/*QUAKED target_mal_laser (1 0 0) (-4 -4 -4) (4 4 4) START_ON RED GREEN BLUE YELLOW ORANGE FAT
+The Reckoning's: Mal's laser, which flashes on for a frame each "wait".
+*/
+void target_laser_think (edict_t *self);
+void target_laser_off (edict_t *self);
+
+static void mal_laser_think (edict_t *self);
+
+static void target_mal_laser_on (edict_t *self)
+{
+	if (!self->activator)
+		self->activator = self;
+	self->spawnflags |= 0x80000001;
+	self->svflags &= ~SVF_NOCLIENT;
+	self->flags |= FL_TRAP;
+	self->think = mal_laser_think;
+	self->nextthink = level.time + self->wait + self->delay;
+}
+
+static void target_mal_laser_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	self->activator = activator;
+	if (self->spawnflags & 1)
+		target_laser_off (self);
+	else
+		target_mal_laser_on (self);
+}
+
+static void mal_laser_think2 (edict_t *self)
+{
+	self->svflags |= SVF_NOCLIENT;
+	self->think = mal_laser_think;
+	self->nextthink = level.time + self->wait;
+	self->spawnflags |= 0x80000000;
+}
+
+static void mal_laser_think (edict_t *self)
+{
+	self->svflags &= ~SVF_NOCLIENT;
+	target_laser_think (self);
+	self->think = mal_laser_think2;
+	self->nextthink = level.time + FRAMETIME;
+}
+
+void SP_target_mal_laser (edict_t *self)
+{
+	self->movetype = MOVETYPE_NONE;
+	self->solid = SOLID_NOT;
+	self->s.renderfx |= RF_BEAM|RF_TRANSLUCENT;
+	self->s.modelindex = 1;			// must be non-zero
+	self->flags |= FL_LASER_FIELD;
+
+	// set the beam diameter
+	if (self->spawnflags & 64)
+		self->s.frame = 16;
+	else
+		self->s.frame = 4;
+
+	// set the color
+	if (self->spawnflags & 2)
+		self->s.skinnum = 0xf2f2f0f0;
+	else if (self->spawnflags & 4)
+		self->s.skinnum = 0xd0d1d2d3;
+	else if (self->spawnflags & 8)
+		self->s.skinnum = 0xf3f3f1f1;
+	else if (self->spawnflags & 16)
+		self->s.skinnum = 0xdcdddedf;
+	else if (self->spawnflags & 32)
+		self->s.skinnum = 0xe0e1e2e3;
+
+	G_SetMovedir (self->s.angles, self->movedir);
+
+	if (!self->delay)
+		self->delay = 0.1;
+	if (!self->wait)
+		self->wait = 0.1;
+	if (!self->dmg)
+		self->dmg = 5;
+
+	VectorSet (self->mins, -8, -8, -8);
+	VectorSet (self->maxs, 8, 8, 8);
+
+	self->nextthink = level.time + self->delay;
+	self->think = mal_laser_think;
+
+	self->use = target_mal_laser_use;
+
+	gi.linkentity (self);
+
+	if (self->spawnflags & 1)
+		target_mal_laser_on (self);
+	else
+		target_laser_off (self);
+}

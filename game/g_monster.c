@@ -469,7 +469,9 @@ void monster_use (edict_t *self, edict_t *other, edict_t *activator)
 		return;
 	if (!(activator->client) && !(activator->monsterinfo.aiflags & AI_GOOD_GUY))
 		return;
-	
+	if (activator->flags & FL_DISGUISED)	// Ground Zero's
+		return;
+
 // delay reaction so if the monster is teleported, its sound is still heard
 	self->enemy = activator;
 	FoundTarget (self);
@@ -500,7 +502,7 @@ void monster_triggered_spawn (edict_t *self)
 		return;
 	}
 
-	if (self->enemy && !(self->spawnflags & 1) && !(self->enemy->flags & FL_NOTARGET))
+	if (self->enemy && !(self->spawnflags & 1) && !(self->enemy->flags & (FL_NOTARGET|FL_DISGUISED)))
 	{
 		FoundTarget (self);
 	}

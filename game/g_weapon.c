@@ -573,6 +573,7 @@ void fire_grenade_adjust (edict_t *self, vec3_t start, vec3_t aimdir, int damage
 	grenade->dmg = damage;
 	grenade->dmg_radius = damage_radius;
 	grenade->classname = "grenade";
+	grenade->flags |= FL_TRAP;		// the re-release's paths keep off it
 
 	// a player's, on the re-release's maps, is its own
 	if (RR_Map () && self->client)
@@ -621,6 +622,7 @@ void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int 
 	grenade->dmg = damage;
 	grenade->dmg_radius = damage_radius;
 	grenade->classname = "hgrenade";
+	grenade->flags |= FL_TRAP;
 	if (held)
 		grenade->spawnflags = 3;
 	else

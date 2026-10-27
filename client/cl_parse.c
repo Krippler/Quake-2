@@ -535,7 +535,7 @@ void CL_ParseConfigString (void)
 	else if (i == CS_CDTRACK)
 	{
 		if (cl.refresh_prepped)
-			CDAudio_Play (atoi(cl.configstrings[CS_CDTRACK]), true);
+			CDAudio_PlayName (cl.configstrings[CS_CDTRACK], true);
 	}
 	else if (i == CS_SKY || i == CS_SKYROTATE || i == CS_SKYAXIS)
 	{

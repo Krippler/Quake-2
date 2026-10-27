@@ -361,6 +361,9 @@ void G_RunFrame (void)
 	// choose a client for monsters to target this frame
 	AI_SetSightClient ();
 
+	// the re-release's navigation nodes that something there shuts
+	Nav_Frame ();
+
 	// exit intermissions
 
 	if (level.exitintermission)

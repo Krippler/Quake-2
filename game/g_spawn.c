@@ -86,6 +86,24 @@ void SP_monster_daedalus (edict_t *ent);
 void SP_monster_turret (edict_t *ent);
 void SP_monster_fixbot (edict_t *ent);
 void SP_monster_widow (edict_t *ent);
+void SP_misc_nuke_core (edict_t *ent);
+void SP_hint_path (edict_t *self);
+void SP_trigger_disguise (edict_t *self);
+void SP_target_blacklight (edict_t *ent);
+void SP_target_orb (edict_t *ent);
+void SP_info_nav_lock (edict_t *self);
+void SP_rotating_light (edict_t *self);
+void SP_misc_viper_missile (edict_t *self);
+void SP_misc_transport (edict_t *ent);
+void SP_misc_amb4 (edict_t *ent);
+void SP_target_mal_laser (edict_t *self);
+void SP_misc_model (edict_t *ent);
+void SP_misc_player_mannequin (edict_t *self);
+void SP_misc_ctf_banner (edict_t *ent);
+void SP_misc_ctf_small_banner (edict_t *ent);
+void SP_info_player_team (edict_t *self);
+void SP_game_mode_only (edict_t *self);
+void SP_info_player_coop_lava (edict_t *self);
 void SP_monster_widow2 (edict_t *ent);
 void SP_object_repair (edict_t *ent);
 void SP_monster_stalker (edict_t *ent);
@@ -253,6 +271,27 @@ spawn_t	spawns[] = {
 	{"monster_turret", SP_monster_turret},
 	{"monster_fixbot", SP_monster_fixbot},
 	{"monster_widow", SP_monster_widow},
+	{"misc_nuke_core", SP_misc_nuke_core},
+	{"hint_path", SP_hint_path},
+	{"trigger_disguise", SP_trigger_disguise},
+	{"target_blacklight", SP_target_blacklight},
+	{"target_orb", SP_target_orb},
+	{"info_nav_lock", SP_info_nav_lock},
+	{"rotating_light", SP_rotating_light},
+	{"misc_viper_missile", SP_misc_viper_missile},
+	{"misc_transport", SP_misc_transport},
+	{"misc_amb4", SP_misc_amb4},
+	{"target_mal_laser", SP_target_mal_laser},
+	{"misc_model", SP_misc_model},
+	{"misc_player_mannequin", SP_misc_player_mannequin},
+	{"misc_ctf_banner", SP_misc_ctf_banner},
+	{"misc_ctf_small_banner", SP_misc_ctf_small_banner},
+	{"info_player_team1", SP_info_player_team},
+	{"info_player_team2", SP_info_player_team},
+	{"item_flag_team1", SP_game_mode_only},
+	{"item_flag_team2", SP_game_mode_only},
+	{"dm_tag_token", SP_game_mode_only},
+	{"info_player_coop_lava", SP_info_player_coop_lava},
 	{"monster_widow2", SP_monster_widow2},
 	{"func_object_repair", SP_object_repair},
 	{"monster_stalker", SP_monster_stalker},
@@ -715,6 +754,7 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 		}
 
 		ED_CallSpawn (ent);
+		ent->s.renderfx |= RF_IR_VISIBLE;	// to Ground Zero's IR goggles, as the re-release has it
 	}	
 
 	gi.dprintf ("%i entities inhibited\n", inhibit);
@@ -731,6 +771,8 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 
 	G_FindTeams ();
 	G_SetupShadowLights ();
+	InitHintPaths ();
+	Nav_Load (level.mapname);
 
 	PlayerTrail_Init ();
 }
@@ -969,7 +1011,11 @@ void SP_worldspawn (edict_t *ent)
 	gi.configstring (CS_SKYAXIS, va("%f %f %f",
 		st.skyaxis[0], st.skyaxis[1], st.skyaxis[2]) );
 
-	gi.configstring (CS_CDTRACK, va("%i", ent->sounds) );
+	// the re-release's: a music file by its name, over the track number
+	if (st.music && st.music[0])
+		gi.configstring (CS_CDTRACK, st.music);
+	else
+		gi.configstring (CS_CDTRACK, va("%i", ent->sounds) );
 
 	gi.configstring (CS_MAXCLIENTS, va("%i", (int)(maxclients->value) ) );
 
@@ -1053,6 +1099,10 @@ void SP_worldspawn (edict_t *ent)
 	gi.modelindex ("#w_disrupt.md2");
 	gi.modelindex ("#w_phalanx.md2");
 	gi.modelindex ("#w_plasma.md2");
+	gi.modelindex ("#w_ripper.md2");
+	gi.modelindex ("#a_trap.md2");
+	gi.modelindex ("#w_etfrifle.md2");
+	gi.modelindex ("#w_plauncher.md2");
 
 	//-------------------
 

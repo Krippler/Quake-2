@@ -1013,7 +1013,7 @@ static void G_IdealHoverPosition (edict_t *ent, vec3_t out)
 {
 	float	theta, phi, dist;
 
-	if ((!ent->enemy && !(ent->monsterinfo.aiflags & AI_MEDIC)) || (ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET)))
+	if ((!ent->enemy && !(ent->monsterinfo.aiflags & AI_MEDIC)) || (ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET | AI_HINT_PATH | AI_PATHING)))
 	{
 		VectorClear (out);	// go right for the center
 		return;
@@ -1093,7 +1093,14 @@ qboolean SV_alternate_flystep (edict_t *ent)
 	current_speed = VectorNormalize (dir);
 	have_dir = current_speed != 0;
 
-	if (ent->enemy && !(ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT)))
+	if (ent->monsterinfo.aiflags & AI_PATHING)	// where its path goes
+	{
+		if (ent->monsterinfo.nav_path.returnCode == PathReturnCode_TraversalPending)
+			VectorCopy (ent->monsterinfo.nav_path.secondMovePoint, towards_origin);
+		else
+			VectorCopy (ent->monsterinfo.nav_path.firstMovePoint, towards_origin);
+	}
+	else if (ent->enemy && !(ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT)))
 	{
 		VectorCopy (ent->enemy->s.origin, towards_origin);
 		VectorCopy (ent->enemy->velocity, towards_velocity);
@@ -1115,7 +1122,7 @@ qboolean SV_alternate_flystep (edict_t *ent)
 
 	if (ent->monsterinfo.fly_pinned)
 		VectorCopy (ent->monsterinfo.fly_ideal_position, wanted_pos);
-	else if (ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT))
+	else if (ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT))
 		VectorCopy (towards_origin, wanted_pos);
 	else
 	{
@@ -1203,7 +1210,7 @@ qboolean SV_alternate_flystep (edict_t *ent)
 	// the closer we are to zero, the more we can change dir.
 	// if we're pushed past our max speed we shouldn't
 	// turn at all.
-	if (((ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || (ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_LOST_SIGHT))) && DotProduct (dir, wanted_dir) > 0.0f)
+	if (((ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || (ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_LOST_SIGHT))) && DotProduct (dir, wanted_dir) > 0.0f)
 		turn_factor = 0.45f;
 	else
 	{
@@ -1248,7 +1255,7 @@ qboolean SV_alternate_flystep (edict_t *ent)
 
 	// the closer we are to the wanted position, we want to slow
 	// down so we don't fly past it.
-	if (!ent->enemy || (ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || (ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_LOST_SIGHT)))
+	if (!ent->enemy || (ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || (ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_LOST_SIGHT)))
 		speed_factor = 1.f;
 	else if (DotProduct (aim_fwd, wanted_dir) < -0.25 && have_dir)
 		speed_factor = 0.f;
@@ -1451,6 +1458,31 @@ int blocked_checkjump_rr (edict_t *self, float dist)
 	// we just jumped recently, don't try again
 	if (self->monsterinfo.jump_time > level.time)
 		return JUMP_NO;
+
+	// on its paths, the nodes say where it can reach: a jump only where
+	// the next is one, facing along it
+	if (self->monsterinfo.aiflags & AI_PATHING)
+	{
+		nav_info_t	*path = &self->monsterinfo.nav_path;
+
+		if (path->returnCode != PathReturnCode_TraversalPending)
+			return JUMP_NO;
+
+		VectorSubtract (path->secondMovePoint, path->firstMovePoint, mid);
+		self->ideal_yaw = vectoyaw (mid);
+
+		if (!FacingIdeal (self))
+		{
+			M_ChangeYaw (self);
+			return JUMP_TURN;
+		}
+
+		monster_jump_start_rr (self);
+
+		if (path->secondMovePoint[2] > path->firstMovePoint[2])
+			return JUMP_UP;
+		return JUMP_DOWN;
+	}
 
 	AngleVectors (self->s.angles, forward, NULL, up);
 

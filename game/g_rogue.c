@@ -178,7 +178,7 @@ static void stationarymonster_triggered_spawn (edict_t *self)
 
 	monster_start_go (self);
 
-	if (self->enemy && !(self->spawnflags & 1) && !(self->enemy->flags & FL_NOTARGET))
+	if (self->enemy && !(self->spawnflags & 1) && !(self->enemy->flags & (FL_NOTARGET|FL_DISGUISED)))
 		FoundTarget (self);
 	else
 		self->enemy = NULL;
@@ -1564,4 +1564,1229 @@ void fire_tesla (edict_t *self, vec3_t start, vec3_t aimdir, int damage_multipli
 	tesla->clipmask = MASK_SHOT|CONTENTS_SLIME|CONTENTS_LAVA;
 
 	gi.linkentity (tesla);
+}
+
+/*
+==============================================================================
+
+Ground Zero's prox mines and A-M bomb, as the re-release has them
+
+==============================================================================
+*/
+
+#define PROX_TIME_TO_LIVE	45		// 45, 30, 15, 10
+#define PROX_TIME_DELAY		0.5
+#define PROX_BOUND_SIZE		96
+#define PROX_DAMAGE_RADIUS	192
+#define PROX_HEALTH			20
+#define PROX_DAMAGE			90
+
+static void Prox_Explode (edict_t *ent)
+{
+	vec3_t	origin;
+	edict_t	*owner;
+
+	// free the trigger field
+	if (ent->teamchain && ent->teamchain->owner == ent)
+		G_FreeEdict (ent->teamchain);
+
+	owner = ent;
+	if (ent->teammaster)
+	{
+		owner = ent->teammaster;
+		PlayerNoise (owner, ent->s.origin, PNOISE_IMPACT);
+	}
+
+	// play quad sound if appropriate
+	if (ent->dmg > PROX_DAMAGE)
+		gi.sound (ent, CHAN_ITEM, gi.soundindex ("items/damage3.wav"), 1, ATTN_NORM, 0);
+
+	ent->takedamage = DAMAGE_NO;
+	T_RadiusDamage (ent, owner, ent->dmg, ent, PROX_DAMAGE_RADIUS, MOD_PROX);
+
+	VectorMA (ent->s.origin, -0.02, ent->velocity, origin);
+	gi.WriteByte (svc_temp_entity);
+	if (ent->groundentity)
+		gi.WriteByte (TE_GRENADE_EXPLOSION);
+	else
+		gi.WriteByte (TE_ROCKET_EXPLOSION);
+	gi.WritePosition (origin);
+	gi.multicast (ent->s.origin, MULTICAST_PHS);
+
+	G_FreeEdict (ent);
+}
+
+static void prox_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
+{
+	// if set off by another prox, delay a little (chained explosions)
+	self->takedamage = DAMAGE_NO;
+	if (!inflictor->classname || strcmp (inflictor->classname, "prox_mine"))
+		Prox_Explode (self);
+	else
+	{
+		self->think = Prox_Explode;
+		self->nextthink = level.time + FRAMETIME;
+	}
+}
+
+static void Prox_Field_Touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+	edict_t *prox;
+
+	if (!(other->svflags & SVF_MONSTER) && !other->client)
+		return;
+
+	// trigger the prox mine if it's still there, and still mine.
+	prox = ent->owner;
+
+	// players only in deathmatch, and not its owner
+	if (other->client && (!deathmatch->value || other == prox->teammaster))
+		return;
+
+	if (other == prox) // don't set self off
+		return;
+
+	if (prox->think == Prox_Explode) // we're set to blow!
+		return;
+
+	if (prox->teamchain == ent)
+	{
+		gi.sound (ent, CHAN_VOICE, gi.soundindex ("weapons/proxwarn.wav"), 1, ATTN_NORM, 0);
+		prox->think = Prox_Explode;
+		prox->nextthink = level.time + PROX_TIME_DELAY;
+		return;
+	}
+
+	ent->solid = SOLID_NOT;
+	G_FreeEdict (ent);
+}
+
+static void prox_seek (edict_t *ent)
+{
+	if (level.time > ent->wait)
+		Prox_Explode (ent);
+	else
+	{
+		ent->s.frame++;
+		if (ent->s.frame > 13)
+			ent->s.frame = 9;
+		ent->think = prox_seek;
+		ent->nextthink = level.time + FRAMETIME;
+	}
+}
+
+static void prox_open (edict_t *ent)
+{
+	edict_t *search = NULL;
+
+	if (ent->s.frame == 9) // end of opening animation
+	{
+		// set the owner to NULL so the owner can walk through it.  needs to be done here so the owner
+		// doesn't get stuck on it while it's opening if fired at point blank wall
+		ent->s.sound = 0;
+
+		if (deathmatch->value)
+			ent->owner = NULL;
+
+		if (ent->teamchain)
+			ent->teamchain->touch = Prox_Field_Touch;
+		while ((search = findradius (search, ent->s.origin, PROX_DAMAGE_RADIUS + 10)) != NULL)
+		{
+			if (!search->classname) // tag token and other weird shit
+				continue;
+			if (search == ent)
+				continue;
+
+			// if it's a monster or player with health > 0
+			// or it's a player start point
+			// and we can see it
+			// blow up
+			if ((((search->svflags & SVF_MONSTER) || (deathmatch->value && (search->client || !strcmp (search->classname, "prox_mine")))) && (search->health > 0)) ||
+				(deathmatch->value &&
+				 (!strncmp (search->classname, "info_player_", 12) ||
+				  !strcmp (search->classname, "misc_teleporter_dest") ||
+				  !strncmp (search->classname, "item_flag_", 10))))
+			{
+				if (search->client && search == ent->teammaster)
+					continue;
+				if (!visible (search, ent))
+					continue;
+				gi.sound (ent, CHAN_VOICE, gi.soundindex ("weapons/proxwarn.wav"), 1, ATTN_NORM, 0);
+				Prox_Explode (ent);
+				return;
+			}
+		}
+
+		switch (ent->dmg / PROX_DAMAGE)
+		{
+		case 2:
+			ent->wait = level.time + 30;
+			break;
+		case 4:
+			ent->wait = level.time + 15;
+			break;
+		case 8:
+			ent->wait = level.time + 10;
+			break;
+		default:
+			ent->wait = level.time + PROX_TIME_TO_LIVE;
+			break;
+		}
+
+		ent->think = prox_seek;
+		ent->nextthink = level.time + 0.2;
+	}
+	else
+	{
+		if (ent->s.frame == 0)
+			gi.sound (ent, CHAN_VOICE, gi.soundindex ("weapons/proxopen.wav"), 1, ATTN_NORM, 0);
+		ent->s.frame++;
+		ent->think = prox_open;
+		ent->nextthink = level.time + FRAMETIME;
+	}
+}
+
+#define PROX_STOP_EPSILON	0.1
+
+static void prox_land (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+	edict_t	*field;
+	vec3_t	dir, forward, right, up, land_point;
+	int		movetype = MOVETYPE_NONE;
+
+	if (surf && (surf->flags & SURF_SKY))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+
+	if (plane)
+	{
+		VectorMA (ent->s.origin, -10.0f, plane->normal, land_point);
+		if (gi.pointcontents (land_point) & (CONTENTS_SLIME | CONTENTS_LAVA))
+		{
+			Prox_Explode (ent);
+			return;
+		}
+	}
+
+	// a monster, a player, or a mine, a trap or a bomb: blow up on it
+	if (!plane || (other->svflags & SVF_MONSTER) || other->client || (other != world && other->takedamage && other->solid == SOLID_BBOX))
+	{
+		if (other != ent->teammaster)
+			Prox_Explode (ent);
+		return;
+	}
+	else if (other != world)
+	{
+		// Here we need to check to see if we can stop on this entity.
+		vec3_t	out;
+		float	backoff, change;
+		int		i, stick_ok;
+
+		if ((other->movetype == MOVETYPE_PUSH) && (plane->normal[2] > 0.7))
+			stick_ok = 1;
+		else
+			stick_ok = 0;
+
+		backoff = DotProduct (ent->velocity, plane->normal) * 1.5f;
+		for (i = 0; i < 3; i++)
+		{
+			change = plane->normal[i] * backoff;
+			out[i] = ent->velocity[i] - change;
+			if (out[i] > -PROX_STOP_EPSILON && out[i] < PROX_STOP_EPSILON)
+				out[i] = 0;
+		}
+
+		if (out[2] > 60)
+			return;
+
+		movetype = MOVETYPE_BOUNCE;
+
+		// if we're here, we're going to stop on an entity
+		if (stick_ok)
+		{ // it's a happy entity
+			VectorClear (ent->velocity);
+			VectorClear (ent->avelocity);
+		}
+		else // no-stick.  teflon time
+		{
+			if (plane->normal[2] > 0.7)
+			{
+				Prox_Explode (ent);
+				return;
+			}
+			return;
+		}
+	}
+	else if (other->s.modelindex != 1)
+		return;
+
+	vectoangles2 (plane->normal, dir);
+	AngleVectors (dir, forward, right, up);
+
+	if (gi.pointcontents (ent->s.origin) & (CONTENTS_LAVA | CONTENTS_SLIME))
+	{
+		Prox_Explode (ent);
+		return;
+	}
+
+	field = G_Spawn ();
+
+	VectorCopy (ent->s.origin, field->s.origin);
+	VectorSet (field->mins, -PROX_BOUND_SIZE, -PROX_BOUND_SIZE, -PROX_BOUND_SIZE);
+	VectorSet (field->maxs, PROX_BOUND_SIZE, PROX_BOUND_SIZE, PROX_BOUND_SIZE);
+	field->movetype = MOVETYPE_NONE;
+	field->solid = SOLID_TRIGGER;
+	field->owner = ent;
+	field->classname = "prox_field";
+	field->teammaster = ent;
+	gi.linkentity (field);
+
+	VectorClear (ent->velocity);
+	VectorClear (ent->avelocity);
+	// rotate to vertical
+	dir[PITCH] = dir[PITCH] + 90;
+	VectorCopy (dir, ent->s.angles);
+	ent->takedamage = DAMAGE_AIM;
+	ent->movetype = movetype; // either bounce or none, depending on whether we stuck to something
+	ent->die = prox_die;
+	ent->teamchain = field;
+	ent->health = PROX_HEALTH;
+	ent->nextthink = level.time;
+	ent->think = prox_open;
+	ent->touch = NULL;
+	ent->solid = SOLID_BBOX;
+
+	gi.linkentity (ent);
+}
+
+// in flight: pointed the way it goes, till its time runs out
+static void Prox_Think (edict_t *self)
+{
+	vec3_t	dir;
+
+	if (self->timestamp <= level.time)
+	{
+		Prox_Explode (self);
+		return;
+	}
+
+	VectorCopy (self->velocity, dir);
+	VectorNormalize (dir);
+	vectoangles2 (dir, self->s.angles);
+	self->s.angles[PITCH] -= 90;
+	self->nextthink = level.time + FRAMETIME;
+}
+
+void fire_prox (edict_t *self, vec3_t start, vec3_t aimdir, int prox_damage_multiplier, int speed)
+{
+	edict_t	*prox;
+	vec3_t	dir;
+	vec3_t	forward, right, up;
+	float	gravityAdjustment = sv_gravity->value / 800.f;
+
+	vectoangles2 (aimdir, dir);
+	AngleVectors (dir, forward, right, up);
+
+	prox = G_Spawn ();
+	VectorCopy (start, prox->s.origin);
+	VectorScale (aimdir, speed, prox->velocity);
+	VectorMA (prox->velocity, (200 + crandom () * 10.0f) * gravityAdjustment, up, prox->velocity);
+	VectorMA (prox->velocity, crandom () * 10.0f, right, prox->velocity);
+	VectorCopy (dir, prox->s.angles);
+	prox->s.angles[PITCH] -= 90;
+	prox->movetype = MOVETYPE_BOUNCE;
+	prox->solid = SOLID_BBOX;
+	prox->s.effects |= EF_GRENADE;
+	prox->clipmask = MASK_SHOT | CONTENTS_LAVA | CONTENTS_SLIME;
+	prox->s.renderfx |= RF_IR_VISIBLE;
+	VectorSet (prox->mins, -6, -6, -6);
+	VectorSet (prox->maxs, 6, 6, 6);
+	prox->s.modelindex = gi.modelindex ("models/weapons/g_prox/tris.md2");
+	prox->owner = self;
+	prox->teammaster = self;
+	prox->touch = prox_land;
+	prox->think = Prox_Think;
+	prox->nextthink = level.time + FRAMETIME;
+	prox->dmg = PROX_DAMAGE * prox_damage_multiplier;
+	prox->classname = "prox_mine";
+
+	switch (prox_damage_multiplier)
+	{
+	case 2:
+		prox->timestamp = level.time + 30;
+		break;
+	case 4:
+		prox->timestamp = level.time + 15;
+		break;
+	case 8:
+		prox->timestamp = level.time + 10;
+		break;
+	default:
+		prox->timestamp = level.time + PROX_TIME_TO_LIVE;
+		break;
+	}
+
+	gi.linkentity (prox);
+}
+
+#define NUKE_DELAY			4
+#define NUKE_TIME_TO_LIVE	6
+#define NUKE_RADIUS			512
+#define NUKE_DAMAGE			400
+#define NUKE_QUAKE_TIME		3
+#define NUKE_QUAKE_STRENGTH	100
+
+/*
+Like T_RadiusDamage, but through walls: within the radius, 10000;
+beyond it, falling off to none at twice it. Players who see it go off
+are blinded for a while (client->nuke_framenum).
+*/
+void T_RadiusNukeDamage (edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod)
+{
+	float	points, len, killzone, killzone2, dist;
+	edict_t	*ent = NULL;
+	vec3_t	v, dir;
+	trace_t	tr;
+	int		i;
+
+	killzone = radius;
+	killzone2 = radius * 2.0f;
+
+	while ((ent = findradius (ent, inflictor->s.origin, killzone2)) != NULL)
+	{
+		// ignore nobody
+		if (ent == ignore)
+			continue;
+		if (!ent->takedamage)
+			continue;
+		if (!ent->inuse)
+			continue;
+		if (!(ent->client || (ent->svflags & SVF_MONSTER)))
+			continue;
+
+		VectorAdd (ent->mins, ent->maxs, v);
+		VectorMA (ent->s.origin, 0.5, v, v);
+		VectorSubtract (inflictor->s.origin, v, v);
+		len = VectorLength (v);
+		if (len <= killzone)
+			points = 10000;
+		else if (len <= killzone2)
+			points = (damage / killzone) * (killzone2 - len);
+		else
+			points = 0;
+
+		if (points > 0)
+		{
+			if (ent->client)
+				ent->client->nuke_framenum = level.framenum + 20;
+			VectorSubtract (ent->s.origin, inflictor->s.origin, dir);
+			T_Damage (ent, inflictor, attacker, dir, inflictor->s.origin, vec3_origin, (int) points, (int) points, DAMAGE_RADIUS, mod);
+		}
+	}
+
+	// the flash, for every player: blinding in sight, less behind a wall
+	for (i = 1; i <= game.maxclients; i++)
+	{
+		ent = g_edicts + i;
+		if (!ent->inuse || !ent->client || ent->client->nuke_framenum == level.framenum + 20)
+			continue;
+		tr = gi.trace (inflictor->s.origin, NULL, NULL, ent->s.origin, inflictor, MASK_SOLID);
+		if (tr.fraction == 1.0f)
+			ent->client->nuke_framenum = level.framenum + 20;
+		else
+		{
+			dist = realrange (ent, inflictor);
+			if (dist < 2048)
+			{
+				if (ent->client->nuke_framenum < level.framenum + 15)
+					ent->client->nuke_framenum = level.framenum + 15;
+			}
+			else if (ent->client->nuke_framenum < level.framenum + 10)
+				ent->client->nuke_framenum = level.framenum + 10;
+		}
+	}
+}
+
+static void Nuke_Quake (edict_t *self)
+{
+	int		i;
+	edict_t	*e;
+
+	if (self->last_move_time < level.time)
+	{
+		gi.positioned_sound (self->s.origin, self, CHAN_AUTO, self->noise_index, 0.75, ATTN_NONE, 0);
+		self->last_move_time = level.time + 0.5;
+	}
+
+	for (i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++)
+	{
+		if (!e->inuse)
+			continue;
+		if (!e->client)
+			continue;
+		if (!e->groundentity)
+			continue;
+
+		e->groundentity = NULL;
+		e->velocity[0] += crandom () * 150;
+		e->velocity[1] += crandom () * 150;
+		e->velocity[2] = self->speed * (100.0f / e->mass);
+	}
+
+	if (level.time < self->timestamp)
+		self->nextthink = level.time + FRAMETIME;
+	else
+		G_FreeEdict (self);
+}
+
+static void Nuke_Explode (edict_t *ent)
+{
+	if (ent->teammaster->client)
+		PlayerNoise (ent->teammaster, ent->s.origin, PNOISE_IMPACT);
+
+	T_RadiusNukeDamage (ent, ent->teammaster, (float) ent->dmg, ent, ent->dmg_radius, MOD_NUKE);
+
+	if (ent->dmg > NUKE_DAMAGE)
+		gi.sound (ent, CHAN_ITEM, gi.soundindex ("items/damage3.wav"), 1, ATTN_NORM, 0);
+
+	gi.sound (ent, CHAN_NO_PHS_ADD | CHAN_VOICE, gi.soundindex ("weapons/grenlx1a.wav"), 1, ATTN_NONE, 0);
+
+	gi.WriteByte (svc_temp_entity);
+	gi.WriteByte (TE_EXPLOSION1_BIG);
+	gi.WritePosition (ent->s.origin);
+	gi.multicast (ent->s.origin, MULTICAST_PHS);
+
+	gi.WriteByte (svc_temp_entity);
+	gi.WriteByte (TE_NUKEBLAST);
+	gi.WritePosition (ent->s.origin);
+	gi.multicast (ent->s.origin, MULTICAST_ALL);
+
+	// become a quake
+	ent->svflags |= SVF_NOCLIENT;
+	ent->noise_index = gi.soundindex ("world/rumble.wav");
+	ent->think = Nuke_Quake;
+	ent->speed = NUKE_QUAKE_STRENGTH;
+	ent->timestamp = level.time + NUKE_QUAKE_TIME;
+	ent->nextthink = level.time + FRAMETIME;
+	ent->last_move_time = 0;
+}
+
+static void nuke_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
+{
+	self->takedamage = DAMAGE_NO;
+	if (attacker && attacker->classname && !strcmp (attacker->classname, "nuke"))
+	{
+		G_FreeEdict (self);
+		return;
+	}
+	Nuke_Explode (self);
+}
+
+static void Nuke_Think (edict_t *ent)
+{
+	float	attenuation, default_atten = 1.8f;
+	int		muzzleflash;
+
+	switch (ent->dmg / NUKE_DAMAGE)
+	{
+	case 2:
+		attenuation = default_atten / 2.0f;
+		muzzleflash = MZ_NUKE2;
+		break;
+	case 4:
+		attenuation = default_atten / 3.0f;
+		muzzleflash = MZ_NUKE4;
+		break;
+	case 8:
+		attenuation = default_atten / 5.0f;
+		muzzleflash = MZ_NUKE8;
+		break;
+	default:
+		attenuation = default_atten / 1.4f;
+		muzzleflash = MZ_NUKE1;
+		break;
+	}
+
+	if (ent->wait < level.time)
+		Nuke_Explode (ent);
+	else if (level.time >= (ent->wait - NUKE_TIME_TO_LIVE))
+	{
+		ent->s.frame++;
+
+		if (ent->s.frame > 11)
+			ent->s.frame = 6;
+
+		if (gi.pointcontents (ent->s.origin) & (CONTENTS_SLIME | CONTENTS_LAVA))
+		{
+			Nuke_Explode (ent);
+			return;
+		}
+
+		ent->think = Nuke_Think;
+		ent->nextthink = level.time + FRAMETIME;
+		ent->health = 1;
+		ent->owner = NULL;
+
+		gi.WriteByte (svc_muzzleflash);
+		gi.WriteShort (ent - g_edicts);
+		gi.WriteByte (muzzleflash);
+		gi.multicast (ent->s.origin, MULTICAST_PHS);
+
+		if (ent->timestamp <= level.time)
+		{
+			gi.sound (ent, CHAN_NO_PHS_ADD | CHAN_VOICE, gi.soundindex ("weapons/nukewarn2.wav"), 1, attenuation, 0);
+			if ((ent->wait - level.time) <= (NUKE_TIME_TO_LIVE / 2.0f))
+				ent->timestamp = level.time + 0.3;
+			else
+				ent->timestamp = level.time + 0.5;
+		}
+	}
+	else
+	{
+		if (ent->timestamp <= level.time)
+		{
+			gi.sound (ent, CHAN_NO_PHS_ADD | CHAN_VOICE, gi.soundindex ("weapons/nukewarn2.wav"), 1, attenuation, 0);
+			ent->timestamp = level.time + 1;
+		}
+		ent->nextthink = level.time + FRAMETIME;
+	}
+}
+
+static void nuke_bounce (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+	if (surf)
+	{
+		if (random () > 0.5)
+			gi.sound (ent, CHAN_BODY, gi.soundindex ("weapons/hgrenb1a.wav"), 1, ATTN_NORM, 0);
+		else
+			gi.sound (ent, CHAN_BODY, gi.soundindex ("weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
+	}
+}
+
+void fire_nuke (edict_t *self, vec3_t start, vec3_t aimdir, int speed, int damage_modifier)
+{
+	edict_t	*nuke;
+	vec3_t	dir;
+	vec3_t	forward, right, up;
+
+	vectoangles2 (aimdir, dir);
+	AngleVectors (dir, forward, right, up);
+
+	nuke = G_Spawn ();
+	VectorCopy (start, nuke->s.origin);
+	VectorScale (aimdir, speed, nuke->velocity);
+	VectorMA (nuke->velocity, 200 + crandom () * 10.0f, up, nuke->velocity);
+	VectorMA (nuke->velocity, crandom () * 10.0f, right, nuke->velocity);
+	nuke->movetype = MOVETYPE_BOUNCE;
+	nuke->clipmask = MASK_SHOT;
+	nuke->solid = SOLID_BBOX;
+	nuke->s.effects |= EF_GRENADE;
+	nuke->s.renderfx |= RF_IR_VISIBLE;
+	VectorSet (nuke->mins, -8, -8, 0);
+	VectorSet (nuke->maxs, 8, 8, 16);
+	nuke->s.modelindex = gi.modelindex ("models/weapons/g_nuke/tris.md2");
+	nuke->owner = self;
+	nuke->teammaster = self;
+	nuke->nextthink = level.time + FRAMETIME;
+	nuke->wait = level.time + NUKE_DELAY + NUKE_TIME_TO_LIVE;
+	nuke->think = Nuke_Think;
+	nuke->touch = nuke_bounce;
+
+	nuke->health = 10000;
+	nuke->takedamage = DAMAGE_YES;
+	nuke->dmg = NUKE_DAMAGE * damage_modifier;
+	if (damage_modifier == 1)
+		nuke->dmg_radius = NUKE_RADIUS;
+	else
+		nuke->dmg_radius = NUKE_RADIUS + NUKE_RADIUS * (0.25f * (float) damage_modifier);
+	// this yields 1.0, 1.5, 2.0, 3.0 times radius
+
+	nuke->classname = "nuke";
+	nuke->die = nuke_die;
+
+	gi.linkentity (nuke);
+}
+
+/*QUAKED misc_nuke_core (1 0 0) (-16 -16 -16) (16 16 16)
+Ground Zero's: the antimatter core, shown and hidden each time it is used
+(rammo1). It starts shown.
+*/
+static void misc_nuke_core_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	if (self->svflags & SVF_NOCLIENT)
+		self->svflags &= ~SVF_NOCLIENT;
+	else
+		self->svflags |= SVF_NOCLIENT;
+}
+
+void SP_misc_nuke_core (edict_t *ent)
+{
+	gi.setmodel (ent, "models/objects/core/tris.md2");
+	gi.linkentity (ent);
+
+	ent->use = misc_nuke_core_use;
+}
+
+/*
+ * Ground Zero's hint paths: chains of hint_path a monster that has lost its
+ * enemy for a while follows, when one end of a chain can see it and the
+ * other its enemy.
+ */
+#define HINT_ENDPOINT		1
+#define MAX_HINT_CHAINS		100
+
+static int		hint_paths_present;
+static edict_t	*hint_path_start[MAX_HINT_CHAINS];
+static int		num_hint_paths;
+
+/*
+=============
+hintpath_go
+
+Starts a monster moving towards a hint_path.
+=============
+*/
+static void hintpath_go (edict_t *self, edict_t *point)
+{
+	vec3_t	dir;
+
+	VectorSubtract (point->s.origin, self->s.origin, dir);
+
+	self->ideal_yaw = vectoyaw (dir);
+	self->goalentity = self->movetarget = point;
+	self->monsterinfo.pausetime = 0;
+	self->monsterinfo.aiflags |= AI_HINT_PATH;
+	self->monsterinfo.aiflags &= ~(AI_SOUND_TARGET | AI_PURSUIT_LAST_SEEN | AI_PURSUE_NEXT | AI_PURSUE_TEMP);
+	// run for it
+	self->monsterinfo.search_time = level.time;
+	self->monsterinfo.run (self);
+}
+
+/*
+=============
+hintpath_stop
+
+Bails a monster out of following hint paths.
+=============
+*/
+void hintpath_stop (edict_t *self)
+{
+	self->goalentity = NULL;
+	self->movetarget = NULL;
+	self->monsterinfo.last_hint_time = level.time;
+	self->monsterinfo.goal_hint = NULL;
+	self->monsterinfo.aiflags &= ~AI_HINT_PATH;
+	if (has_valid_enemy (self))
+	{
+		// if we can see our target, go nuts
+		if (visible (self, self->enemy))
+		{
+			FoundTarget (self);
+			return;
+		}
+		// otherwise, keep chasing
+		HuntTarget (self);
+		return;
+	}
+	// our enemy is no longer valid: forget it and stand, for good, or the
+	// stand code would walk on hunting the world
+	self->enemy = NULL;
+	self->monsterinfo.pausetime = 100000000;
+	self->monsterinfo.stand (self);
+}
+
+/*
+=============
+monsterlost_checkhint
+
+Finds a hint path for a monster that has lost its enemy: the closest node
+within 512 it can see, on a chain with a node within 512 its enemy can see.
+=============
+*/
+qboolean monsterlost_checkhint (edict_t *self)
+{
+	edict_t		*e, *monster_pathchain, *target_pathchain, *checkpoint = NULL;
+	edict_t		*closest, *start, *destination;
+	float		closest_range = 1000000;
+	int			count;
+	float		r;
+	int			i;
+	qboolean	hint_path_represented[MAX_HINT_CHAINS];
+
+	// if there are no hint paths on this map, exit immediately
+	if (!hint_paths_present)
+		return false;
+
+	if (!self->enemy)
+		return false;
+
+	// nor on the re-release's paths
+	if (self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_PATHING))
+		return false;
+
+	if (!strcmp (self->classname, "monster_turret"))
+		return false;
+
+	// link all the hint_paths
+	monster_pathchain = NULL;
+	for (i = 0; i < num_hint_paths; i++)
+	{
+		for (e = hint_path_start[i]; e; e = e->hint_chain)
+		{
+			e->monster_hint_chain = NULL;
+			if (monster_pathchain)
+				checkpoint->monster_hint_chain = e;
+			else
+				monster_pathchain = e;
+			checkpoint = e;
+		}
+	}
+
+	// filter them by distance and visibility to the monster
+	e = monster_pathchain;
+	checkpoint = NULL;
+	count = 0;
+	while (e)
+	{
+		if (realrange (self, e) > 512 || !visible (self, e))
+		{
+			if (checkpoint)
+			{
+				checkpoint->monster_hint_chain = e->monster_hint_chain;
+				e->monster_hint_chain = NULL;
+				e = checkpoint->monster_hint_chain;
+			}
+			else
+			{
+				// none valid yet: move the start of the chain on
+				monster_pathchain = e->monster_hint_chain;
+				e->monster_hint_chain = NULL;
+				e = monster_pathchain;
+			}
+			continue;
+		}
+
+		count++;
+		checkpoint = e;
+		e = e->monster_hint_chain;
+	}
+
+	if (!count)
+		return false;
+
+	// which hint chains these are on
+	for (i = 0; i < num_hint_paths; i++)
+		hint_path_represented[i] = false;
+
+	for (e = monster_pathchain; e; e = e->monster_hint_chain)
+	{
+		if (e->hint_chain_id < 0 || e->hint_chain_id >= num_hint_paths)
+			return false;
+		hint_path_represented[e->hint_chain_id] = true;
+	}
+
+	// all the nodes of those chains, to check against the enemy
+	target_pathchain = NULL;
+	checkpoint = NULL;
+	for (i = 0; i < num_hint_paths; i++)
+	{
+		if (!hint_path_represented[i])
+			continue;
+		for (e = hint_path_start[i]; e; e = e->hint_chain)
+		{
+			e->target_hint_chain = NULL;
+			if (target_pathchain)
+				checkpoint->target_hint_chain = e;
+			else
+				target_pathchain = e;
+			checkpoint = e;
+		}
+	}
+
+	// filter them by distance and visibility to the enemy
+	e = target_pathchain;
+	checkpoint = NULL;
+	count = 0;
+	while (e)
+	{
+		if (realrange (self->enemy, e) > 512 || !visible (self->enemy, e))
+		{
+			if (checkpoint)
+			{
+				checkpoint->target_hint_chain = e->target_hint_chain;
+				e->target_hint_chain = NULL;
+				e = checkpoint->target_hint_chain;
+			}
+			else
+			{
+				target_pathchain = e->target_hint_chain;
+				e->target_hint_chain = NULL;
+				e = target_pathchain;
+			}
+			continue;
+		}
+
+		count++;
+		checkpoint = e;
+		e = e->target_hint_chain;
+	}
+
+	if (!count)
+		return false;
+
+	// the chains the enemy's nodes are on
+	for (i = 0; i < num_hint_paths; i++)
+		hint_path_represented[i] = false;
+
+	for (e = target_pathchain; e; e = e->target_hint_chain)
+	{
+		if (e->hint_chain_id < 0 || e->hint_chain_id >= num_hint_paths)
+			return false;
+		hint_path_represented[e->hint_chain_id] = true;
+	}
+
+	// the monster's node to go to: on one of those chains, and (as in the
+	// original, which never lowers closest_range) the last such
+	closest = NULL;
+	e = monster_pathchain;
+	while (e)
+	{
+		if (!hint_path_represented[e->hint_chain_id])
+		{
+			checkpoint = e->monster_hint_chain;
+			e->monster_hint_chain = NULL;
+			e = checkpoint;
+			continue;
+		}
+		r = realrange (self, e);
+		if (r < closest_range)
+			closest = e;
+		e = e->monster_hint_chain;
+	}
+
+	if (!closest)
+		return false;
+
+	start = closest;
+
+	// and where on its chain it is heading
+	closest = NULL;
+	closest_range = 10000000;
+	for (e = target_pathchain; e; e = e->target_hint_chain)
+	{
+		if (start->hint_chain_id == e->hint_chain_id)
+		{
+			r = realrange (self, e);
+			if (r < closest_range)
+				closest = e;
+		}
+	}
+
+	if (!closest)
+		return false;
+
+	destination = closest;
+
+	self->monsterinfo.goal_hint = destination;
+	hintpath_go (self, start);
+
+	return true;
+}
+
+/*
+=============
+hint_path_touch
+
+A monster following hint paths reached this one: on to the next, toward its
+goal, or off them there.
+=============
+*/
+static void hint_path_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+	edict_t		*e, *goal, *next = NULL;
+	qboolean	goalFound = false;
+
+	// make sure we're the target of its obsession
+	if (other->movetarget != self)
+		return;
+
+	goal = other->monsterinfo.goal_hint;
+
+	// if the monster is where it wants to be
+	if (goal == self)
+	{
+		hintpath_stop (other);
+		return;
+	}
+
+	// which way along the chain it is going
+	for (e = hint_path_start[self->hint_chain_id]; e; e = e->hint_chain)
+	{
+		// up to ourselves first: going down it
+		if (e == self)
+		{
+			next = e->hint_chain;
+			break;
+		}
+		if (e == goal)
+			goalFound = true;
+		// the goal before us: going up it, to the previous link
+		if (e->hint_chain == self && goalFound)
+		{
+			next = e;
+			break;
+		}
+	}
+
+	// if we couldn't find it, have the monster go back to normal hunting
+	if (!next)
+	{
+		hintpath_stop (other);
+		return;
+	}
+
+	// send it on its way
+	hintpath_go (other, next);
+
+	// a wait freezes the monster here, as when riding a plat
+	if (self->wait)
+		other->nextthink = level.time + self->wait;
+}
+
+/*QUAKED hint_path (.5 .3 0) (-8 -8 -8) (8 8 8) END
+Ground Zero's. Target: the next hint path.
+
+END - set this flag on the endpoints of each hintpath.
+
+"wait" - set this if you want the monster to freeze when they touch this hintpath
+*/
+void SP_hint_path (edict_t *self)
+{
+	if (deathmatch->value)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+
+	if (!self->targetname && !self->target)
+	{
+		gi.dprintf ("hint_path at %s: unlinked\n", vtos (self->s.origin));
+		G_FreeEdict (self);
+		return;
+	}
+
+	self->solid = SOLID_TRIGGER;
+	self->touch = hint_path_touch;
+	VectorSet (self->mins, -8, -8, -8);
+	VectorSet (self->maxs, 8, 8, 8);
+	self->svflags |= SVF_NOCLIENT;
+	gi.linkentity (self);
+}
+
+/*
+============
+InitHintPaths
+
+Links the map's hint paths into chains, after it is spawned or loaded.
+============
+*/
+void InitHintPaths (void)
+{
+	edict_t	*e, *current;
+	int		i;
+
+	hint_paths_present = 0;
+	num_hint_paths = 0;
+	memset (hint_path_start, 0, sizeof(hint_path_start));
+
+	// the links are made anew (a save game's are not good)
+	e = NULL;
+	while ((e = G_Find (e, FOFS(classname), "hint_path")) != NULL)
+	{
+		hint_paths_present = 1;
+		e->hint_chain = e->monster_hint_chain = e->target_hint_chain = NULL;
+		e->hint_chain_id = 0;
+	}
+	if (!hint_paths_present)
+		return;
+
+	e = NULL;
+	while ((e = G_Find (e, FOFS(classname), "hint_path")) != NULL)
+	{
+		if (!(e->spawnflags & HINT_ENDPOINT) || !e->target)
+			continue;
+		if (e->targetname)		// this is a bad end, ignore it
+		{
+			gi.dprintf ("hint_path at %s: marked as endpoint with both target (%s) and targetname (%s)\n",
+				vtos (e->s.origin), e->target, e->targetname);
+			continue;
+		}
+		if (num_hint_paths >= MAX_HINT_CHAINS)
+			break;
+		hint_path_start[num_hint_paths++] = e;
+	}
+
+	for (i = 0; i < num_hint_paths; i++)
+	{
+		current = hint_path_start[i];
+		current->hint_chain_id = i;
+		e = G_Find (NULL, FOFS(targetname), current->target);
+		if (G_Find (e, FOFS(targetname), current->target))
+		{
+			gi.dprintf ("hint_path at %s: forked path detected for chain %i, target %s\n",
+				vtos (current->s.origin), num_hint_paths, current->target);
+			hint_path_start[i]->hint_chain = NULL;
+			continue;
+		}
+		while (e)
+		{
+			if (e->hint_chain)
+			{
+				gi.dprintf ("hint_path at %s: circular path detected for chain %i, targetname %s\n",
+					vtos (e->s.origin), num_hint_paths, e->targetname);
+				hint_path_start[i]->hint_chain = NULL;
+				break;
+			}
+			current->hint_chain = e;
+			current = e;
+			current->hint_chain_id = i;
+			if (!current->target)
+				break;
+			e = G_Find (NULL, FOFS(targetname), current->target);
+			if (G_Find (e, FOFS(targetname), current->target))
+			{
+				gi.dprintf ("hint_path at %s: forked path detected for chain %i, target %s\n",
+					vtos (current->s.origin), num_hint_paths, current->target);
+				hint_path_start[i]->hint_chain = NULL;
+				break;
+			}
+		}
+	}
+}
+
+/*QUAKED trigger_disguise (.5 .5 .5) ? TOGGLE START_ON REMOVE
+Ground Zero's. Anything passing through this trigger when it is active will
+be marked as disguised.
+
+TOGGLE - field is turned off and on when used (it always is)
+START_ON - field is active when spawned
+REMOVE - field removes the disguise
+*/
+static void trigger_disguise_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+	if (!other->client)
+		return;
+
+	if (self->spawnflags & 4)
+		other->flags &= ~FL_DISGUISED;
+	else
+		other->flags |= FL_DISGUISED;
+}
+
+static void trigger_disguise_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	if (self->solid == SOLID_NOT)
+		self->solid = SOLID_TRIGGER;
+	else
+		self->solid = SOLID_NOT;
+
+	gi.linkentity (self);
+}
+
+void SP_trigger_disguise (edict_t *self)
+{
+	// the re-release's health icon for it, in its paks only
+	if (!level.disguise_icon && RR_Map ())
+		level.disguise_icon = gi.imageindex ("i_disguise");
+
+	if (self->spawnflags & 2)
+		self->solid = SOLID_TRIGGER;
+	else
+		self->solid = SOLID_NOT;
+
+	self->touch = trigger_disguise_touch;
+	self->use = trigger_disguise_use;
+	self->movetype = MOVETYPE_NONE;
+	self->svflags = SVF_NOCLIENT;
+
+	gi.setmodel (self, self->model);
+	gi.linkentity (self);
+}
+
+/*QUAKED target_blacklight (1 0 1) (-16 -16 -24) (16 16 24)
+Ground Zero's. Pulsing black light with sphere in the center.
+*/
+static void blacklight_think (edict_t *self)
+{
+	self->s.angles[0] = rand() % 360;
+	self->s.angles[1] = rand() % 360;
+	self->s.angles[2] = rand() % 360;
+	self->nextthink = level.time + FRAMETIME;
+}
+
+void SP_target_blacklight (edict_t *ent)
+{
+	if (deathmatch->value)
+	{	// auto-remove for deathmatch
+		G_FreeEdict (ent);
+		return;
+	}
+
+	VectorClear (ent->mins);
+	VectorClear (ent->maxs);
+
+	// Ground Zero's own model: the re-release's draws a smaller one scaled
+	// up, which this protocol can't
+	ent->s.effects |= (EF_TRACKERTRAIL | EF_TRACKER);
+	ent->think = blacklight_think;
+	ent->s.modelindex = gi.modelindex ("models/items/spawngro2/tris.md2");
+	ent->s.frame = 1;
+	ent->nextthink = level.time + FRAMETIME;
+	gi.linkentity (ent);
+}
+
+/*QUAKED target_orb (1 0 1) (-16 -16 -24) (16 16 24)
+Ground Zero's. Translucent pulsing orb with speckles.
+*/
+void SP_target_orb (edict_t *ent)
+{
+	if (deathmatch->value)
+	{	// auto-remove for deathmatch
+		G_FreeEdict (ent);
+		return;
+	}
+
+	VectorClear (ent->mins);
+	VectorClear (ent->maxs);
+
+	ent->think = blacklight_think;
+	ent->nextthink = level.time + FRAMETIME;
+	ent->s.modelindex = gi.modelindex ("models/items/spawngro2/tris.md2");
+	ent->s.frame = 2;
+	ent->s.effects |= EF_SPHERETRANS;
+	gi.linkentity (ent);
+}
+
+/*QUAKED info_nav_lock (1.0 1.0 0.0) (-16 -16 0) (16 16 32)
+The re-release's: toggles the locked state of its target doors, for its
+navigation (bots). This game has none of that, so it does nothing.
+*/
+static void info_nav_lock_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+}
+
+void SP_info_nav_lock (edict_t *self)
+{
+	if (!self->targetname || !self->target)
+	{
+		gi.dprintf ("info_nav_lock at %s: missing %s\n", vtos (self->s.origin),
+			self->targetname ? "target" : "targetname");
+		G_FreeEdict (self);
+		return;
+	}
+
+	self->svflags |= SVF_NOCLIENT;
+	self->use = info_nav_lock_use;
 }

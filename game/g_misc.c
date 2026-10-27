@@ -151,6 +151,7 @@ edict_t *ThrowGib (edict_t *self, char *gibname, int damage, int type)
 	gi.setmodel (gib, gibname);
 	gib->solid = SOLID_NOT;
 	gib->s.effects |= EF_GIB;
+	gib->s.renderfx |= RF_IR_VISIBLE;
 	gib->flags |= FL_NO_KNOCKBACK;
 	gib->takedamage = DAMAGE_YES;
 	gib->die = gib_die;
@@ -195,6 +196,7 @@ void ThrowHead (edict_t *self, char *gibname, int damage, int type)
 	gi.setmodel (self, gibname);
 	self->solid = SOLID_NOT;
 	self->s.effects |= EF_GIB;
+	self->s.renderfx |= RF_IR_VISIBLE;
 	self->s.effects &= ~EF_FLIES;
 	self->s.sound = 0;
 	self->flags |= FL_NO_KNOCKBACK;
@@ -1145,6 +1147,7 @@ void SP_misc_explobox (edict_t *self)
 	gi.modelindex ("models/objects/debris1/tris.md2");
 	gi.modelindex ("models/objects/debris2/tris.md2");
 	gi.modelindex ("models/objects/debris3/tris.md2");
+	self->flags |= FL_TRAP;		// the re-release's paths keep off it
 
 	self->solid = SOLID_BBOX;
 	self->movetype = MOVETYPE_STEP;
@@ -2187,4 +2190,193 @@ void SP_misc_lavaball (edict_t *self)
 	self->nextthink = level.time + random() * 5;
 	if (!self->speed)
 		self->speed = 185;
+}
+
+/*QUAKED misc_model (1 0 0) (-8 -8 -8) (8 8 8)
+The re-release's: a model, as it stands ("model", "frame").
+*/
+void SP_misc_model (edict_t *ent)
+{
+	gi.setmodel (ent, ent->model);
+	gi.linkentity (ent);
+}
+
+/*QUAKED misc_player_mannequin (1.0 1.0 0.0) (-32 -32 -32) (32 32 32)
+The re-release's: a player model that stands around, turning to whoever
+triggers it and making a gesture.
+
+ "distance"	- the gesture (0 flip off, 1 salute, 2 taunt, 3 wave, 4 point)
+ "height"	- the model (1 female, 2 male, 3 cyborg)
+ "goals"	- the weapon's model
+ "image"	- the skin
+ "radius"	- its scale, which this protocol can't draw: smaller than
+			  full size, it is left out
+*/
+#include "m_player.h"
+
+static void misc_player_mannequin_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	self->monsterinfo.aiflags |= AI_TARGET_ANGER;
+	self->enemy = activator;
+
+	switch (self->count)
+	{
+	case 0:
+		self->s.frame = FRAME_flip01;
+		self->monsterinfo.nextframe = FRAME_flip12;
+		break;
+	case 1:
+		self->s.frame = FRAME_salute01;
+		self->monsterinfo.nextframe = FRAME_salute11;
+		break;
+	case 2:
+		self->s.frame = FRAME_taunt01;
+		self->monsterinfo.nextframe = FRAME_taunt17;
+		break;
+	case 3:
+		self->s.frame = FRAME_wave01;
+		self->monsterinfo.nextframe = FRAME_wave11;
+		break;
+	case 4:
+		self->s.frame = FRAME_point01;
+		self->monsterinfo.nextframe = FRAME_point12;
+		break;
+	}
+}
+
+static void misc_player_mannequin_think (edict_t *self)
+{
+	vec3_t	vec;
+
+	self->s.frame++;
+
+	if (!(self->monsterinfo.aiflags & AI_TARGET_ANGER))
+	{
+		if (self->s.frame > FRAME_stand40)
+			self->s.frame = FRAME_stand01;
+	}
+	else if (self->s.frame > self->monsterinfo.nextframe)
+	{
+		self->s.frame = FRAME_stand01;
+		self->monsterinfo.aiflags &= ~AI_TARGET_ANGER;
+		self->enemy = NULL;
+	}
+
+	if (self->enemy)
+	{
+		VectorSubtract (self->enemy->s.origin, self->s.origin, vec);
+		self->ideal_yaw = vectoyaw (vec);
+		M_ChangeYaw (self);
+	}
+
+	self->nextthink = level.time + FRAMETIME;
+}
+
+void SP_misc_player_mannequin (edict_t *self)
+{
+	char	*modelName, *defaultSkin, *weapon, *skin;
+
+	if (st.radius > 0 && st.radius < 1)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+
+	self->movetype = MOVETYPE_NONE;
+	self->solid = SOLID_BBOX;
+	self->s.effects = 0;
+	self->s.renderfx = RF_MINLIGHT;
+	VectorSet (self->mins, -16, -16, -24);
+	VectorSet (self->maxs, 16, 16, 32);
+	self->yaw_speed = 30;
+	self->ideal_yaw = self->s.angles[YAW];
+	self->s.modelindex = 255;		// a player's, of the client slot in skinnum
+	self->count = st.distance;
+
+	switch (st.height)
+	{
+	case 2:
+		self->s.skinnum = MAX_CLIENTS - 2;
+		modelName = "male";
+		defaultSkin = "rampage";
+		break;
+	case 3:
+		self->s.skinnum = MAX_CLIENTS - 3;
+		modelName = "cyborg";
+		defaultSkin = "oni911";
+		break;
+	default:
+		self->s.skinnum = MAX_CLIENTS - 1;
+		modelName = "female";
+		defaultSkin = "venus";
+		break;
+	}
+
+	weapon = st.goals ? st.goals : "w_hyperblaster";
+	skin = st.image ? st.image : defaultSkin;
+	self->s.modelindex2 = gi.modelindex (va ("players/%s/%s.md2", modelName, weapon));
+	gi.configstring (CS_PLAYERSKINS + self->s.skinnum, va ("mannequin\\%s/%s", modelName, skin));
+
+	self->think = misc_player_mannequin_think;
+	self->nextthink = level.time + FRAMETIME;
+
+	if (self->targetname)
+		self->use = misc_player_mannequin_use;
+
+	gi.linkentity (self);
+}
+
+/*QUAKED misc_ctf_banner (1 .5 0) (-4 -64 0) (4 64 248) TEAM2
+The re-release's CTF banner, waving. The origin is the bottom of the
+banner, which is 248 tall.
+*/
+static void misc_ctf_banner_think (edict_t *ent)
+{
+	ent->s.frame = (ent->s.frame + 1) % 16;
+	ent->nextthink = level.time + FRAMETIME;
+}
+
+static void misc_ctf_banner_spawn (edict_t *ent, char *model)
+{
+	ent->movetype = MOVETYPE_NONE;
+	ent->solid = SOLID_NOT;
+	ent->s.modelindex = gi.modelindex (model);
+	if (ent->spawnflags & 1)		// team2
+		ent->s.skinnum = 1;
+
+	ent->s.frame = rand() % 16;
+	gi.linkentity (ent);
+
+	ent->think = misc_ctf_banner_think;
+	ent->nextthink = level.time + FRAMETIME;
+}
+
+void SP_misc_ctf_banner (edict_t *ent)
+{
+	misc_ctf_banner_spawn (ent, "models/ctf/banner/tris.md2");
+}
+
+/*QUAKED misc_ctf_small_banner (1 .5 0) (-4 -32 0) (4 32 124) TEAM2
+The re-release's smaller CTF banner, 124 tall.
+*/
+void SP_misc_ctf_small_banner (edict_t *ent)
+{
+	misc_ctf_banner_spawn (ent, "models/ctf/banner/small.md2");
+}
+
+/*QUAKED info_player_team1 (1 0 0) (-16 -16 -24) (16 16 32)
+The re-release's CTF team spawning positions, which do nothing outside
+its CTF (not here). info_player_team2 likewise.
+*/
+void SP_info_player_team (edict_t *self)
+{
+}
+
+/*
+ * The re-release's CTF flags and Ground Zero's tag token: those games'
+ * (not here); in any other they are removed, as there.
+ */
+void SP_game_mode_only (edict_t *self)
+{
+	G_FreeEdict (self);
 }

@@ -66,7 +66,7 @@ void AI_SetSightClient (void)
 		ent = &g_edicts[check];
 		if (ent->inuse
 			&& ent->health > 0
-			&& !(ent->flags & FL_NOTARGET) )
+			&& !(ent->flags & (FL_NOTARGET|FL_DISGUISED)) )
 		{
 			level.sight_client = ent;
 			return;		// got one
@@ -392,6 +392,9 @@ void FoundTarget (edict_t *self)
 	// let other monsters see this monster for a while
 	if (self->enemy->client)
 	{
+		// Ground Zero's: a disguise is seen through
+		self->enemy->flags &= ~FL_DISGUISED;
+
 		level.sight_entity = self;
 		level.sight_entity_framenum = level.framenum;
 		level.sight_entity->light_level = 128;
@@ -488,6 +491,11 @@ qboolean FindTarget (edict_t *self)
 			return false;
 		}
 	}
+	else if (level.disguise_violation_framenum > level.framenum)
+	{
+		// Ground Zero's: a disguised player who fired
+		client = level.disguise_violator;
+	}
 	else if (level.sound_entity_framenum >= (level.framenum - 1))
 	{
 		client = level.sound_entity;
@@ -511,6 +519,10 @@ qboolean FindTarget (edict_t *self)
 
 	if (client == self->enemy)
 		return true;	// JDC false;
+
+	// Ground Zero's: in coop, a monster on hint paths goes only for what it sees
+	if ((self->monsterinfo.aiflags & AI_HINT_PATH) && coop->value)
+		heardit = false;
 
 	if (client->client)
 	{
@@ -621,7 +633,11 @@ qboolean FindTarget (edict_t *self)
 //
 // got one
 //
-	FoundTarget (self);
+	// Ground Zero's: off hint paths (which finds the target for it)
+	if (self->monsterinfo.aiflags & AI_HINT_PATH)
+		hintpath_stop (self);
+	else
+		FoundTarget (self);
 
 	if (!(self->monsterinfo.aiflags & AI_SOUND_TARGET) && (self->monsterinfo.sight))
 		self->monsterinfo.sight (self, self->enemy);
@@ -643,6 +659,11 @@ qboolean FacingIdeal(edict_t *self)
 	float	delta;
 
 	delta = anglemod(self->s.angles[YAW] - self->ideal_yaw);
+
+	// the re-release's: turned all but square, on its paths
+	if (self->monsterinfo.aiflags & AI_PATHING)
+		return !(delta > 5 && delta < 355);
+
 	if (delta > 45 && delta < 315)
 		return false;
 	return true;
@@ -999,6 +1020,40 @@ void ai_run (edict_t *self, float dist)
 	if ((self->monsterinfo.aiflags & AI_DUCKED) && self->monsterinfo.unduck)
 		self->monsterinfo.unduck (self);
 
+	// Ground Zero's: following hint paths, till it sees its enemy
+	if (self->monsterinfo.aiflags & AI_HINT_PATH)
+	{
+		edict_t	*realEnemy;
+
+		M_MoveToGoal (self, dist);
+		if (!self->inuse)
+			return;
+
+		// the player, not a noise it made
+		if (!self->enemy || !self->enemy->inuse)
+		{
+			self->enemy = NULL;
+			hintpath_stop (self);
+			return;
+		}
+		if (strcmp (self->enemy->classname, "player_noise") != 0)
+			realEnemy = self->enemy;
+		else if (self->enemy->owner)
+			realEnemy = self->enemy->owner;
+		else
+		{
+			self->enemy = NULL;
+			hintpath_stop (self);
+			return;
+		}
+
+		if (visible (self, realEnemy))
+			hintpath_stop (self);
+		else if (coop->value)	// let FindTarget bump it off them
+			FindTarget (self);
+		return;
+	}
+
 	if (self->monsterinfo.aiflags & AI_SOUND_TARGET)
 	{
 		VectorSubtract (self->s.origin, self->enemy->s.origin, v);
@@ -1033,6 +1088,16 @@ void ai_run (edict_t *self, float dist)
 		VectorCopy (self->enemy->s.origin, self->monsterinfo.last_sighting);
 		self->monsterinfo.trail_time = level.time;
 		return;
+	}
+
+	// Ground Zero's: lost its enemy 5 seconds, and not looked these 10, for
+	// a hint path
+	if (self->monsterinfo.trail_time + 5 <= level.time
+		&& self->monsterinfo.last_hint_time + 10 <= level.time)
+	{
+		self->monsterinfo.last_hint_time = level.time;
+		if (monsterlost_checkhint (self))
+			return;
 	}
 
 	// coop will change to another enemy if visible
@@ -1105,7 +1170,7 @@ void ai_run (edict_t *self, float dist)
 
 	VectorSubtract (self->s.origin, self->monsterinfo.last_sighting, v);
 	d1 = VectorLength(v);
-	if (d1 <= dist)
+	if (d1 <= dist && !(self->monsterinfo.aiflags & AI_PATHING))	// not there, on its paths
 	{
 		self->monsterinfo.aiflags |= AI_PURSUE_NEXT;
 		dist = d1;
@@ -1179,6 +1244,9 @@ void ai_run (edict_t *self, float dist)
 	M_MoveToGoal (self, dist);
 
 	G_FreeEdict(tempgoal);
+	// never linked nor sent, so its slot may be had again at once: with
+	// many monsters chasing, holding each a half second ran out of edicts
+	tempgoal->freetime = 0;
 
 	if (self)
 		self->goalentity = save;
