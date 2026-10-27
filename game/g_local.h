@@ -438,6 +438,7 @@ typedef struct
 	float		radius;			// the re-release's target_light
 	char		*goals;			// and worldspawn's Quake 64 objectives
 	char		*image;			// the re-release's mannequin's skin
+	char		*music;			// and worldspawn's music, by its file's name
 	float		health_multiplier;	// a monster's health, scaled
 	char		*reinforcements;	// the re-release's summoners': "classname strength;..."
 	int			monster_slots;		// and how much they may have summoned at once

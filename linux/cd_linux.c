@@ -82,6 +82,12 @@ static int CDAudio_GetAudioDiskInfo(void)
 }
 
 
+// a track by its number; the CD has no named tracks
+void CDAudio_PlayName(char *name, qboolean looping)
+{
+	CDAudio_Play(atoi(name), looping);
+}
+
 void CDAudio_Play(int track, qboolean looping)
 {
 	struct cdrom_tocentry entry;

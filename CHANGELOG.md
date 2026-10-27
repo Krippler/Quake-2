@@ -18,6 +18,13 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   map opens with a trigger, a plat or train, a wall still to be blown
   open and live grenades, barrels and lasers are kept off, as there.
   `nav_enable 0` turns it off.
+- **The re-release's music.** It numbers the whole soundtrack as one --
+  the base game's tracks 2 to 11, the mission packs' 12 to 21 and Quake
+  64's 64 to 79 -- and a map can name a file instead (the CTF map
+  ndctf0's); both are played from the music directory, and a rip named
+  `02.ogg` as well as `track02.ogg`. Quake 64's objectives and endings
+  play its victory music, and Call of the Machine's change track as
+  they're done, as there.
 - **The rising lava of Ground Zero's lava mine (rmine2).** Once it
   starts, it climbs after you, faster the further above it you are,
   and coop players come back in above it, as in Ground Zero. Before, it

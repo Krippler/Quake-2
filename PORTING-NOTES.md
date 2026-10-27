@@ -126,6 +126,18 @@ built for Yamagi Quake II, whose game API is id's, drops in.
   `baseq2`, and again whenever the game directory changes. The `cd` command
   and the menu's CD music switch (`cd_nocd`) work as before; `cd_volume`
   scales it.
+- **`linux/cd_stream.c`**, **`client/cl_parse.c`**: the track is what
+  `CS_CDTRACK` says, a number or (the re-release's worldspawn "music") a
+  file's name, which `CDAudio_PlayName` looks for as it is or with each
+  extension; `cd play` and `cd loop` take either. A number is also looked
+  for as a bare `NN.<ext>`, as Yamagi's and Quake II RTX's rips are named.
+  The re-release's numbering (its mission packs' 12 to 21, Quake 64's 64
+  to 79) is played as it is. Its `CS_CD_LOOP_COUNT` is not: a track loops
+  for good here, as on the CD. Every map that sets it (Call of the
+  Machine's, and Quake 64's by the game) sets 0, taken to mean the same;
+  what its engine does without it is not known here. The game sends `target_goal`'s "sounds" when the last goal is
+  done (unless KEEP_MUSIC) and `target_camera`'s when it starts, as the
+  re-release does. `cd_linux.c`'s drive has numbers only.
 - **`client/menu.c`**: Options has a music volume slider, for `cd_volume`,
   in the place of "sound compatibility", which set `s_primary`, a DirectSound
   setting that nothing outside Windows ever read.

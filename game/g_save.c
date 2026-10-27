@@ -204,6 +204,7 @@ field_t fields[] = {
 	{"healthtarget", FOFS(healthtarget), F_LSTRING},
 	{"goals", STOFS(goals), F_LSTRING, FFL_SPAWNTEMP},
 	{"image", STOFS(image), F_LSTRING, FFL_SPAWNTEMP},
+	{"music", STOFS(music), F_LSTRING, FFL_SPAWNTEMP},
 	{"rgba", FOFS(s.skinnum), F_INT},
 
 //need for item field in edict struct, FFL_SPAWNTEMP item will be skipped on saves

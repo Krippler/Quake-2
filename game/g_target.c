@@ -211,9 +211,11 @@ void SP_target_secret (edict_t *ent)
 
 //==========================================================
 
-/*QUAKED target_goal (1 0 1) (-8 -8 -8) (8 8 8)
+/*QUAKED target_goal (1 0 1) (-8 -8 -8) (8 8 8) KEEP_MUSIC
 Counts a goal completed.
 These are single use targets.
+The last of them stops the music, or (the re-release's) plays track
+"sounds", unless KEEP_MUSIC.
 */
 void use_target_goal (edict_t *ent, edict_t *other, edict_t *activator)
 {
@@ -221,8 +223,8 @@ void use_target_goal (edict_t *ent, edict_t *other, edict_t *activator)
 
 	level.found_goals++;
 
-	if (level.found_goals == level.total_goals)
-		gi.configstring (CS_CDTRACK, "0");
+	if (level.found_goals == level.total_goals && !(ent->spawnflags & 1))
+		gi.configstring (CS_CDTRACK, va ("%i", ent->sounds));
 
 	// a Quake 64 map's: on to its next objective
 	if (level.goals)
@@ -423,6 +425,10 @@ void use_target_camera (edict_t *self, edict_t *other, edict_t *activator)
 	if (level.intermissiontime)
 		return;
 	self->activator = activator;
+
+	// the re-release's: its own music, "sounds"
+	if (self->sounds)
+		gi.configstring (CS_CDTRACK, va ("%i", self->sounds));
 
 	// nothing to fly to: just the ending
 	self->movetarget = self->target ? G_PickTarget (self->target) : NULL;
