@@ -935,6 +935,12 @@ qboolean ai_checkattack (edict_t *self, float dist)
 
 // check knowledge of enemy
 	enemy_vis = visible(self, self->enemy);
+
+	// the re-release's paths: a flyer or swimmer that sees its enemy goes
+	// at it, not to where its path was (M_MoveToPath's own rule, which an
+	// attack, not moving to its goal, never comes to)
+	if (enemy_vis && (self->flags & (FL_FLY|FL_SWIM)))
+		self->monsterinfo.aiflags &= ~AI_PATHING;
 	if (enemy_vis)
 	{
 		self->monsterinfo.search_time = level.time + 5;

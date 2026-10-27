@@ -412,7 +412,15 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     step's height go for the path's point; `blocked_checkjump_rr` jumps
     where a traversal is next, facing along it; hint paths and the
     pursuit's next marker are not taken while pathing. Its temporary
-    melee rush after being blocked is left out.
+    melee rush after being blocked (`AI_TEMP_MELEE_COMBAT`) is not here
+    because it never happens there: its `SV_NewChaseDir` counts to three
+    blocks, but its one caller outside a path (`M_MoveToGoal`) zeroes the
+    count after every call, and the other is on a path, which it rules
+    out. A flyer or swimmer that sees its enemy is taken off its path in
+    `ai_checkattack` (M_MoveToPath's own rule for them, which an attack
+    never reaches, leaving `AI_PATHING` to steer its flight to the old
+    point), and is at a node when over it: the nodes are on the floor,
+    which it hovers above.
   - `game/g_ai.c`: `ai_run`'s temporary goal is freed with its
     `freetime` cleared, for G_Spawn to have again at once: it is never
     linked or sent, and holding a slot half a second for each monster

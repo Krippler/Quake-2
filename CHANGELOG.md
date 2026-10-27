@@ -5,6 +5,16 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **Flying monsters no longer drift off after you've been seen.** On the
+  re-release's maps a flyer that had been following the navigation
+  nodes kept heading for where its path was once it saw you, rather
+  than at you, and hung over a node it could never reach, being above
+  the floor the nodes are on.
+
 ## [1.3.24] — 2026-10-27
 
 ### Added
