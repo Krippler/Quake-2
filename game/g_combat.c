@@ -479,6 +479,14 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 
 	client = targ->client;
 
+	// Ground Zero's defender sphere takes half its owner's hurt
+	if (damage && client && client->owned_sphere && client->owned_sphere->spawnflags == SPHERE_DEFENDER)
+	{
+		damage /= 2;
+		if (!damage)
+			damage = 1;
+	}
+
 	if (dflags & DAMAGE_BULLET)
 		te_sparks = TE_BULLET_SPARKS;
 	else
@@ -577,6 +585,10 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 				return;
 		}
 			
+		// Ground Zero's spheres, told who hurt their owner
+		if (client && client->owned_sphere && client->owned_sphere->inuse && client->owned_sphere->pain)
+			client->owned_sphere->pain (client->owned_sphere, attacker, 0, 0);
+
 		if (targ->health <= 0)
 		{
 			if ((targ->svflags & SVF_MONSTER) || (client))

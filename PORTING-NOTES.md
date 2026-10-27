@@ -340,6 +340,12 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     launcher's, which the re-release's prox flash sounds like. The bomb's
     flash is `client->nuke_framenum`, a white blend fading over two
     seconds.
+    The spheres and the doppelganger are `g_sphere.c`; a player's one
+    sphere is `client->owned_sphere` (saved), which `T_Damage` halves
+    their hurt for (the defender) and tells who hurt them (its pain).
+    The IR goggles set `RDF_IRGOGGLES`, which the software renderer
+    already draws by; every entity spawned, every gib and every player
+    is `RF_IR_VISIBLE`, as the re-release has them.
   - `ref_soft/r_image.c`: a skin is allocated with two rows and more
     either side of it (`R_AllocPixels`): drawing an alias model steps a
     texture pointer along each span, and where a triangle is clipped at

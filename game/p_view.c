@@ -470,6 +470,21 @@ void SV_CalcBlend (edict_t *ent)
 		SV_AddBlend (1, 1, 1, brightness, ent->client->ps.blend);
 	}
 
+	// Ground Zero's IR goggles: blinking off as they run out
+	if (ent->client->ir_framenum > level.framenum)
+	{
+		remaining = ent->client->ir_framenum - level.framenum;
+		if (remaining > 30 || (remaining & 4))
+		{
+			ent->client->ps.rdflags |= RDF_IRGOGGLES;
+			SV_AddBlend (1, 0, 0, 0.2, ent->client->ps.blend);
+		}
+		else
+			ent->client->ps.rdflags &= ~RDF_IRGOGGLES;
+	}
+	else
+		ent->client->ps.rdflags &= ~RDF_IRGOGGLES;
+
 	// add for powerups
 	if (ent->client->quad_framenum > level.framenum)
 	{
@@ -800,7 +815,7 @@ void G_SetClientEffects (edict_t *ent)
 	int		remaining;
 
 	ent->s.effects = 0;
-	ent->s.renderfx = 0;
+	ent->s.renderfx = RF_IR_VISIBLE;	// to Ground Zero's IR goggles
 
 	if (ent->health <= 0 || level.intermissiontime)
 		return;

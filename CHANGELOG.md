@@ -23,6 +23,13 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   set down, goes off ten seconds later, killing everything within a
   wide radius through walls, blinding whoever sees it and shaking the
   ground. Ground Zero's antimatter bomb key is there too.
+- **Ground Zero's spheres, IR goggles and doppelganger.** The defender
+  sphere floats over you shooting at whoever hurts you and halves what
+  you take; the vengeance sphere flies at whoever hurts you once you are
+  low; the hunter does the same once you are dead. The IR goggles show
+  the living bright against the dark for a minute. The doppelganger, a
+  decoy of you, is for deathmatch only, as in the re-release. The
+  antimatter pod and core of the ammo depot are there too.
 
 ## [1.3.23] — 2026-10-27
 

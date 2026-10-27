@@ -652,6 +652,19 @@ extern	int	body_armor_index;
 #define MOD_TRAP			45		// The Reckoning's: eaten by a trap
 #define MOD_PROX			46		// Ground Zero's
 #define MOD_NUKE			47
+#define MOD_VENGEANCE_SPHERE	48
+#define MOD_HUNTER_SPHERE	49
+#define MOD_DEFENDER_SPHERE	50
+#define MOD_DOPPLE_EXPLODE	51
+#define MOD_DOPPLE_VENGEANCE	52
+#define MOD_DOPPLE_HUNTER	53
+
+// Ground Zero's spheres (their spawnflags)
+#define SPHERE_DEFENDER		0x0001
+#define SPHERE_HUNTER		0x0002
+#define SPHERE_VENGEANCE	0x0004
+#define SPHERE_DOPPLEGANGER	0x0100
+#define SPHERE_TYPE			(SPHERE_DEFENDER | SPHERE_HUNTER | SPHERE_VENGEANCE)
 #define MOD_BLASTOFF		44		// the re-release's: under a fixbot taking off
 #define MOD_FRIENDLY_FIRE	0x8000000
 
@@ -795,6 +808,11 @@ void monster_fire_blueblaster (edict_t *self, vec3_t start, vec3_t dir, int dama
 void monster_fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
 void fire_prox (edict_t *self, vec3_t start, vec3_t aimdir, int prox_damage_multiplier, int speed);
 void fire_nuke (edict_t *self, vec3_t start, vec3_t aimdir, int speed, int damage_modifier);
+edict_t *Sphere_Spawn (edict_t *owner, int spawnflags);
+void Defender_Launch (edict_t *self);
+void Hunter_Launch (edict_t *self);
+void Vengeance_Launch (edict_t *self);
+void fire_doppleganger (edict_t *ent, vec3_t start, vec3_t aimdir);
 void fire_trap (edict_t *self, vec3_t start, vec3_t aimdir, int speed);
 void fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
 void monster_dabeam (edict_t *self);
@@ -1214,6 +1232,8 @@ struct gclient_s
 	float		quad_framenum;
 	float		double_framenum;			// Ground Zero's double damage
 	float		nuke_framenum;				// and the A-M bomb's flash, till then
+	float		ir_framenum;				// and the IR goggles
+	edict_t		*owned_sphere;				// and the sphere about them
 	float		quadfire_framenum;			// The Reckoning's DualFire
 	float		invincible_framenum;
 	float		breather_framenum;

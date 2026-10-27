@@ -2208,3 +2208,23 @@ void fire_nuke (edict_t *self, vec3_t start, vec3_t aimdir, int speed, int damag
 
 	gi.linkentity (nuke);
 }
+
+/*QUAKED misc_nuke_core (1 0 0) (-16 -16 -16) (16 16 16)
+Ground Zero's: the antimatter core, shown and hidden each time it is used
+(rammo1). It starts shown.
+*/
+static void misc_nuke_core_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	if (self->svflags & SVF_NOCLIENT)
+		self->svflags &= ~SVF_NOCLIENT;
+	else
+		self->svflags |= SVF_NOCLIENT;
+}
+
+void SP_misc_nuke_core (edict_t *ent)
+{
+	gi.setmodel (ent, "models/objects/core/tris.md2");
+	gi.linkentity (ent);
+
+	ent->use = misc_nuke_core_use;
+}

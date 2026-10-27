@@ -151,6 +151,7 @@ edict_t *ThrowGib (edict_t *self, char *gibname, int damage, int type)
 	gi.setmodel (gib, gibname);
 	gib->solid = SOLID_NOT;
 	gib->s.effects |= EF_GIB;
+	gib->s.renderfx |= RF_IR_VISIBLE;
 	gib->flags |= FL_NO_KNOCKBACK;
 	gib->takedamage = DAMAGE_YES;
 	gib->die = gib_die;
@@ -195,6 +196,7 @@ void ThrowHead (edict_t *self, char *gibname, int damage, int type)
 	gi.setmodel (self, gibname);
 	self->solid = SOLID_NOT;
 	self->s.effects |= EF_GIB;
+	self->s.renderfx |= RF_IR_VISIBLE;
 	self->s.effects &= ~EF_FLIES;
 	self->s.sound = 0;
 	self->flags |= FL_NO_KNOCKBACK;

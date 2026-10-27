@@ -86,6 +86,7 @@ void SP_monster_daedalus (edict_t *ent);
 void SP_monster_turret (edict_t *ent);
 void SP_monster_fixbot (edict_t *ent);
 void SP_monster_widow (edict_t *ent);
+void SP_misc_nuke_core (edict_t *ent);
 void SP_monster_widow2 (edict_t *ent);
 void SP_object_repair (edict_t *ent);
 void SP_monster_stalker (edict_t *ent);
@@ -253,6 +254,7 @@ spawn_t	spawns[] = {
 	{"monster_turret", SP_monster_turret},
 	{"monster_fixbot", SP_monster_fixbot},
 	{"monster_widow", SP_monster_widow},
+	{"misc_nuke_core", SP_misc_nuke_core},
 	{"monster_widow2", SP_monster_widow2},
 	{"func_object_repair", SP_object_repair},
 	{"monster_stalker", SP_monster_stalker},
@@ -715,6 +717,7 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 		}
 
 		ED_CallSpawn (ent);
+		ent->s.renderfx |= RF_IR_VISIBLE;	// to Ground Zero's IR goggles, as the re-release has it
 	}	
 
 	gi.dprintf ("%i entities inhibited\n", inhibit);

@@ -557,6 +557,120 @@ void Use_Nuke (edict_t *ent, gitem_t *item)
 	fire_nuke (ent, ent->s.origin, forward, 100, damage_modifier);
 }
 
+/*
+Ground Zero's spheres: one carried at a time on hard (two on medium),
+one about you at a time
+*/
+qboolean Pickup_Sphere (edict_t *ent, edict_t *other)
+{
+	int		quantity;
+
+	if (other->client && other->client->owned_sphere)
+		return false;
+
+	quantity = other->client->pers.inventory[ITEM_INDEX(ent->item)];
+	if ((skill->value == 1 && quantity >= 2) || (skill->value >= 2 && quantity >= 1))
+		return false;
+
+	if ((coop->value) && (ent->item->flags & IT_STAY_COOP) && (quantity > 0))
+		return false;
+
+	other->client->pers.inventory[ITEM_INDEX(ent->item)]++;
+
+	if (deathmatch->value && !(ent->spawnflags & DROPPED_ITEM))
+		SetRespawn (ent, ent->item->quantity);
+
+	return true;
+}
+
+static qboolean Use_Sphere_Ok (edict_t *ent, gitem_t *item)
+{
+	if (ent->client && ent->client->owned_sphere)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Only one sphere at a time!\n");
+		return false;
+	}
+
+	ent->client->pers.inventory[ITEM_INDEX(item)]--;
+	ValidateSelectedItem (ent);
+	return true;
+}
+
+void Use_Defender (edict_t *ent, gitem_t *item)
+{
+	if (Use_Sphere_Ok (ent, item))
+		Defender_Launch (ent);
+}
+
+void Use_Hunter (edict_t *ent, gitem_t *item)
+{
+	if (Use_Sphere_Ok (ent, item))
+		Hunter_Launch (ent);
+}
+
+void Use_Vengeance (edict_t *ent, gitem_t *item)
+{
+	if (Use_Sphere_Ok (ent, item))
+		Vengeance_Launch (ent);
+}
+
+// the doppelganger: deathmatch only, as the re-release has it
+qboolean Pickup_Doppleganger (edict_t *ent, edict_t *other)
+{
+	int		index = ITEM_INDEX(ent->item);
+
+	if (!deathmatch->value)
+		return false;
+
+	if (other->client->pers.inventory[index] >= 1)
+		return false;
+
+	other->client->pers.inventory[index]++;
+
+	if (!(ent->spawnflags & DROPPED_ITEM))
+		SetRespawn (ent, ent->item->quantity);
+
+	return true;
+}
+
+void Use_Doppleganger (edict_t *ent, gitem_t *item)
+{
+	vec3_t	forward, right, createPt, spawnPt, ang;
+
+	ang[PITCH] = 0;
+	ang[YAW] = ent->client->v_angle[YAW];
+	ang[ROLL] = 0;
+	AngleVectors (ang, forward, right, NULL);
+
+	VectorMA (ent->s.origin, 48, forward, createPt);
+
+	if (!FindSpawnPoint (createPt, ent->mins, ent->maxs, spawnPt, 32))
+		return;
+
+	if (!CheckGroundSpawnPoint (spawnPt, ent->mins, ent->maxs, 64, -1))
+		return;
+
+	ent->client->pers.inventory[ITEM_INDEX(item)]--;
+	ValidateSelectedItem (ent);
+
+	SpawnGrow_Spawn (spawnPt, 0);
+	fire_doppleganger (ent, spawnPt, forward);
+}
+
+// the IR goggles: a minute of seeing the living, red, in the dark
+void Use_IR (edict_t *ent, gitem_t *item)
+{
+	ent->client->pers.inventory[ITEM_INDEX(item)]--;
+	ValidateSelectedItem (ent);
+
+	if (ent->client->ir_framenum > level.framenum)
+		ent->client->ir_framenum += 600;
+	else
+		ent->client->ir_framenum = level.framenum + 600;
+
+	gi.sound (ent, CHAN_ITEM, gi.soundindex ("misc/ir_start.wav"), 1, ATTN_NORM, 0);
+}
+
 //======================================================================
 
 qboolean Add_Ammo (edict_t *ent, gitem_t *item, int count)
@@ -2598,6 +2712,150 @@ rboss)
 		NULL,
 		"i_nuke",
 		"Antimatter Bomb",
+		2,
+		0,
+		NULL,
+		IT_STAY_COOP|IT_KEY,
+		0,
+		NULL,
+		0,
+/* precache */ ""
+	},
+
+/*QUAKED item_sphere_vengeance (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's vengeance sphere
+*/
+	{
+		"item_sphere_vengeance",
+		Pickup_Sphere,
+		Use_Vengeance,
+		NULL,
+		NULL,
+		"items/pkup.wav",
+		"models/items/vengnce/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_vengeance",
+/* pickup */	"vengeance sphere",
+/* width */		2,
+		60,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "spheres/v_idle.wav"
+	},
+
+/*QUAKED item_sphere_hunter (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's hunter sphere
+*/
+	{
+		"item_sphere_hunter",
+		Pickup_Sphere,
+		Use_Hunter,
+		NULL,
+		NULL,
+		"items/pkup.wav",
+		"models/items/hunter/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_hunter",
+/* pickup */	"hunter sphere",
+/* width */		2,
+		120,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "spheres/h_idle.wav spheres/h_active.wav spheres/h_lurk.wav"
+	},
+
+/*QUAKED item_sphere_defender (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's defender sphere
+*/
+	{
+		"item_sphere_defender",
+		Pickup_Sphere,
+		Use_Defender,
+		NULL,
+		NULL,
+		"items/pkup.wav",
+		"models/items/defender/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_defender",
+/* pickup */	"defender sphere",
+/* width */		2,
+		60,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "models/objects/laser/tris.md2 models/items/shell/tris.md2 spheres/d_idle.wav"
+	},
+
+/*QUAKED item_doppleganger (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's doppelganger (deathmatch only)
+*/
+	{
+		"item_doppleganger",
+		Pickup_Doppleganger,
+		Use_Doppleganger,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/items/dopple/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_doppleganger",
+/* pickup */	"Doppelganger",
+/* width */		2,
+		90,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "models/objects/dopplebase/tris.md2 models/items/spawngro3/tris.md2 medic_commander/monsterspawn1.wav models/items/hunter/tris.md2 models/items/vengnce/tris.md2"
+	},
+
+/*QUAKED item_ir_goggles (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's IR goggles
+*/
+	{
+		"item_ir_goggles",
+		Pickup_Powerup,
+		Use_IR,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/items/goggles/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_ir",
+/* pickup */	"IR Goggles",
+/* width */		2,
+		60,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ "misc/ir_start.wav"
+	},
+
+/*QUAKED key_nuke_container (.3 .3 1) (-16 -16 -16) (16 16 16)
+Ground Zero's antimatter pod (rammo1)
+*/
+	{
+		"key_nuke_container",
+		Pickup_Key,
+		NULL,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/weapons/g_nuke/tris.md2", EF_ROTATE,
+		NULL,
+		"i_contain",
+		"Antimatter Pod",
 		2,
 		0,
 		NULL,
