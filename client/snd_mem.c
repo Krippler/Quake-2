@@ -55,7 +55,7 @@ void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 	if (s_loadas8bit->value)
 		sc->width = 1;
 	else
-		sc->width = inwidth;
+		sc->width = inwidth > 2 ? 2 : inwidth;	// 24 and 32 bit kept as 16
 	sc->stereo = 0;
 
 // resample / decimate to the current source rate
@@ -78,6 +78,10 @@ void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 			samplefrac += fracstep;
 			if (inwidth == 2)
 				sample = LittleShort ( ((short *)data)[srcsample] );
+			else if (inwidth > 2)
+				// the re-release's 24 bit sounds (some footsteps), or 32:
+				// little endian, signed, its top 16 bits
+				sample = (short)(data[srcsample*inwidth + inwidth-2] | (data[srcsample*inwidth + inwidth-1] << 8));
 			else
 				sample = (int)( (unsigned char)(data[srcsample]) - 128) << 8;
 			if (sc->width == 2)

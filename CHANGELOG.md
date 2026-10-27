@@ -5,6 +5,15 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **No more screeching footsteps on grass, carpet, snow, tile and in
+  shallow water.** The re-release's sounds for those steps, and its
+  third klaxon, are 24-bit, which the sound loader read as 8-bit noise;
+  it now plays them as they are.
+
 ## [1.3.22] — 2026-10-26
 
 ### Changed
