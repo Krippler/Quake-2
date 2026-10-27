@@ -925,6 +925,9 @@ void SV_UserinfoChanged (client_t *cl)
 	else
 		cl->rate = 5000;
 
+	// this engine's client, which reads the extensions it is sent
+	cl->ext_scale = atoi (Info_ValueForKey (cl->userinfo, "q2ext")) >= 1;
+
 	// msg command
 	val = Info_ValueForKey (cl->userinfo, "msg");
 	if (strlen(val))
@@ -1051,6 +1054,8 @@ void SV_Shutdown (char *finalmsg, qboolean reconnect)
 		Z_Free (svs.clients);
 	if (svs.client_entities)
 		Z_Free (svs.client_entities);
+	if (svs.client_entity_scales)
+		Z_Free (svs.client_entity_scales);
 	if (svs.demofile)
 		fclose (svs.demofile);
 	memset (&svs, 0, sizeof(svs));

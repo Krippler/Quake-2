@@ -230,6 +230,23 @@ void PF_WritePos (vec3_t pos) {MSG_WritePos (&sv.multicast, pos);}
 void PF_WriteDir (vec3_t dir) {MSG_WriteDir (&sv.multicast, dir);}
 void PF_WriteAngle (float f) {MSG_WriteAngle (&sv.multicast, f);}
 
+/*
+===============
+PF_SetEntityScale
+
+The scale the game wants an entity's model drawn at: kept beside its state,
+for SV_BuildClientFrame, and sent to clients that read it.
+===============
+*/
+void PF_SetEntityScale (edict_t *ent, float scale)
+{
+	int		e = NUM_FOR_EDICT (ent);
+
+	if (e < 0 || e >= MAX_EDICTS)
+		return;
+	sv.entscale[e] = (scale <= 0 || scale == 1) ? 0 : scale;
+}
+
 
 /*
 =================
@@ -389,6 +406,7 @@ void SV_InitGameProgs (void)
 	import.DebugGraph = SCR_DebugGraph;
 	import.LoadFile = FS_LoadFile;
 	import.FreeFile = FS_FreeFile;
+	import.SetEntityScale = PF_SetEntityScale;
 	import.SetAreaPortalState = CM_SetAreaPortalState;
 	import.AreasConnected = CM_AreasConnected;
 

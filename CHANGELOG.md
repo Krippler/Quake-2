@@ -7,6 +7,14 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
 
 ## [Unreleased]
 
+### Added
+
+- **Models drawn to scale, as the re-release has them.** Call of the
+  Machine's smaller and bigger mutants, shamblers and bosses, the
+  gunner commander and the tank commander guardian, the mannequins of
+  the final level and the black light and orb of Ground Zero's last
+  are as big as they are there, and so are their boxes and gibs.
+
 ### Changed
 
 - **The flashlight is a beam.** It shines in a cone from your eyes

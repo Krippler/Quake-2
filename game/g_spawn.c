@@ -755,6 +755,8 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 
 		ED_CallSpawn (ent);
 		ent->s.renderfx |= RF_IR_VISIBLE;	// to Ground Zero's IR goggles, as the re-release has it
+		if (ent->inuse && ent->scale)		// the re-release's "scale"
+			G_SetScale (ent, ent->scale);
 	}	
 
 	gi.dprintf ("%i entities inhibited\n", inhibit);

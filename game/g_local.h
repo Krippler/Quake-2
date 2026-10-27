@@ -997,6 +997,7 @@ void	G_UseTargets (edict_t *ent, edict_t *activator);
 void	G_SetMovedir (vec3_t angles, vec3_t movedir);
 
 void	G_InitEdict (edict_t *e);
+void	G_SetScale (edict_t *ent, float scale);
 edict_t	*G_Spawn (void);
 void	G_FreeEdict (edict_t *e);
 
@@ -1510,6 +1511,9 @@ struct edict_s
 	// a parasite's proboscis (its tip; the tip's, its drawn segment)
 	void		(*postthink) (edict_t *ent);
 	edict_t		*proboscus;
+
+	// the re-release's: the scale its model is drawn at (G_SetScale); 0 is 1
+	float		scale;
 
 	// Ground Zero's hint_path: the next on its chain, which chain, and its
 	// links as monsterlost_checkhint sorts them

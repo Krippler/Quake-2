@@ -1049,7 +1049,11 @@ void SP_monster_tank_rr (edict_t *self)
 
 	// [Paril-KEX] N64 tank commander is a chonky boy
 	if (self->spawnflags & SPAWNFLAG_TANK_COMMANDER_GUARDIAN)
+	{
+		if (!self->scale)
+			self->scale = 1.5;		// monster_start makes its box so
 		self->health = 1500;
+	}
 
 	self->mass = 500;
 

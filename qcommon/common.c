@@ -473,6 +473,20 @@ Can delta from either a baseline or a previous packet_entity
 */
 void MSG_WriteDeltaEntity (entity_state_t *from, entity_state_t *to, sizebuf_t *msg, qboolean force, qboolean newentity)
 {
+	MSG_WriteDeltaEntityScale (from, to, 0, 0, msg, force, newentity);
+}
+
+/*
+==================
+MSG_WriteDeltaEntityScale
+
+As MSG_WriteDeltaEntity, with the model's scale, which entity_state_t has
+no room for (it begins the game's edict_t): 0 is unscaled. A scale that
+changed goes as U_SCALE, a short of 256ths.
+==================
+*/
+void MSG_WriteDeltaEntityScale (entity_state_t *from, entity_state_t *to, float fromscale, float toscale, sizebuf_t *msg, qboolean force, qboolean newentity)
+{
 	int		bits;
 
 	if (!to->number)
@@ -540,6 +554,9 @@ void MSG_WriteDeltaEntity (entity_state_t *from, entity_state_t *to, sizebuf_t *
 	
 	if ( to->solid != from->solid )
 		bits |= U_SOLID;
+
+	if ( toscale != fromscale )
+		bits |= U_SCALE;
 
 	// event is not delta compressed, just 0 compressed
 	if ( to->event  )
@@ -681,6 +698,8 @@ void MSG_WriteDeltaEntity (entity_state_t *from, entity_state_t *to, sizebuf_t *
 		MSG_WriteByte (msg, to->event);
 	if (bits & U_SOLID)
 		MSG_WriteShort (msg, to->solid);
+	if (bits & U_SCALE)
+		MSG_WriteShort (msg, (int)(toscale * 256 + 0.5f));
 }
 
 

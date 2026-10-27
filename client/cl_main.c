@@ -93,6 +93,7 @@ client_state_t	cl;
 centity_t		cl_entities[MAX_EDICTS];
 
 entity_state_t	cl_parse_entities[MAX_PARSE_ENTITIES];
+float			cl_parse_scales[MAX_PARSE_ENTITIES];
 
 extern	cvar_t *allow_download;
 extern	cvar_t *allow_download_players;
@@ -1476,6 +1477,8 @@ void CL_InitLocal (void)
 	name = Cvar_Get ("name", "unnamed", CVAR_USERINFO | CVAR_ARCHIVE);
 	skin = Cvar_Get ("skin", "male/grunt", CVAR_USERINFO | CVAR_ARCHIVE);
 	rate = Cvar_Get ("rate", "25000", CVAR_USERINFO | CVAR_ARCHIVE);	// FIXME
+	// this engine's: tells its server this client reads U_SCALE
+	Cvar_Get ("q2ext", "1", CVAR_USERINFO | CVAR_NOSET);
 	msg = Cvar_Get ("msg", "1", CVAR_USERINFO | CVAR_ARCHIVE);
 	hand = Cvar_Get ("hand", "0", CVAR_USERINFO | CVAR_ARCHIVE);
 	fov = Cvar_Get ("fov", "90", CVAR_USERINFO | CVAR_ARCHIVE);

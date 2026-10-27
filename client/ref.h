@@ -73,6 +73,7 @@ typedef struct entity_s
 	struct image_s	*skin;			// NULL for inline skin
 	int		flags;
 
+	float	scale;					// an alias model's (the re-release's); 0 is as it is
 } entity_t;
 
 #define ENTITY_FLAGS  68

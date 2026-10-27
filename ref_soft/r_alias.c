@@ -363,6 +363,7 @@ R_AliasSetUpTransform
 void R_AliasSetUpTransform (void)
 {
 	int				i;
+	float			scale;
 	static float	viewmatrix[3][4];
 	vec3_t			angles;
 
@@ -380,11 +381,13 @@ void R_AliasSetUpTransform (void)
 	memset( aliasworldtransform, 0, sizeof( aliasworldtransform ) );
 	memset( aliasoldworldtransform, 0, sizeof( aliasworldtransform ) );
 
+	// the re-release's scale, about the model's origin
+	scale = currententity->scale > 0 ? currententity->scale : 1;
 	for (i=0 ; i<3 ; i++)
 	{
-		aliasoldworldtransform[i][0] = aliasworldtransform[i][0] =  s_alias_forward[i];
-		aliasoldworldtransform[i][0] = aliasworldtransform[i][1] = -s_alias_right[i];
-		aliasoldworldtransform[i][0] = aliasworldtransform[i][2] =  s_alias_up[i];
+		aliasoldworldtransform[i][0] = aliasworldtransform[i][0] =  s_alias_forward[i] * scale;
+		aliasoldworldtransform[i][0] = aliasworldtransform[i][1] = -s_alias_right[i] * scale;
+		aliasoldworldtransform[i][0] = aliasworldtransform[i][2] =  s_alias_up[i] * scale;
 	}
 
 	aliasworldtransform[0][3] = currententity->origin[0]-r_origin[0];
@@ -1032,6 +1035,10 @@ void R_AliasSetUpLerpData( dmdl_t *pmdl, float backlerp )
 	r_lerp_move[0] =  DotProduct(translation, vectors[0]);	// forward
 	r_lerp_move[1] = -DotProduct(translation, vectors[1]);	// left
 	r_lerp_move[2] =  DotProduct(translation, vectors[2]);	// up
+
+	// in the model's own units, which a scale makes bigger than the world's
+	if (currententity->scale > 0 && currententity->scale != 1)
+		VectorScale (r_lerp_move, 1.0f / currententity->scale, r_lerp_move);
 
 	VectorAdd( r_lerp_move, r_lastframe->translate, r_lerp_move );
 

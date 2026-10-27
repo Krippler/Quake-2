@@ -310,6 +310,7 @@ extern	cdlight_t	cl_dlights[MAX_DLIGHTS];
 // it can be un-deltad from the original 
 #define	MAX_PARSE_ENTITIES	1024
 extern	entity_state_t	cl_parse_entities[MAX_PARSE_ENTITIES];
+extern	float			cl_parse_scales[MAX_PARSE_ENTITIES];	// and each one's scale (U_SCALE), 0 unscaled
 
 //=============================================================================
 

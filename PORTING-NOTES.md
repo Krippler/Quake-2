@@ -375,9 +375,9 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     next after a sighting; `FoundTarget` ends the disguise. The player
     wears `RF_USE_DISGUISE`, which the client already draws, and the
     re-release's `i_disguise` health icon where its pak is.
-    `target_blacklight` and `target_orb` are Ground Zero's, on its
-    `spawngro2` model: the re-release scales a smaller one up, which this
-    protocol cannot. `info_nav_lock` is there, and does nothing: what it
+    `target_blacklight` and `target_orb` are the re-release's, its
+    `spawngro3` scaled up six and eight times. `info_nav_lock` is there,
+    and does nothing: what it
     locks is for the re-release's bots' navigation.
   - `game/g_trigger.c`: `trigger_multiple`'s spawnflag 8 is Ground
     Zero's `TOGGLE` (it starts off; being used turns it on and off,
@@ -449,11 +449,31 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   - `game/g_misc.c`: the re-release's `misc_model` (with the `frame`
     key, which an entity now takes, as there) and
     `misc_player_mannequin`, a player model of a client slot from 253
-    up, as its skin configstring; a mannequin it scales down (boss2's
-    three at .45) is left out, as this protocol can't scale it. The CTF
+    up, as its skin configstring, at its "radius" scale (boss2's three
+    at .45). The CTF
     banners wave; `info_player_team1`/`2` do nothing, and the CTF flags
     and `dm_tag_token` are freed, as outside those games there. Its
     CTF and Ground Zero's tag are not here.
+  - **Scale**, the re-release's (`entity_state_t.scale` there):
+    `entity_state_t` begins the game's `edict_t`, so it cannot grow
+    without breaking the mission packs' game libraries built from
+    `rogue/` and `xatrix/`. The game says it by `gi.SetEntityScale`, at
+    the end of `game_import_t` (`game/g_utils.c`'s `G_SetScale`, which
+    `G_InitEdict` and `G_FreeEdict` clear and `ReadLevel` says again);
+    the server keeps it beside the states (`sv.entscale`,
+    `svs.client_entity_scales`) and sends a change as `U_SCALE` (bit 28,
+    a short of 256ths) by `MSG_WriteDeltaEntityScale`, only to a client
+    whose userinfo has `q2ext`, which this one's does; a client without
+    it sees the model as it is. The client keeps it beside
+    `cl_parse_entities` (`cl_parse_scales`) and gives it the refresh as
+    `entity_t.scale`, which `ref_soft/r_alias.c` scales the model's axes
+    by, about its origin, and the lerp's move back down by. The game:
+    any entity's "scale" key, as the re-release's; a monster's box,
+    mass and stride scaled with it in `monster_start`; its gibs as big;
+    the gunner commander at 1.25, the N64 tank commander and
+    `monster_tank_stand` at 1.5, the trap's food cube by what it ate.
+    Ground Zero's spawn-in effect keeps its own models rather than
+    scaling one.
   - `ref_soft/r_image.c`: a skin is allocated with two rows and more
     either side of it (`R_AllocPixels`): drawing an alias model steps a
     texture pointer along each span, and where a triangle is clipped at

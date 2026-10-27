@@ -149,6 +149,7 @@ edict_t *ThrowGib (edict_t *self, char *gibname, int damage, int type)
 	gib->s.origin[2] = origin[2] + crandom() * size[2];
 
 	gi.setmodel (gib, gibname);
+	G_SetScale (gib, self->scale);		// a scaled monster's (the re-release's)
 	gib->solid = SOLID_NOT;
 	gib->s.effects |= EF_GIB;
 	gib->s.renderfx |= RF_IR_VISIBLE;
@@ -2209,8 +2210,7 @@ triggers it and making a gesture.
  "height"	- the model (1 female, 2 male, 3 cyborg)
  "goals"	- the weapon's model
  "image"	- the skin
- "radius"	- its scale, which this protocol can't draw: smaller than
-			  full size, it is left out
+ "radius"	- its scale
 */
 #include "m_player.h"
 
@@ -2276,11 +2276,6 @@ void SP_misc_player_mannequin (edict_t *self)
 {
 	char	*modelName, *defaultSkin, *weapon, *skin;
 
-	if (st.radius > 0 && st.radius < 1)
-	{
-		G_FreeEdict (self);
-		return;
-	}
 
 	self->movetype = MOVETYPE_NONE;
 	self->solid = SOLID_BBOX;
@@ -2322,6 +2317,14 @@ void SP_misc_player_mannequin (edict_t *self)
 
 	if (self->targetname)
 		self->use = misc_player_mannequin_use;
+
+	// "radius" is its scale (the re-release's)
+	if (st.radius > 0)
+	{
+		VectorScale (self->mins, st.radius, self->mins);
+		VectorScale (self->maxs, st.radius, self->maxs);
+		G_SetScale (self, st.radius);
+	}
 
 	gi.linkentity (self);
 }

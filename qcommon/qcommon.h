@@ -105,6 +105,7 @@ void MSG_WriteAngle (sizebuf_t *sb, float f);
 void MSG_WriteAngle16 (sizebuf_t *sb, float f);
 void MSG_WriteDeltaUsercmd (sizebuf_t *sb, struct usercmd_s *from, struct usercmd_s *cmd);
 void MSG_WriteDeltaEntity (struct entity_state_s *from, struct entity_state_s *to, sizebuf_t *msg, qboolean force, qboolean newentity);
+void MSG_WriteDeltaEntityScale (struct entity_state_s *from, struct entity_state_s *to, float fromscale, float toscale, sizebuf_t *msg, qboolean force, qboolean newentity);
 void MSG_WriteDir (sizebuf_t *sb, vec3_t vector);
 
 
@@ -331,6 +332,8 @@ enum clc_ops_e
 #define	U_SKIN16	(1<<25)
 #define	U_SOUND		(1<<26)
 #define	U_SOLID		(1<<27)
+#define	U_SCALE		(1<<28)		// this engine's: the model's scale, 8.8 (the re-release's),
+								// only to a client that says it reads it ("q2ext")
 
 
 /*

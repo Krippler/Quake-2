@@ -244,6 +244,8 @@ CL_ParseDelta
 Can go from either a baseline or a previous packet_entity
 ==================
 */
+static float	cl_delta_scale;		// the scale CL_ParseDelta goes from, and reads
+
 void CL_ParseDelta (entity_state_t *from, entity_state_t *to, int number, int bits)
 {
 	// set everything to the state we are delta'ing from
@@ -331,6 +333,9 @@ void CL_ParseDelta (entity_state_t *from, entity_state_t *to, int number, int bi
 
 	if (bits & U_SOLID)
 		to->solid = MSG_ReadShort (&net_message);
+
+	if (bits & U_SCALE)
+		cl_delta_scale = MSG_ReadShort (&net_message) / 256.0f;
 }
 
 /*
@@ -348,11 +353,18 @@ void CL_DeltaEntity (frame_t *frame, int newnum, entity_state_t *old, int bits)
 
 	ent = &cl_entities[newnum];
 
+	// its scale goes from the old one's, or a baseline's (unscaled)
+	if (old >= cl_parse_entities && old < cl_parse_entities + MAX_PARSE_ENTITIES)
+		cl_delta_scale = cl_parse_scales[old - cl_parse_entities];
+	else
+		cl_delta_scale = 0;
+
 	state = &cl_parse_entities[cl.parse_entities & (MAX_PARSE_ENTITIES-1)];
 	cl.parse_entities++;
 	frame->num_entities++;
 
 	CL_ParseDelta (old, state, newnum, bits);
+	cl_parse_scales[state - cl_parse_entities] = cl_delta_scale;
 
 	// some data changes will force no lerping
 	if (state->modelindex != ent->current.modelindex
@@ -883,6 +895,9 @@ void CL_AddPacketEntities (frame_t *frame)
 
 		effects = s1->effects;
 		renderfx = s1->renderfx;
+
+		// the re-release's scale, for this model and what it carries
+		ent.scale = cl_parse_scales[s1 - cl_parse_entities];
 
 			// set frame
 		if (effects & EF_ANIM01)

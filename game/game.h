@@ -197,6 +197,10 @@ typedef struct
 	// navigation nodes); -1 and *buffer NULL if there is none
 	int		(*LoadFile) (char *path, void **buffer);
 	void	(*FreeFile) (void *buffer);
+
+	// this engine's: the scale an entity's model is drawn at (the
+	// re-release's), for clients that read it; 1 is as it is
+	void	(*SetEntityScale) (edict_t *ent, float scale);
 } game_import_t;
 
 //
