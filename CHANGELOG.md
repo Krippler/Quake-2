@@ -30,6 +30,25 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   the living bright against the dark for a minute. The doppelganger, a
   decoy of you, is for deathmatch only, as in the re-release. The
   antimatter pod and core of the ammo depot are there too.
+- **Ground Zero's hint paths.** A monster that has lost sight of you
+  for a while now follows the level's hint paths, as Ground Zero's do,
+  up stairs and round corners toward where you were, instead of
+  waiting where it lost you. They are on twelve of Ground Zero's maps.
+- **Ground Zero's disguise, on the ammo depot.** Passing through it,
+  monsters take you for one of theirs (you wear the disguise, with the
+  re-release's health icon for it) until you fire or one sees through
+  it. The black light and orb of Ground Zero's final level are there
+  too.
+
+### Fixed
+
+- **The ammo depot no longer sends you on to the next level four
+  seconds in.** Its exit, and 34 other triggers on twelve maps
+  (Ground Zero's, Call of the Machine's, Quake 64's orbit, the
+  factory's help computers), are Ground Zero's toggled triggers, which
+  being used turns on and off; they went off at once instead. The
+  re-release's latched triggers, firing as you go in and as you leave,
+  are there too (Call of the Machine's).
 
 ## [1.3.23] — 2026-10-27
 

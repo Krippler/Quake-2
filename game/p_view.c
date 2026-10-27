@@ -816,6 +816,8 @@ void G_SetClientEffects (edict_t *ent)
 
 	ent->s.effects = 0;
 	ent->s.renderfx = RF_IR_VISIBLE;	// to Ground Zero's IR goggles
+	if (ent->flags & FL_DISGUISED)		// and its disguise
+		ent->s.renderfx |= RF_USE_DISGUISE;
 
 	if (ent->health <= 0 || level.intermissiontime)
 		return;

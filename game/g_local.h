@@ -68,6 +68,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	FL_TEAMSLAVE			0x00000400	// not the first on the team
 #define FL_NO_KNOCKBACK			0x00000800
 #define FL_POWER_ARMOR			0x00001000	// power armor (if any) is active
+#define FL_DISGUISED			0x00002000	// Ground Zero's: monsters do not know it
 #define FL_RESPAWN				0x80000000	// used for item respawning
 
 
@@ -163,6 +164,7 @@ typedef enum
 #define AI_TARGET_ANGER			0x00020000	// Ground Zero's widow: blocked running, so mad at its target
 #define AI_DODGING				0x00040000	// Ground Zero's: in a dodge
 #define AI_CHARGING				0x00080000	// Ground Zero's kamikaze flyer: chasing
+#define AI_HINT_PATH			0x00100000	// Ground Zero's: following hint paths
 #define AI_IGNORE_SHOTS			0x00200000	// not angered by a monster's shot
 #define AI_DO_NOT_COUNT			0x00400000	// not in the level's count of monsters
 #define AI_SPAWNED_CARRIER		0x00800000	// summoned by a carrier
@@ -367,6 +369,9 @@ typedef struct
 
 	edict_t		*sight_entity;
 	int			sight_entity_framenum;
+	edict_t		*disguise_violator;			// Ground Zero's: a disguised player who fired,
+	int			disguise_violation_framenum;	// known till then
+	int			disguise_icon;				// the re-release's: its health icon
 	edict_t		*sound_entity;
 	int			sound_entity_framenum;
 	edict_t		*sound2_entity;
@@ -583,6 +588,11 @@ typedef struct
 
 	// the re-release's: told as it gains or loses its ground (its stalker)
 	void		(*physics_change)(edict_t *self);
+
+	// Ground Zero's hint paths: when it last looked for one, and which it
+	// is heading for
+	float		last_hint_time;
+	edict_t		*goal_hint;
 } monsterinfo_t;
 
 
@@ -828,6 +838,10 @@ edict_t *CreateGroundMonster (vec3_t origin, vec3_t angles, vec3_t entMins, vec3
 void SpawnGrow_Spawn (vec3_t startpos, int size);
 edict_t *PickCoopTarget (edict_t *self);
 float realrange (edict_t *self, edict_t *other);
+qboolean has_valid_enemy (edict_t *self);
+qboolean monsterlost_checkhint (edict_t *self);
+void hintpath_stop (edict_t *self);
+void InitHintPaths (void);
 void ED_CallSpawn (edict_t *ent);
 
 // g_rr.c: the re-release's
@@ -994,6 +1008,7 @@ void ai_charge (edict_t *self, float dist);
 int range (edict_t *self, edict_t *other);
 
 void FoundTarget (edict_t *self);
+void HuntTarget (edict_t *self);
 qboolean infront (edict_t *self, edict_t *other);
 qboolean visible (edict_t *self, edict_t *other);
 qboolean FacingIdeal(edict_t *self);
@@ -1419,5 +1434,12 @@ struct edict_s
 	// a parasite's proboscis (its tip; the tip's, its drawn segment)
 	void		(*postthink) (edict_t *ent);
 	edict_t		*proboscus;
+
+	// Ground Zero's hint_path: the next on its chain, which chain, and its
+	// links as monsterlost_checkhint sorts them
+	edict_t		*hint_chain;
+	edict_t		*monster_hint_chain;
+	edict_t		*target_hint_chain;
+	int			hint_chain_id;
 };
 

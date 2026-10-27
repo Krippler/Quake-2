@@ -392,6 +392,8 @@ void G_SetStats (edict_t *ent)
 	// health
 	//
 	ent->client->ps.stats[STAT_HEALTH_ICON] = level.pic_health;
+	if ((ent->flags & FL_DISGUISED) && level.disguise_icon)	// the re-release's
+		ent->client->ps.stats[STAT_HEALTH_ICON] = level.disguise_icon;
 	ent->client->ps.stats[STAT_HEALTH] = ent->health;
 
 	//

@@ -178,7 +178,7 @@ static void stationarymonster_triggered_spawn (edict_t *self)
 
 	monster_start_go (self);
 
-	if (self->enemy && !(self->spawnflags & 1) && !(self->enemy->flags & FL_NOTARGET))
+	if (self->enemy && !(self->spawnflags & 1) && !(self->enemy->flags & (FL_NOTARGET|FL_DISGUISED)))
 		FoundTarget (self);
 	else
 		self->enemy = NULL;
@@ -2227,4 +2227,565 @@ void SP_misc_nuke_core (edict_t *ent)
 	gi.linkentity (ent);
 
 	ent->use = misc_nuke_core_use;
+}
+
+/*
+ * Ground Zero's hint paths: chains of hint_path a monster that has lost its
+ * enemy for a while follows, when one end of a chain can see it and the
+ * other its enemy.
+ */
+#define HINT_ENDPOINT		1
+#define MAX_HINT_CHAINS		100
+
+static int		hint_paths_present;
+static edict_t	*hint_path_start[MAX_HINT_CHAINS];
+static int		num_hint_paths;
+
+/*
+=============
+hintpath_go
+
+Starts a monster moving towards a hint_path.
+=============
+*/
+static void hintpath_go (edict_t *self, edict_t *point)
+{
+	vec3_t	dir;
+
+	VectorSubtract (point->s.origin, self->s.origin, dir);
+
+	self->ideal_yaw = vectoyaw (dir);
+	self->goalentity = self->movetarget = point;
+	self->monsterinfo.pausetime = 0;
+	self->monsterinfo.aiflags |= AI_HINT_PATH;
+	self->monsterinfo.aiflags &= ~(AI_SOUND_TARGET | AI_PURSUIT_LAST_SEEN | AI_PURSUE_NEXT | AI_PURSUE_TEMP);
+	// run for it
+	self->monsterinfo.search_time = level.time;
+	self->monsterinfo.run (self);
+}
+
+/*
+=============
+hintpath_stop
+
+Bails a monster out of following hint paths.
+=============
+*/
+void hintpath_stop (edict_t *self)
+{
+	self->goalentity = NULL;
+	self->movetarget = NULL;
+	self->monsterinfo.last_hint_time = level.time;
+	self->monsterinfo.goal_hint = NULL;
+	self->monsterinfo.aiflags &= ~AI_HINT_PATH;
+	if (has_valid_enemy (self))
+	{
+		// if we can see our target, go nuts
+		if (visible (self, self->enemy))
+		{
+			FoundTarget (self);
+			return;
+		}
+		// otherwise, keep chasing
+		HuntTarget (self);
+		return;
+	}
+	// our enemy is no longer valid: forget it and stand, for good, or the
+	// stand code would walk on hunting the world
+	self->enemy = NULL;
+	self->monsterinfo.pausetime = 100000000;
+	self->monsterinfo.stand (self);
+}
+
+/*
+=============
+monsterlost_checkhint
+
+Finds a hint path for a monster that has lost its enemy: the closest node
+within 512 it can see, on a chain with a node within 512 its enemy can see.
+=============
+*/
+qboolean monsterlost_checkhint (edict_t *self)
+{
+	edict_t		*e, *monster_pathchain, *target_pathchain, *checkpoint = NULL;
+	edict_t		*closest, *start, *destination;
+	float		closest_range = 1000000;
+	int			count;
+	float		r;
+	int			i;
+	qboolean	hint_path_represented[MAX_HINT_CHAINS];
+
+	// if there are no hint paths on this map, exit immediately
+	if (!hint_paths_present)
+		return false;
+
+	if (!self->enemy)
+		return false;
+
+	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
+		return false;
+
+	if (!strcmp (self->classname, "monster_turret"))
+		return false;
+
+	// link all the hint_paths
+	monster_pathchain = NULL;
+	for (i = 0; i < num_hint_paths; i++)
+	{
+		for (e = hint_path_start[i]; e; e = e->hint_chain)
+		{
+			e->monster_hint_chain = NULL;
+			if (monster_pathchain)
+				checkpoint->monster_hint_chain = e;
+			else
+				monster_pathchain = e;
+			checkpoint = e;
+		}
+	}
+
+	// filter them by distance and visibility to the monster
+	e = monster_pathchain;
+	checkpoint = NULL;
+	count = 0;
+	while (e)
+	{
+		if (realrange (self, e) > 512 || !visible (self, e))
+		{
+			if (checkpoint)
+			{
+				checkpoint->monster_hint_chain = e->monster_hint_chain;
+				e->monster_hint_chain = NULL;
+				e = checkpoint->monster_hint_chain;
+			}
+			else
+			{
+				// none valid yet: move the start of the chain on
+				monster_pathchain = e->monster_hint_chain;
+				e->monster_hint_chain = NULL;
+				e = monster_pathchain;
+			}
+			continue;
+		}
+
+		count++;
+		checkpoint = e;
+		e = e->monster_hint_chain;
+	}
+
+	if (!count)
+		return false;
+
+	// which hint chains these are on
+	for (i = 0; i < num_hint_paths; i++)
+		hint_path_represented[i] = false;
+
+	for (e = monster_pathchain; e; e = e->monster_hint_chain)
+	{
+		if (e->hint_chain_id < 0 || e->hint_chain_id >= num_hint_paths)
+			return false;
+		hint_path_represented[e->hint_chain_id] = true;
+	}
+
+	// all the nodes of those chains, to check against the enemy
+	target_pathchain = NULL;
+	checkpoint = NULL;
+	for (i = 0; i < num_hint_paths; i++)
+	{
+		if (!hint_path_represented[i])
+			continue;
+		for (e = hint_path_start[i]; e; e = e->hint_chain)
+		{
+			e->target_hint_chain = NULL;
+			if (target_pathchain)
+				checkpoint->target_hint_chain = e;
+			else
+				target_pathchain = e;
+			checkpoint = e;
+		}
+	}
+
+	// filter them by distance and visibility to the enemy
+	e = target_pathchain;
+	checkpoint = NULL;
+	count = 0;
+	while (e)
+	{
+		if (realrange (self->enemy, e) > 512 || !visible (self->enemy, e))
+		{
+			if (checkpoint)
+			{
+				checkpoint->target_hint_chain = e->target_hint_chain;
+				e->target_hint_chain = NULL;
+				e = checkpoint->target_hint_chain;
+			}
+			else
+			{
+				target_pathchain = e->target_hint_chain;
+				e->target_hint_chain = NULL;
+				e = target_pathchain;
+			}
+			continue;
+		}
+
+		count++;
+		checkpoint = e;
+		e = e->target_hint_chain;
+	}
+
+	if (!count)
+		return false;
+
+	// the chains the enemy's nodes are on
+	for (i = 0; i < num_hint_paths; i++)
+		hint_path_represented[i] = false;
+
+	for (e = target_pathchain; e; e = e->target_hint_chain)
+	{
+		if (e->hint_chain_id < 0 || e->hint_chain_id >= num_hint_paths)
+			return false;
+		hint_path_represented[e->hint_chain_id] = true;
+	}
+
+	// the monster's node to go to: on one of those chains, and (as in the
+	// original, which never lowers closest_range) the last such
+	closest = NULL;
+	e = monster_pathchain;
+	while (e)
+	{
+		if (!hint_path_represented[e->hint_chain_id])
+		{
+			checkpoint = e->monster_hint_chain;
+			e->monster_hint_chain = NULL;
+			e = checkpoint;
+			continue;
+		}
+		r = realrange (self, e);
+		if (r < closest_range)
+			closest = e;
+		e = e->monster_hint_chain;
+	}
+
+	if (!closest)
+		return false;
+
+	start = closest;
+
+	// and where on its chain it is heading
+	closest = NULL;
+	closest_range = 10000000;
+	for (e = target_pathchain; e; e = e->target_hint_chain)
+	{
+		if (start->hint_chain_id == e->hint_chain_id)
+		{
+			r = realrange (self, e);
+			if (r < closest_range)
+				closest = e;
+		}
+	}
+
+	if (!closest)
+		return false;
+
+	destination = closest;
+
+	self->monsterinfo.goal_hint = destination;
+	hintpath_go (self, start);
+
+	return true;
+}
+
+/*
+=============
+hint_path_touch
+
+A monster following hint paths reached this one: on to the next, toward its
+goal, or off them there.
+=============
+*/
+static void hint_path_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+	edict_t		*e, *goal, *next = NULL;
+	qboolean	goalFound = false;
+
+	// make sure we're the target of its obsession
+	if (other->movetarget != self)
+		return;
+
+	goal = other->monsterinfo.goal_hint;
+
+	// if the monster is where it wants to be
+	if (goal == self)
+	{
+		hintpath_stop (other);
+		return;
+	}
+
+	// which way along the chain it is going
+	for (e = hint_path_start[self->hint_chain_id]; e; e = e->hint_chain)
+	{
+		// up to ourselves first: going down it
+		if (e == self)
+		{
+			next = e->hint_chain;
+			break;
+		}
+		if (e == goal)
+			goalFound = true;
+		// the goal before us: going up it, to the previous link
+		if (e->hint_chain == self && goalFound)
+		{
+			next = e;
+			break;
+		}
+	}
+
+	// if we couldn't find it, have the monster go back to normal hunting
+	if (!next)
+	{
+		hintpath_stop (other);
+		return;
+	}
+
+	// send it on its way
+	hintpath_go (other, next);
+
+	// a wait freezes the monster here, as when riding a plat
+	if (self->wait)
+		other->nextthink = level.time + self->wait;
+}
+
+/*QUAKED hint_path (.5 .3 0) (-8 -8 -8) (8 8 8) END
+Ground Zero's. Target: the next hint path.
+
+END - set this flag on the endpoints of each hintpath.
+
+"wait" - set this if you want the monster to freeze when they touch this hintpath
+*/
+void SP_hint_path (edict_t *self)
+{
+	if (deathmatch->value)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+
+	if (!self->targetname && !self->target)
+	{
+		gi.dprintf ("hint_path at %s: unlinked\n", vtos (self->s.origin));
+		G_FreeEdict (self);
+		return;
+	}
+
+	self->solid = SOLID_TRIGGER;
+	self->touch = hint_path_touch;
+	VectorSet (self->mins, -8, -8, -8);
+	VectorSet (self->maxs, 8, 8, 8);
+	self->svflags |= SVF_NOCLIENT;
+	gi.linkentity (self);
+}
+
+/*
+============
+InitHintPaths
+
+Links the map's hint paths into chains, after it is spawned or loaded.
+============
+*/
+void InitHintPaths (void)
+{
+	edict_t	*e, *current;
+	int		i;
+
+	hint_paths_present = 0;
+	num_hint_paths = 0;
+	memset (hint_path_start, 0, sizeof(hint_path_start));
+
+	// the links are made anew (a save game's are not good)
+	e = NULL;
+	while ((e = G_Find (e, FOFS(classname), "hint_path")) != NULL)
+	{
+		hint_paths_present = 1;
+		e->hint_chain = e->monster_hint_chain = e->target_hint_chain = NULL;
+		e->hint_chain_id = 0;
+	}
+	if (!hint_paths_present)
+		return;
+
+	e = NULL;
+	while ((e = G_Find (e, FOFS(classname), "hint_path")) != NULL)
+	{
+		if (!(e->spawnflags & HINT_ENDPOINT) || !e->target)
+			continue;
+		if (e->targetname)		// this is a bad end, ignore it
+		{
+			gi.dprintf ("hint_path at %s: marked as endpoint with both target (%s) and targetname (%s)\n",
+				vtos (e->s.origin), e->target, e->targetname);
+			continue;
+		}
+		if (num_hint_paths >= MAX_HINT_CHAINS)
+			break;
+		hint_path_start[num_hint_paths++] = e;
+	}
+
+	for (i = 0; i < num_hint_paths; i++)
+	{
+		current = hint_path_start[i];
+		current->hint_chain_id = i;
+		e = G_Find (NULL, FOFS(targetname), current->target);
+		if (G_Find (e, FOFS(targetname), current->target))
+		{
+			gi.dprintf ("hint_path at %s: forked path detected for chain %i, target %s\n",
+				vtos (current->s.origin), num_hint_paths, current->target);
+			hint_path_start[i]->hint_chain = NULL;
+			continue;
+		}
+		while (e)
+		{
+			if (e->hint_chain)
+			{
+				gi.dprintf ("hint_path at %s: circular path detected for chain %i, targetname %s\n",
+					vtos (e->s.origin), num_hint_paths, e->targetname);
+				hint_path_start[i]->hint_chain = NULL;
+				break;
+			}
+			current->hint_chain = e;
+			current = e;
+			current->hint_chain_id = i;
+			if (!current->target)
+				break;
+			e = G_Find (NULL, FOFS(targetname), current->target);
+			if (G_Find (e, FOFS(targetname), current->target))
+			{
+				gi.dprintf ("hint_path at %s: forked path detected for chain %i, target %s\n",
+					vtos (current->s.origin), num_hint_paths, current->target);
+				hint_path_start[i]->hint_chain = NULL;
+				break;
+			}
+		}
+	}
+}
+
+/*QUAKED trigger_disguise (.5 .5 .5) ? TOGGLE START_ON REMOVE
+Ground Zero's. Anything passing through this trigger when it is active will
+be marked as disguised.
+
+TOGGLE - field is turned off and on when used (it always is)
+START_ON - field is active when spawned
+REMOVE - field removes the disguise
+*/
+static void trigger_disguise_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+	if (!other->client)
+		return;
+
+	if (self->spawnflags & 4)
+		other->flags &= ~FL_DISGUISED;
+	else
+		other->flags |= FL_DISGUISED;
+}
+
+static void trigger_disguise_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	if (self->solid == SOLID_NOT)
+		self->solid = SOLID_TRIGGER;
+	else
+		self->solid = SOLID_NOT;
+
+	gi.linkentity (self);
+}
+
+void SP_trigger_disguise (edict_t *self)
+{
+	// the re-release's health icon for it, in its paks only
+	if (!level.disguise_icon && RR_Map ())
+		level.disguise_icon = gi.imageindex ("i_disguise");
+
+	if (self->spawnflags & 2)
+		self->solid = SOLID_TRIGGER;
+	else
+		self->solid = SOLID_NOT;
+
+	self->touch = trigger_disguise_touch;
+	self->use = trigger_disguise_use;
+	self->movetype = MOVETYPE_NONE;
+	self->svflags = SVF_NOCLIENT;
+
+	gi.setmodel (self, self->model);
+	gi.linkentity (self);
+}
+
+/*QUAKED target_blacklight (1 0 1) (-16 -16 -24) (16 16 24)
+Ground Zero's. Pulsing black light with sphere in the center.
+*/
+static void blacklight_think (edict_t *self)
+{
+	self->s.angles[0] = rand() % 360;
+	self->s.angles[1] = rand() % 360;
+	self->s.angles[2] = rand() % 360;
+	self->nextthink = level.time + FRAMETIME;
+}
+
+void SP_target_blacklight (edict_t *ent)
+{
+	if (deathmatch->value)
+	{	// auto-remove for deathmatch
+		G_FreeEdict (ent);
+		return;
+	}
+
+	VectorClear (ent->mins);
+	VectorClear (ent->maxs);
+
+	// Ground Zero's own model: the re-release's draws a smaller one scaled
+	// up, which this protocol can't
+	ent->s.effects |= (EF_TRACKERTRAIL | EF_TRACKER);
+	ent->think = blacklight_think;
+	ent->s.modelindex = gi.modelindex ("models/items/spawngro2/tris.md2");
+	ent->s.frame = 1;
+	ent->nextthink = level.time + FRAMETIME;
+	gi.linkentity (ent);
+}
+
+/*QUAKED target_orb (1 0 1) (-16 -16 -24) (16 16 24)
+Ground Zero's. Translucent pulsing orb with speckles.
+*/
+void SP_target_orb (edict_t *ent)
+{
+	if (deathmatch->value)
+	{	// auto-remove for deathmatch
+		G_FreeEdict (ent);
+		return;
+	}
+
+	VectorClear (ent->mins);
+	VectorClear (ent->maxs);
+
+	ent->think = blacklight_think;
+	ent->nextthink = level.time + FRAMETIME;
+	ent->s.modelindex = gi.modelindex ("models/items/spawngro2/tris.md2");
+	ent->s.frame = 2;
+	ent->s.effects |= EF_SPHERETRANS;
+	gi.linkentity (ent);
+}
+
+/*QUAKED info_nav_lock (1.0 1.0 0.0) (-16 -16 0) (16 16 32)
+The re-release's: toggles the locked state of its target doors, for its
+navigation (bots). This game has none of that, so it does nothing.
+*/
+static void info_nav_lock_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+}
+
+void SP_info_nav_lock (edict_t *self)
+{
+	if (!self->targetname || !self->target)
+	{
+		gi.dprintf ("info_nav_lock at %s: missing %s\n", vtos (self->s.origin),
+			self->targetname ? "target" : "targetname");
+		G_FreeEdict (self);
+		return;
+	}
+
+	self->svflags |= SVF_NOCLIENT;
+	self->use = info_nav_lock_use;
 }

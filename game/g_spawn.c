@@ -87,6 +87,11 @@ void SP_monster_turret (edict_t *ent);
 void SP_monster_fixbot (edict_t *ent);
 void SP_monster_widow (edict_t *ent);
 void SP_misc_nuke_core (edict_t *ent);
+void SP_hint_path (edict_t *self);
+void SP_trigger_disguise (edict_t *self);
+void SP_target_blacklight (edict_t *ent);
+void SP_target_orb (edict_t *ent);
+void SP_info_nav_lock (edict_t *self);
 void SP_monster_widow2 (edict_t *ent);
 void SP_object_repair (edict_t *ent);
 void SP_monster_stalker (edict_t *ent);
@@ -255,6 +260,11 @@ spawn_t	spawns[] = {
 	{"monster_fixbot", SP_monster_fixbot},
 	{"monster_widow", SP_monster_widow},
 	{"misc_nuke_core", SP_misc_nuke_core},
+	{"hint_path", SP_hint_path},
+	{"trigger_disguise", SP_trigger_disguise},
+	{"target_blacklight", SP_target_blacklight},
+	{"target_orb", SP_target_orb},
+	{"info_nav_lock", SP_info_nav_lock},
 	{"monster_widow2", SP_monster_widow2},
 	{"func_object_repair", SP_object_repair},
 	{"monster_stalker", SP_monster_stalker},
@@ -734,6 +744,7 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 
 	G_FindTeams ();
 	G_SetupShadowLights ();
+	InitHintPaths ();
 
 	PlayerTrail_Init ();
 }

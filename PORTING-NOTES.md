@@ -346,6 +346,33 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     The IR goggles set `RDF_IRGOGGLES`, which the software renderer
     already draws by; every entity spawned, every gib and every player
     is `RF_IR_VISIBLE`, as the re-release has them.
+  - `game/g_rogue.c`, `game/g_ai.c`: Ground Zero's hint paths
+    (`hint_path`, `InitHintPaths`, `monsterlost_checkhint`), as the
+    re-release has them. `ai_run` looks for one when the monster has not
+    seen its enemy for five seconds (and not looked for ten); following
+    one is `AI_HINT_PATH`, which `FindTarget` and seeing the enemy end.
+    The chains are made anew after a level is loaded, not saved; the
+    monster's goal on its chain (`monsterinfo.goal_hint`) is. The
+    re-release clears no stale `target_hint_chain` link before building
+    its list; here each is.
+  - `game/g_rogue.c`: Ground Zero's `trigger_disguise`
+    (`FL_DISGUISED`): the sight client passes over a disguised player,
+    a monster's `use` and its trigger spawn do not take one for their
+    enemy, `PlayerNoise` hears only their shots, and a shot makes them
+    `level.disguise_violator` for half a second, whom `FindTarget` takes
+    next after a sighting; `FoundTarget` ends the disguise. The player
+    wears `RF_USE_DISGUISE`, which the client already draws, and the
+    re-release's `i_disguise` health icon where its pak is.
+    `target_blacklight` and `target_orb` are Ground Zero's, on its
+    `spawngro2` model: the re-release scales a smaller one up, which this
+    protocol cannot. `info_nav_lock` is there, and does nothing: what it
+    locks is for the re-release's bots' navigation.
+  - `game/g_trigger.c`: `trigger_multiple`'s spawnflag 8 is Ground
+    Zero's `TOGGLE` (it starts off; being used turns it on and off,
+    instead of firing it), and 16 the re-release's `LATCHED` (it fires
+    as the first thing it is for comes into it and as the last leaves,
+    looked for each frame). Its `CLIP` (32, a box touched by the brush's
+    shape, not its bounds) is not here: the game has no `gi.clip`.
   - `ref_soft/r_image.c`: a skin is allocated with two rows and more
     either side of it (`R_AllocPixels`): drawing an alias model steps a
     texture pointer along each span, and where a triangle is clipped at
@@ -434,7 +461,7 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   `func_plat2` from `rogue/src/g_func.c` with the re-release's changes
   (spawnflag 8 is `START_ACTIVE`; a trigger's call is not held back; a
   blocker killed does not turn it round). What the 1997 game still passes
-  over is the re-release's decoration and bot hints (`target_poi`, `info_landmark`, `info_nav_lock`, `func_animation`,
+  over is the re-release's decoration (
   `misc_model`, `misc_player_mannequin`).
 - **`game/g_misc.c`**, **`client/cl_fx.c`**, **`ref_soft/r_light.c`**: the
   re-release's real-time lights, a `dynamic_light` at each lamp (or

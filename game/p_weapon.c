@@ -152,6 +152,14 @@ void PlayerNoise(edict_t *who, vec3_t where, int type)
 	if (who->flags & FL_NOTARGET)
 		return;
 
+	// Ground Zero's: a disguised player is heard only firing, and known for it
+	if (who->flags & FL_DISGUISED)
+	{
+		if (type != PNOISE_WEAPON)
+			return;
+		level.disguise_violator = who;
+		level.disguise_violation_framenum = level.framenum + 5;
+	}
 
 	if (!who->mynoise)
 	{

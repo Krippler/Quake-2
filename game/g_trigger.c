@@ -65,6 +65,17 @@ void multi_trigger (edict_t *ent)
 
 void Use_Multi (edict_t *ent, edict_t *other, edict_t *activator)
 {
+	// Ground Zero's TOGGLE: using it turns it on and off
+	if (ent->spawnflags & 8)
+	{
+		if (ent->solid == SOLID_TRIGGER)
+			ent->solid = SOLID_NOT;
+		else
+			ent->solid = SOLID_TRIGGER;
+		gi.linkentity (ent);
+		return;
+	}
+
 	ent->activator = activator;
 	multi_trigger (ent);
 }
@@ -97,10 +108,13 @@ void Touch_Multi (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *su
 	multi_trigger (self);
 }
 
-/*QUAKED trigger_multiple (.5 .5 .5) ? MONSTER NOT_PLAYER TRIGGERED
+/*QUAKED trigger_multiple (.5 .5 .5) ? MONSTER NOT_PLAYER TRIGGERED TOGGLE
 Variable sized repeatable trigger.  Must be targeted at one or more entities.
 If "delay" is set, the trigger waits some time after activating before firing.
 "wait" : Seconds between triggerings. (.2 default)
+
+TOGGLE - (Ground Zero's) using this trigger will activate/deactivate it.
+trigger will begin inactive.
 sounds
 1)	secret
 2)	beep beep
@@ -115,6 +129,57 @@ void trigger_enable (edict_t *self, edict_t *other, edict_t *activator)
 	gi.linkentity (self);
 }
 
+/*
+ * the re-release's LATCHED: fires as anything it would trigger for comes
+ * into it, and again as the last leaves
+ */
+static void latched_trigger_think (edict_t *self)
+{
+	edict_t		*touch[MAX_EDICTS], *other;
+	int			i, num;
+	qboolean	any_inside = false;
+	vec3_t		forward;
+
+	self->nextthink = level.time + FRAMETIME;
+
+	num = gi.BoxEdicts (self->absmin, self->absmax, touch, MAX_EDICTS, AREA_SOLID);
+	for (i = 0; i < num; i++)
+	{
+		other = touch[i];
+		if (!other->inuse)
+			continue;
+		if (other->client)
+		{
+			if (self->spawnflags & 2)
+				continue;
+		}
+		else if (other->svflags & SVF_MONSTER)
+		{
+			if (!(self->spawnflags & 1))
+				continue;
+		}
+		else
+			continue;
+
+		if (!VectorCompare(self->movedir, vec3_origin))
+		{
+			AngleVectors (other->s.angles, forward, NULL, NULL);
+			if (_DotProduct(forward, self->movedir) < 0)
+				continue;
+		}
+
+		self->activator = other;
+		any_inside = true;
+		break;
+	}
+
+	if (!!self->count != any_inside)
+	{
+		G_UseTargets (self, self->activator);
+		self->count = any_inside ? 1 : 0;
+	}
+}
+
 void SP_trigger_multiple (edict_t *ent)
 {
 	if (ent->sounds == 1)
@@ -126,12 +191,29 @@ void SP_trigger_multiple (edict_t *ent)
 	
 	if (!ent->wait)
 		ent->wait = 0.2;
-	ent->touch = Touch_Multi;
 	ent->movetype = MOVETYPE_NONE;
 	ent->svflags |= SVF_NOCLIENT;
 
+	if (ent->spawnflags & 16)	// the re-release's LATCHED
+	{
+		if (ent->spawnflags & (4|8))
+			gi.dprintf ("%s at %s: latched and triggered/toggle are not supported\n",
+				ent->classname, vtos(ent->s.origin));
+		ent->solid = SOLID_TRIGGER;
+		ent->think = latched_trigger_think;
+		ent->nextthink = level.time + FRAMETIME;
+		ent->use = Use_Multi;
+		if (!VectorCompare(ent->s.angles, vec3_origin))
+			G_SetMovedir (ent->s.angles, ent->movedir);
+		gi.setmodel (ent, ent->model);
+		gi.linkentity (ent);
+		return;
+	}
 
-	if (ent->spawnflags & 4)
+	ent->touch = Touch_Multi;
+
+
+	if (ent->spawnflags & (4|8))
 	{
 		ent->solid = SOLID_NOT;
 		ent->use = trigger_enable;
