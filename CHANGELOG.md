@@ -7,6 +7,12 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
 
 ## [Unreleased]
 
+### Changed
+
+- **The flashlight is a beam.** It shines in a cone from your eyes
+  where you look, as the re-release's does, rather than as a glow
+  round where you are looking. Other players see theirs too.
+
 ### Fixed
 
 - **Flying monsters no longer drift off after you've been seen.** On the

@@ -1325,7 +1325,6 @@ struct gclient_s
 	float		nuke_framenum;				// and the A-M bomb's flash, till then
 	float		ir_framenum;				// and the IR goggles
 	edict_t		*owned_sphere;				// and the sphere about them
-	edict_t		*flashlight;				// the re-release's: the light of theirs, where they look
 	float		quadfire_framenum;			// The Reckoning's DualFire
 	float		invincible_framenum;
 	float		breather_framenum;

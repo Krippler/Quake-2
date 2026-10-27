@@ -945,6 +945,30 @@ void CL_AddPacketEntities (frame_t *frame)
 			}
 		}
 
+		// the re-release's flashlight: a cone of white light from the eyes,
+		// the view's own for this player, along where they look (their
+		// model's pitch is a third of it)
+		if (renderfx & RF_FLASHLIGHT)
+		{
+			vec3_t	eye, look, forward;
+
+			if (s1->number == cl.playernum+1)
+			{
+				VectorCopy (cl.refdef.vieworg, eye);
+				VectorCopy (cl.refdef.viewangles, look);
+			}
+			else
+			{
+				VectorCopy (ent.origin, eye);
+				eye[2] += 22;
+				for (i=0 ; i<3 ; i++)
+					look[i] = LerpAngle (cent->prev.angles[i], cent->current.angles[i], cl.lerpfrac);
+				look[PITCH] *= 3;
+			}
+			AngleVectors (look, forward, NULL, NULL);
+			V_AddSpotLight (eye, forward, 640, 26, 14);
+		}
+
 		// the re-release's target_light: a light of radius frame, its
 		// colour in skinnum, and nothing to draw
 		if (renderfx & RF_CUSTOMLIGHT)

@@ -436,10 +436,16 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     `misc_viper_missile`, `misc_transport`, `misc_amb4` and
     `target_mal_laser`, from the re-release's.
   - `game/p_view.c`, `game/g_items.c`: the re-release's flashlight
-    (`item_flashlight`, `FL_FLASHLIGHT`). It draws a spotlight by an
-    effect this protocol hasn't the bits for; here it is a light entity
-    of the player's (`client->flashlight`) at where they look,
-    `RF_CUSTOMLIGHT` as `target_light`'s, wider further off.
+    (`item_flashlight`, `FL_FLASHLIGHT`), as `RF_FLASHLIGHT` on the
+    player: renderfx goes out as all 32 bits already, so it takes no
+    change to the protocol, and a client without it draws nothing.
+    `client/cl_ents.c` shines a spotlight (`V_AddSpotLight`) from their
+    eyes along their view, a player's other than this one's by their
+    model's angles (its pitch is a third of the view's). A `dlight_t`
+    with a `spot` is lit by `ref_soft/r_light.c`'s `R_AddSpotLightTo`,
+    each lightmap sample by where it is (`R_SampleGrid`), within its
+    cone and facing it, and models within it by `R_LightPoint`; through
+    walls, as any dynamic light is.
   - `game/g_misc.c`: the re-release's `misc_model` (with the `frame`
     key, which an entity now takes, as there) and
     `misc_player_mannequin`, a player model of a client slot from 253

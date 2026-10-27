@@ -244,7 +244,6 @@ field_t		clientfields[] =
 	{"pers.lastweapon", CLOFS(pers.lastweapon), F_ITEM},
 	{"newweapon", CLOFS(newweapon), F_ITEM},
 	{"owned_sphere", CLOFS(owned_sphere), F_EDICT},
-	{"flashlight", CLOFS(flashlight), F_EDICT},
 
 	{NULL, 0, F_INT}
 };

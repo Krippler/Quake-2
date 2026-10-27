@@ -264,6 +264,23 @@ void R_LightPoint (vec3_t p, vec3_t color)
 		VectorSubtract (currententity->origin,
 						dl->origin,
 						dist);
+		if (dl->spot[0] || dl->spot[1] || dl->spot[2])
+		{	// a spotlight: within its cone, falling off to its radius
+			float	len, spot;
+
+			dist[2] += 16;		// a model's origin is often at its feet
+			len = VectorLength (dist);
+			if (len < 1 || len >= dl->intensity)
+				continue;
+			spot = DotProduct (dist, dl->spot) / len;
+			if (spot <= dl->spotouter)
+				continue;
+			add = (1 - len / dl->intensity) * 0.9;
+			if (spot < dl->spotinner)
+				add *= (spot - dl->spotouter) / (dl->spotinner - dl->spotouter);
+			VectorMA (color, add, dl->color, color);
+			continue;
+		}
 		add = dl->intensity - VectorLength(dist);
 		add *= (1.0/256);
 		if (add > 0)
@@ -291,6 +308,7 @@ brightness of blocklights, as id wrote it.
 */
 static void R_AddDynamicLightsTo (qboolean rgb);
 static void R_AddShadowLightsTo (qboolean rgb);
+static qboolean R_SampleGrid (msurface_t *surf, vec3_t p0, vec3_t ds, vec3_t dt);
 
 void R_AddDynamicLights (void)
 {
@@ -300,6 +318,63 @@ void R_AddDynamicLights (void)
 int		blockrgb[1024*3];	// sw_colorlight's lighting, before blocktint
 int		blocktint[1024*3];	// and each sample's colour, 8.8 of its brightest
 qboolean	r_surfcolored;	// blocktint is to be drawn (r_surf.c)
+
+/*
+===============
+R_AddSpotLightTo
+
+A dynamic light with a cone (the re-release's flashlight) on r_drawsurf's
+surface: each lightmap sample by where it is in the world, within the
+cone and the light's radius, and facing it. Through walls, as a dynamic
+light is.
+===============
+*/
+static void R_AddSpotLightTo (dlight_t *dl, qboolean rgb)
+{
+	msurface_t	*surf = r_drawsurf.surf;
+	vec3_t		p0, ds, dt, p, d;
+	float		planedist, dist, f, spot;
+	int			s, t, smax, tmax, c, add, *q;
+
+	if (!R_SampleGrid (surf, p0, ds, dt))
+		return;
+	planedist = DotProduct (dl->origin, surf->plane->normal) - surf->plane->dist;
+	if (surf->flags & SURF_PLANEBACK)
+		planedist = -planedist;
+	if (planedist <= 0)
+		return;
+
+	smax = (surf->extents[0]>>4)+1;
+	tmax = (surf->extents[1]>>4)+1;
+	for (t=0 ; t<tmax ; t++)
+		for (s=0 ; s<smax ; s++)
+		{
+			for (c=0 ; c<3 ; c++)
+				p[c] = p0[c] + s*ds[c] + t*dt[c];
+			VectorSubtract (p, dl->origin, d);
+			dist = VectorLength (d);
+			if (dist >= dl->intensity || dist < 1)
+				continue;
+			spot = DotProduct (d, dl->spot) / dist;
+			if (spot <= dl->spotouter)
+				continue;
+			// falling off to its radius, and less at a slant
+			f = (1 - dist / dl->intensity) * (0.35 + 0.65 * planedist / dist);
+			if (spot < dl->spotinner)
+				f *= (spot - dl->spotouter) / (dl->spotinner - dl->spotouter);
+			add = (int)(f * 224 * 256);
+			if (add <= 0)
+				continue;
+			if (rgb)
+			{
+				q = &blockrgb[(t*smax + s)*3];
+				for (c=0 ; c<3 ; c++)
+					q[c] += add * dl->color[c];
+			}
+			else
+				blocklights[t*smax + s] += add;
+		}
+}
 
 static void R_AddDynamicLightsTo (qboolean rgb)
 {
@@ -327,6 +402,11 @@ static void R_AddDynamicLightsTo (qboolean rgb)
 			continue;		// not lit by this light
 
 		dl = &r_newrefdef.dlights[lnum];
+		if (dl->spot[0] || dl->spot[1] || dl->spot[2])
+		{
+			R_AddSpotLightTo (dl, rgb);
+			continue;
+		}
 		rad = dl->intensity;
 
 //=====

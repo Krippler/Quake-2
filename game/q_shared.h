@@ -615,6 +615,7 @@ typedef struct
 // the 2023 re-release's target_light: no model, a light of radius frame and
 // colour skinnum (0xRRGGBBxx); RF_CUSTOM_LIGHT in its engine
 #define RF_CUSTOMLIGHT		0x00080000
+#define RF_FLASHLIGHT		0x00100000		// the re-release's flashlight, which this client draws (cl_ents.c)
 //ROGUE
 
 // player_state_t->refdef flags

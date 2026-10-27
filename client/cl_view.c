@@ -122,6 +122,31 @@ void V_AddLight (vec3_t org, float intensity, float r, float g, float b)
 	dl->color[0] = r;
 	dl->color[1] = g;
 	dl->color[2] = b;
+	VectorClear (dl->spot);
+}
+
+/*
+=====================
+V_AddSpotLight
+
+A light shining along dir, in a cone of outer degrees, full within inner:
+the re-release's flashlight.
+=====================
+*/
+void V_AddSpotLight (vec3_t org, vec3_t dir, float intensity, float outer, float inner)
+{
+	dlight_t	*dl;
+
+	if (r_numdlights >= MAX_DLIGHTS)
+		return;
+	dl = &r_dlights[r_numdlights++];
+	VectorCopy (org, dl->origin);
+	dl->intensity = intensity;
+	VectorSet (dl->color, 1, 1, 1);
+	VectorCopy (dir, dl->spot);
+	VectorNormalize (dl->spot);
+	dl->spotouter = cos (outer * M_PI / 180);
+	dl->spotinner = cos (inner * M_PI / 180);
 }
 
 
