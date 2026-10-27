@@ -888,4 +888,5 @@ void ReadLevel (char *filename)
 	}
 
 	InitHintPaths ();
+	Nav_Load (level.mapname);
 }

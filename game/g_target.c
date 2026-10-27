@@ -756,6 +756,7 @@ void target_laser_on (edict_t *self)
 		self->activator = self;
 	self->spawnflags |= 0x80000001;
 	self->svflags &= ~SVF_NOCLIENT;
+	self->flags |= FL_TRAP;		// for the re-release's paths
 	target_laser_think (self);
 }
 
@@ -763,6 +764,7 @@ void target_laser_off (edict_t *self)
 {
 	self->spawnflags &= ~1;
 	self->svflags |= SVF_NOCLIENT;
+	self->flags &= ~FL_TRAP;
 	self->nextthink = 0;
 }
 
@@ -836,6 +838,7 @@ void SP_target_laser (edict_t *self)
 {
 	// let everything else get spawned before we start firing
 	self->think = target_laser_start;
+	self->flags |= FL_LASER_FIELD;		// for the re-release's paths
 	self->nextthink = level.time + 1;
 }
 

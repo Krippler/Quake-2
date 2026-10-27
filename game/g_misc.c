@@ -1147,6 +1147,7 @@ void SP_misc_explobox (edict_t *self)
 	gi.modelindex ("models/objects/debris1/tris.md2");
 	gi.modelindex ("models/objects/debris2/tris.md2");
 	gi.modelindex ("models/objects/debris3/tris.md2");
+	self->flags |= FL_TRAP;		// the re-release's paths keep off it
 
 	self->solid = SOLID_BBOX;
 	self->movetype = MOVETYPE_STEP;

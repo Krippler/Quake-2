@@ -192,6 +192,11 @@ typedef struct
 	void	(*AddCommandString) (char *text);
 
 	void	(*DebugGraph) (float value, int color);
+
+	// this engine's: a file from the game's paths (the re-release's
+	// navigation nodes); -1 and *buffer NULL if there is none
+	int		(*LoadFile) (char *path, void **buffer);
+	void	(*FreeFile) (void *buffer);
 } game_import_t;
 
 //

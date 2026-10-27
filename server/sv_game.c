@@ -387,6 +387,8 @@ void SV_InitGameProgs (void)
 	import.AddCommandString = Cbuf_AddText;
 
 	import.DebugGraph = SCR_DebugGraph;
+	import.LoadFile = FS_LoadFile;
+	import.FreeFile = FS_FreeFile;
 	import.SetAreaPortalState = CM_SetAreaPortalState;
 	import.AreasConnected = CM_AreasConnected;
 

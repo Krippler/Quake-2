@@ -1551,6 +1551,10 @@ void SP_func_door (edict_t *ent)
 		gi.soundindex ("misc/talk.wav");
 		ent->touch = door_touch;
 	}
+	// the re-release's paths: a door opened by a trigger is shut to them
+	if (!ent->health && ent->targetname)
+		ent->flags |= FL_LOCKED;
+	ent->flags |= FL_DOOR;
 	
 	ent->moveinfo.speed = ent->speed;
 	ent->moveinfo.accel = ent->accel;
@@ -1613,6 +1617,7 @@ REVERSE will cause the door to rotate in the opposite direction.
 
 void SP_func_door_rotating (edict_t *ent)
 {
+	ent->flags |= FL_DOOR;		// for the re-release's paths
 	VectorClear (ent->s.angles);
 
 	// set the axis of rotation
@@ -2324,6 +2329,8 @@ void SP_func_door_secret (edict_t *ent)
 	float	side;
 	float	width;
 	float	length;
+
+	ent->flags |= FL_DOOR;		// for the re-release's paths
 
 	ent->moveinfo.sound_start = gi.soundindex  ("doors/dr1_strt.wav");
 	ent->moveinfo.sound_middle = gi.soundindex  ("doors/dr1_mid.wav");

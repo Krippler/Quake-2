@@ -745,6 +745,7 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	G_FindTeams ();
 	G_SetupShadowLights ();
 	InitHintPaths ();
+	Nav_Load (level.mapname);
 
 	PlayerTrail_Init ();
 }

@@ -2322,7 +2322,8 @@ qboolean monsterlost_checkhint (edict_t *self)
 	if (!self->enemy)
 		return false;
 
-	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
+	// nor on the re-release's paths
+	if (self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_PATHING))
 		return false;
 
 	if (!strcmp (self->classname, "monster_turret"))

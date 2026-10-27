@@ -373,6 +373,34 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     as the first thing it is for comes into it and as the last leaves,
     looked for each frame). Its `CLIP` (32, a box touched by the brush's
     shape, not its bounds) is not here: the game has no `gi.clip`.
+  - `game/g_nav.c` (new): the re-release's navigation nodes,
+    `bots/navigation/<map>.nav` (versions 2 to 6), and its A* over them.
+    The re-release's engine does this, closed; this is the GPL code id
+    and Nightdive gave q2pro-ng (`src/server/nav.c`), in the game, with
+    a binary heap for its open list. The game reads the file by
+    `gi.LoadFile`/`gi.FreeFile`, which this engine's `game_import_t` now
+    ends with (a game built for the original engine never reaches
+    them). A nav edict's model is the mover's modelindex as it is here
+    (`*N` is N+1). What the re-release marks with `SVF_DOOR`,
+    `SVF_LOCKED`, `SVF_TRAP` and `SVF_LASER_FIELD` is `FL_DOOR` (the
+    three doors), `FL_LOCKED` (a `func_door` a trigger opens),
+    `FL_TRAP` (grenades, barrels, a laser on) and `FL_LASER_FIELD`
+    here. The nodes are loaded anew with the level, and after a save
+    is loaded. `nav_enable 0` leaves them out.
+  - `game/m_move.c`: the re-release's `M_MoveToPath` and
+    `M_NavPathToGoal` before `M_MoveToGoal`'s own moves, on a map with
+    nodes: `AI_PATHING` (its last free bit), the path cached two seconds
+    (`monsterinfo.nav_path`), given up after a while blocked
+    (`path_blocked_counter`, `path_wait_time`), and the request's node
+    search as q2pro-ng's game makes it (within 512, twice its height
+    below and above). Its combat styles are worked out: the berserker,
+    the mutant and a monster with only a melee close right in; the rest
+    to 440. `SV_NewChaseDir` takes a point too. `FacingIdeal` wants
+    five degrees on a path; the flight (`g_rr.c`) and the old flying
+    step's height go for the path's point; `blocked_checkjump_rr` jumps
+    where a traversal is next, facing along it; hint paths and the
+    pursuit's next marker are not taken while pathing. Its temporary
+    melee rush after being blocked is left out.
   - `ref_soft/r_image.c`: a skin is allocated with two rows and more
     either side of it (`R_AllocPixels`): drawing an alias model steps a
     texture pointer along each span, and where a triangle is clipped at

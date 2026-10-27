@@ -69,6 +69,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define FL_NO_KNOCKBACK			0x00000800
 #define FL_POWER_ARMOR			0x00001000	// power armor (if any) is active
 #define FL_DISGUISED			0x00002000	// Ground Zero's: monsters do not know it
+#define FL_LOCKED				0x00004000	// the re-release's: a door that a trigger opens, for its paths
+#define FL_DOOR					0x00008000	// the re-release's: a door, which its paths go through
+#define FL_TRAP					0x00010000	// the re-release's: a hazard its paths keep off (grenades, barrels, lasers on)
+#define FL_LASER_FIELD			0x00020000	// the re-release's: a laser, whose beam its paths keep off
 #define FL_RESPAWN				0x80000000	// used for item respawning
 
 
@@ -175,6 +179,7 @@ typedef enum
 #define AI_CIRCLE_STRAFE		0x10000000	// Ground Zero's: it circles as it charges, sliding
 #define AI_STINKY				0x20000000	// the re-release's: its corpse always draws flies
 #define AI_ALTERNATE_FLY		0x40000000	// the re-release's flight (SV_alternate_flystep)
+#define AI_PATHING				0x80000000	// the re-release's: following its navigation nodes
 // on a ceiling: Ground Zero's gravityVector, unset (zero) meaning down
 #define GRAVITY_UP(ent)			((ent)->gravityVector[2] > 0)
 
@@ -483,6 +488,57 @@ typedef struct
 	void		(*endfunc)(edict_t *self);
 } mmove_t;
 
+// the re-release's navigation (g_nav.c): a request for a path, and where
+// it says to go
+#define PathFlags_Water			0x01	// swim to your goal
+#define PathFlags_Walk			0x02	// walk to your goal
+#define PathFlags_WalkOffLedge	0x04	// allow walking over ledges
+#define PathFlags_LongJump		0x08	// allow jumping over gaps
+#define PathFlags_BarrierJump	0x10	// allow jumping over low barriers
+#define PathFlags_Elevator		0x20	// allow using elevators
+#define PathFlags_All			-1
+
+enum {
+	PathReturnCode_ReachedGoal,			// we're at our destination
+	PathReturnCode_ReachedPathEnd,		// as close to the goal as a path gets
+	PathReturnCode_TraversalPending,	// the next segment is a traversal (a jump)
+	PathReturnCode_RawPathFound,		// just a raw path, as asked
+	PathReturnCode_InProgress,			// pathing in progress
+	PathReturnCode_StartPathErrors,		// any code after this one is an error
+	PathReturnCode_InvalidStart,
+	PathReturnCode_InvalidGoal,
+	PathReturnCode_NoNavAvailable,		// no nav file for this map
+	PathReturnCode_NoStartNode,
+	PathReturnCode_NoGoalNode,
+	PathReturnCode_NoPathFound,
+	PathReturnCode_MissingWalkOrSwimFlag
+};
+
+typedef struct
+{
+	vec3_t		start, goal;
+	int			pathFlags;
+	float		moveDist;
+
+	qboolean	ignoreNodeFlags;
+	float		minHeight, maxHeight;	// how far below and above it a node may be
+	float		radius;					// and across
+
+	float		dropHeight, jumpHeight;	// its traversals' most
+
+	vec3_t		*points;				// the whole path, if wanted
+	int			maxPoints;
+} nav_request_t;
+
+typedef struct
+{
+	int			numPathPoints;
+	float		pathDistSqr;
+	vec3_t		firstMovePoint;
+	vec3_t		secondMovePoint;
+	int			returnCode;
+} nav_info_t;
+
 typedef struct
 {
 	mmove_t		*currentmove;
@@ -593,6 +649,17 @@ typedef struct
 	// is heading for
 	float		last_hint_time;
 	edict_t		*goal_hint;
+
+	// the re-release's pathing on its navigation nodes: where the path
+	// says to go, till nav_path_cache_time; how long it has been blocked
+	// on it, and no paths again till path_wait_time; none ever, on a map
+	// that has none; and a turn of its own till random_change_time
+	nav_info_t	nav_path;
+	float		nav_path_cache_time;
+	float		path_blocked_counter;
+	float		path_wait_time;
+	qboolean	no_path_finding;
+	float		random_change_time;
 } monsterinfo_t;
 
 
@@ -840,6 +907,12 @@ edict_t *PickCoopTarget (edict_t *self);
 float realrange (edict_t *self, edict_t *other);
 qboolean has_valid_enemy (edict_t *self);
 qboolean monsterlost_checkhint (edict_t *self);
+
+// g_nav.c
+void Nav_Load (char *mapname);
+void Nav_Frame (void);
+qboolean Nav_Available (void);
+qboolean Nav_GetPathToGoal (nav_request_t *request, nav_info_t *info);
 void hintpath_stop (edict_t *self);
 void InitHintPaths (void);
 void ED_CallSpawn (edict_t *ent);

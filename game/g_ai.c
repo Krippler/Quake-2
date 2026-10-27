@@ -659,6 +659,11 @@ qboolean FacingIdeal(edict_t *self)
 	float	delta;
 
 	delta = anglemod(self->s.angles[YAW] - self->ideal_yaw);
+
+	// the re-release's: turned all but square, on its paths
+	if (self->monsterinfo.aiflags & AI_PATHING)
+		return !(delta > 5 && delta < 355);
+
 	if (delta > 45 && delta < 315)
 		return false;
 	return true;
@@ -1165,7 +1170,7 @@ void ai_run (edict_t *self, float dist)
 
 	VectorSubtract (self->s.origin, self->monsterinfo.last_sighting, v);
 	d1 = VectorLength(v);
-	if (d1 <= dist)
+	if (d1 <= dist && !(self->monsterinfo.aiflags & AI_PATHING))	// not there, on its paths
 	{
 		self->monsterinfo.aiflags |= AI_PURSUE_NEXT;
 		dist = d1;

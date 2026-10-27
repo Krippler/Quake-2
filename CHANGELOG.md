@@ -9,6 +9,16 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
 
 ### Added
 
+- **Monsters find their way to you, on the re-release's maps.** The
+  re-release ships navigation nodes for 174 of its maps (the base game,
+  both mission packs, Quake 64 and Call of the Machine); a monster that
+  can't see you, or is too far off to fight, now follows them round
+  corners, up and down stairs and over the jumps it is able for, as
+  the re-release's do, instead of wandering where it lost you. A door the
+  map opens with a trigger, a plat or train, a wall still to be blown
+  open and live grenades, barrels and lasers are kept off, as there.
+  `nav_enable 0` turns it off.
+
 - **The Reckoning's ion ripper and trap, on the re-release's maps and
   any other.** The ion ripper fires a boomerang of cells that rebounds
   off walls; the trap, thrown like a grenade (the longer you hold it,
