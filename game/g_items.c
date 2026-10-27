@@ -40,6 +40,8 @@ void Weapon_ChainFist (edict_t *ent);
 void Weapon_Disintegrator (edict_t *ent);
 void Weapon_Heatbeam (edict_t *ent);
 void Weapon_Tesla (edict_t *ent);
+void Weapon_Ionripper (edict_t *ent);
+void Weapon_Trap (edict_t *ent);
 
 gitem_armor_t jacketarmor_info	= { 25,  50, .30, .00, ARMOR_JACKET};
 gitem_armor_t combatarmor_info	= { 50, 100, .60, .30, ARMOR_COMBAT};
@@ -51,8 +53,6 @@ int	body_armor_index;
 static int	power_screen_index;
 static int	power_shield_index;
 
-#define HEALTH_IGNORE_MAX	1
-#define HEALTH_TIMED		2
 
 void Use_Quad (edict_t *ent, gitem_t *item);
 static int	quad_drop_timeout_hack;
@@ -534,6 +534,8 @@ qboolean Add_Ammo (edict_t *ent, gitem_t *item, int count)
 		max = ent->client->pers.max_tesla;
 	else if (item->tag == AMMO_DISRUPTOR)
 		max = ent->client->pers.max_rounds;
+	else if (item->tag == AMMO_TRAP)
+		max = ent->client->pers.max_trap;
 	else
 		return false;
 
@@ -2331,6 +2333,78 @@ The Reckoning's, for the phalanx
 		0,
 		NULL,
 		AMMO_MAGSLUG,
+/* precache */ ""
+	},
+
+/*QUAKED weapon_boomer (.3 .3 1) (-16 -16 -16) (16 16 16)
+The Reckoning's ion ripper
+*/
+	{
+		"weapon_boomer",
+		Pickup_Weapon,
+		Use_Weapon,
+		Drop_Weapon,
+		Weapon_Ionripper,
+		"misc/w_pkup.wav",
+		"models/weapons/g_boom/tris.md2", EF_ROTATE,
+		"models/weapons/v_boomer/tris.md2",
+/* icon */		"w_ripper",
+/* pickup */	"Ionripper",
+		0,
+		2,
+		"Cells",
+		IT_WEAPON|IT_STAY_COOP,
+		WEAP_IONRIPPER,
+		NULL,
+		0,
+/* precache */ "weapons/rippfire.wav models/objects/boomrang/tris.md2 misc/lasfly.wav"
+	},
+
+/*QUAKED ammo_trap (.3 .3 1) (-16 -16 -16) (16 16 16)
+The Reckoning's traps: ammo, and thrown
+*/
+	{
+		"ammo_trap",
+		Pickup_Ammo,
+		Use_Weapon,
+		Drop_Ammo,
+		Weapon_Trap,
+		"misc/am_pkup.wav",
+		"models/weapons/g_trap/tris.md2", EF_ROTATE,
+		"models/weapons/v_trap/tris.md2",
+/* icon */		"a_trap",
+/* pickup */	"Trap",
+/* width */		3,
+		1,
+		"Trap",
+		IT_AMMO|IT_WEAPON,
+		WEAP_TRAP,
+		NULL,
+		AMMO_TRAP,
+/* precache */ "misc/fhit3.wav weapons/trapcock.wav weapons/traploop.wav weapons/trapsuck.wav weapons/trapdown.wav items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav models/weapons/z_trap/tris.md2 models/objects/trapfx/tris.md2"
+	},
+
+/*QUAKED key_green_key (0 .5 .8) (-16 -16 -16) (16 16 16)
+The Reckoning's green key
+*/
+	{
+		"key_green_key",
+		Pickup_Key,
+		NULL,
+		Drop_General,
+		NULL,
+		"items/pkup.wav",
+		"models/items/keys/green_key/tris.md2", EF_ROTATE,
+		NULL,
+		"k_green",
+		"Green Key",
+		2,
+		0,
+		NULL,
+		IT_STAY_COOP|IT_KEY,
+		0,
+		NULL,
+		0,
 /* precache */ ""
 	},
 

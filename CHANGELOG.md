@@ -5,6 +5,18 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Added
+
+- **The Reckoning's ion ripper and trap, on the re-release's maps and
+  any other.** The ion ripper fires a boomerang of cells that rebounds
+  off walls; the trap, thrown like a grenade (the longer you hold it,
+  the further), opens where it lands and sucks in the nearest monster,
+  eating it into a food cube that gives you health past your most. The
+  Reckoning's green key is there too. Before, these were left out of
+  the levels that had them.
+
 ## [1.3.23] — 2026-10-27
 
 ### Fixed

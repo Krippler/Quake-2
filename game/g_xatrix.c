@@ -393,3 +393,301 @@ void monster_fire_heat (edict_t *self, vec3_t start, vec3_t dir, int damage, int
 	fire_heat (self, start, dir, damage, speed, damage, damage);
 	Xatrix_MuzzleFlash (self, start, flashtype);
 }
+
+/*
+=================
+The Reckoning's trap, as the re-release has it: thrown, it opens on the
+ground and sucks in the nearest monster in sight (anyone, in
+deathmatch), and one light enough it eats, giving back a food cube of
+health in proportion; one too heavy, or its half minute up, it blows
+up. The gibs of what it ate whirl round it as it chews.
+=================
+*/
+void SP_item_foodcube (edict_t *self);
+
+static void Trap_Gib_Think (edict_t *ent)
+{
+	vec3_t	forward, right, up, diff, vec, new_origin;
+	float	degrees;
+	trace_t	tr;
+
+	if (ent->owner->s.frame != 5)
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+
+	AngleVectors (ent->owner->s.angles, forward, right, up);
+
+	// rotate us around the center
+	degrees = (150.f * FRAMETIME) + ent->owner->delay;
+	VectorSubtract (ent->owner->s.origin, ent->s.origin, diff);
+	RotatePointAroundVector (vec, up, diff, degrees);
+	ent->s.angles[1] += degrees;
+	VectorSubtract (ent->owner->s.origin, vec, new_origin);
+
+	tr = gi.trace (ent->s.origin, NULL, NULL, new_origin, ent, MASK_SOLID);
+	VectorCopy (tr.endpos, ent->s.origin);
+
+	// pull us towards the trap's center
+	VectorNormalize (diff);
+	VectorMA (ent->s.origin, 15.0f * FRAMETIME, diff, ent->s.origin);
+
+	ent->watertype = gi.pointcontents (ent->s.origin);
+	if (ent->watertype & MASK_WATER)
+		ent->waterlevel = 1;
+
+	ent->nextthink = level.time + FRAMETIME;
+	gi.linkentity (ent);
+}
+
+static void trap_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
+{
+	BecomeExplosion1 (self);
+}
+
+static void Trap_Think (edict_t *ent)
+{
+	edict_t	*target = NULL;
+	edict_t	*best = NULL;
+	vec3_t	vec;
+	float	len, max_speed, pull;
+	float	oldlen = 8000;
+	int		i;
+
+	if (ent->timestamp < level.time)
+	{
+		BecomeExplosion1 (ent);
+		return;
+	}
+
+	ent->nextthink = level.time + FRAMETIME;
+
+	if (!ent->groundentity)
+		return;
+
+	// ok lets do the blood effect
+	if (ent->s.frame > 4)
+	{
+		if (ent->s.frame == 5)
+		{
+			qboolean spawn = ent->wait == 64;
+
+			ent->wait -= 2;
+
+			if (spawn)
+				gi.sound (ent, CHAN_VOICE, gi.soundindex ("weapons/trapdown.wav"), 1, ATTN_IDLE, 0);
+
+			ent->delay += 2.f;
+
+			if (ent->wait < 19)
+				ent->s.frame++;
+
+			return;
+		}
+		ent->s.frame++;
+		if (ent->s.frame == 8)
+		{
+			ent->nextthink = level.time + 1;
+			ent->think = G_FreeEdict;
+			ent->s.effects &= ~EF_TRAP;
+
+			best = G_Spawn ();
+			best->count = ent->mass;
+			SP_item_foodcube (best);
+			VectorCopy (ent->s.origin, best->s.origin);
+			best->s.origin[2] += 24;
+			best->s.angles[YAW] = random () * 360;
+			best->velocity[2] = 400;
+			best->think (best);
+			best->nextthink = 0;
+			VectorCopy (best->s.origin, best->s.old_origin);
+			gi.linkentity (best);
+
+			gi.sound (best, CHAN_AUTO, gi.soundindex ("misc/fhit3.wav"), 1.f, ATTN_NORM, 0.f);
+			return;
+		}
+		return;
+	}
+
+	ent->s.effects &= ~EF_TRAP;
+	if (ent->s.frame >= 4)
+	{
+		ent->s.effects |= EF_TRAP;
+		// clear the owner if in deathmatch
+		if (deathmatch->value)
+			ent->owner = NULL;
+	}
+
+	if (ent->s.frame < 4)
+	{
+		ent->s.frame++;
+		return;
+	}
+
+	while ((target = findradius (target, ent->s.origin, 256)) != NULL)
+	{
+		if (target == ent)
+			continue;
+
+		// not near flags, teleporters or spawn points in deathmatch
+		if (target->classname && deathmatch->value &&
+			(!strncmp (target->classname, "info_player_", 12) ||
+			 !strcmp (target->classname, "misc_teleporter_dest") ||
+			 !strncmp (target->classname, "item_flag_", 10)) &&
+			visible (target, ent))
+		{
+			BecomeExplosion1 (ent);
+			return;
+		}
+
+		if (!(target->svflags & SVF_MONSTER) && !target->client)
+			continue;
+		// players only in deathmatch, and not its owner
+		if (target->client && (!deathmatch->value || target == ent->teammaster))
+			continue;
+		if (target->health <= 0)
+			continue;
+		if (!visible (ent, target))
+			continue;
+		VectorSubtract (ent->s.origin, target->s.origin, vec);
+		len = VectorLength (vec);
+		if (!best)
+		{
+			best = target;
+			oldlen = len;
+			continue;
+		}
+		if (len < oldlen)
+		{
+			oldlen = len;
+			best = target;
+		}
+	}
+
+	// pull the enemy in
+	if (best)
+	{
+		if (best->groundentity)
+		{
+			best->s.origin[2] += 1;
+			best->groundentity = NULL;
+		}
+		VectorSubtract (ent->s.origin, best->s.origin, vec);
+		len = VectorNormalize (vec);
+
+		max_speed = best->client ? 290.f : 150.f;
+		pull = max_speed - len;
+		if (pull < 64)
+			pull = 64;
+		if (pull > max_speed)
+			pull = max_speed;
+		VectorMA (best->velocity, pull, vec, best->velocity);
+
+		ent->s.sound = gi.soundindex ("weapons/trapsuck.wav");
+
+		if (len < 48)
+		{
+			if (best->mass < 400)
+			{
+				ent->takedamage = DAMAGE_NO;
+				ent->solid = SOLID_NOT;
+				ent->die = NULL;
+
+				T_Damage (best, ent, ent->teammaster, vec3_origin, best->s.origin, vec3_origin, 100000, 1, 0, MOD_TRAP);
+
+				ent->enemy = best;
+				ent->wait = 64;
+				VectorCopy (ent->s.origin, ent->s.old_origin);
+				ent->timestamp = level.time + 30;
+				ent->accel = best->mass;
+				if (deathmatch->value)
+					ent->mass = best->mass / 4;
+				else
+					ent->mass = best->mass / 10;
+				// ok spawn the food cube
+				ent->s.frame = 5;
+
+				// link up any gibs that this monster may have spawned
+				for (i = 0; i < globals.num_edicts; i++)
+				{
+					edict_t *e = &g_edicts[i];
+
+					if (!e->inuse || !e->classname)
+						continue;
+					else if (strcmp (e->classname, "gib"))
+						continue;
+					VectorSubtract (e->s.origin, ent->s.origin, vec);
+					if (VectorLength (vec) > 128.f)
+						continue;
+
+					e->movetype = MOVETYPE_NONE;
+					e->nextthink = level.time + FRAMETIME;
+					e->think = Trap_Gib_Think;
+					e->owner = ent;
+					Trap_Gib_Think (e);
+				}
+			}
+			else
+			{
+				BecomeExplosion1 (ent);
+				return;
+			}
+		}
+	}
+}
+
+void fire_trap (edict_t *self, vec3_t start, vec3_t aimdir, int speed)
+{
+	edict_t	*trap;
+	vec3_t	dir;
+	vec3_t	forward, right, up;
+	float	gravityAdjustment = sv_gravity->value / 800.f;
+
+	vectoangles (aimdir, dir);
+	AngleVectors (dir, forward, right, up);
+
+	trap = G_Spawn ();
+	VectorCopy (start, trap->s.origin);
+	VectorScale (aimdir, speed, trap->velocity);
+	VectorMA (trap->velocity, (200 + crandom () * 10.0f) * gravityAdjustment, up, trap->velocity);
+	VectorMA (trap->velocity, crandom () * 10.0f, right, trap->velocity);
+	VectorSet (trap->avelocity, 0, 300, 0);
+	trap->movetype = MOVETYPE_BOUNCE;
+	trap->clipmask = MASK_SHOT & ~CONTENTS_DEADMONSTER;
+	trap->solid = SOLID_BBOX;
+	trap->takedamage = DAMAGE_YES;
+	VectorSet (trap->mins, -4, -4, 0);
+	VectorSet (trap->maxs, 4, 4, 8);
+	trap->die = trap_die;
+	trap->health = 20;
+	trap->s.modelindex = gi.modelindex ("models/weapons/z_trap/tris.md2");
+	trap->owner = trap->teammaster = self;
+	trap->nextthink = level.time + 1;
+	trap->think = Trap_Think;
+	trap->classname = "food_cube_trap";
+	trap->s.sound = gi.soundindex ("weapons/traploop.wav");
+	gi.linkentity (trap);
+
+	trap->timestamp = level.time + 30;
+}
+
+/*
+The trap's food cube: health, as much as a tenth of what it ate (a
+quarter, in deathmatch), past the most
+*/
+void SP_item_foodcube (edict_t *self)
+{
+	if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH))
+	{
+		G_FreeEdict (self);
+		return;
+	}
+
+	self->model = "models/objects/trapfx/tris.md2";
+	SpawnItem (self, FindItem ("Health"));
+	self->spawnflags |= DROPPED_ITEM;
+	self->style = HEALTH_IGNORE_MAX;
+	self->classname = "item_foodcube";
+	self->s.effects |= EF_GIB;
+}

@@ -291,6 +291,9 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 			case MOD_BFG_BLAST:
 				message = "should have used a smaller gun";
 				break;
+			case MOD_TRAP:
+				message = "was sucked into their own trap";
+				break;
 			default:
 				if (IsNeutral(self))
 					message = "killed itself";
@@ -358,6 +361,10 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 			case MOD_RIPPER:
 				message = "ripped to shreds by";
 				message2 = "'s ripper gun";
+				break;
+			case MOD_TRAP:
+				message = "was caught in";
+				message2 = "'s trap";
 				break;
 			case MOD_PHALANX:
 				message = "was evaporated by";
@@ -637,6 +644,7 @@ void InitClientPersistant (gclient_t *client)
 	client->pers.max_magslug	= 50;
 	client->pers.max_tesla		= 50;
 	client->pers.max_rounds		= 100;
+	client->pers.max_trap		= 5;
 
 	client->pers.connected = true;
 }

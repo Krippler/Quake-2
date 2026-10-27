@@ -107,7 +107,8 @@ typedef enum
 	AMMO_SLUGS,
 	AMMO_MAGSLUG,		// The Reckoning's phalanx
 	AMMO_TESLA,			// Ground Zero's tesla mines
-	AMMO_DISRUPTOR		// Ground Zero's disruptor rounds
+	AMMO_DISRUPTOR,		// Ground Zero's disruptor rounds
+	AMMO_TRAP			// The Reckoning's traps
 } ammo_t;
 
 
@@ -269,6 +270,8 @@ typedef struct
 #define WEAP_DISRUPTOR			13
 #define WEAP_PHALANX			14
 #define WEAP_PLASMA				15		// the heatbeam
+#define WEAP_IONRIPPER			16
+#define WEAP_TRAP				17
 
 typedef struct gitem_s
 {
@@ -639,6 +642,10 @@ extern	int	body_armor_index;
 #define MOD_TRACKER			41		// Ground Zero's disruptor
 #define MOD_HEATBEAM		42		// Ground Zero's plasma beam
 #define MOD_TESLA_MINE		43		// Ground Zero's tesla mine
+#define HEALTH_IGNORE_MAX	1		// health styles
+#define HEALTH_TIMED		2
+
+#define MOD_TRAP			45		// The Reckoning's: eaten by a trap
 #define MOD_BLASTOFF		44		// the re-release's: under a fixbot taking off
 #define MOD_FRIENDLY_FIRE	0x8000000
 
@@ -780,6 +787,7 @@ void G_SetGoal (void);
 // g_xatrix.c
 void monster_fire_blueblaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
 void monster_fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect);
+void fire_trap (edict_t *self, vec3_t start, vec3_t aimdir, int speed);
 void fire_ionripper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
 void monster_dabeam (edict_t *self);
 
@@ -1099,6 +1107,7 @@ typedef struct
 	int			max_magslug;	// the mission packs'
 	int			max_tesla;
 	int			max_rounds;
+	int			max_trap;
 
 	gitem_t		*weapon;
 	gitem_t		*lastweapon;

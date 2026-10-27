@@ -323,6 +323,13 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     tesla), double damage and DualFire. Weapons multiply their damage by
     `damage_multiplier` (quad 4, double damage 2), and under DualFire
     `Weapon_Generic` runs a weapon's frames twice a frame.
+    The Reckoning's ion ripper (`weapon_boomer`, on cells) and trap
+    (`ammo_trap`, thrown as the tesla is, by `Throw_Generic`, which now
+    takes the re-release's prime sound and the loop it makes while held)
+    are its too, as the re-release has them; the trap eats a monster
+    lighter than 400 into a food cube (`item_foodcube`) of a tenth of
+    its mass in health, past the most, and whirls its gibs round as it
+    chews. The green key too.
   - `ref_soft/r_image.c`: a skin is allocated with two rows and more
     either side of it (`R_AllocPixels`): drawing an alias model steps a
     texture pointer along each span, and where a triangle is clipped at

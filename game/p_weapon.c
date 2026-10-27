@@ -87,7 +87,7 @@ static int P_QuantityWarn (gitem_t *weapon)
 		{"weapon_supershotgun", 10}, {"weapon_machinegun", 30},
 		{"weapon_chaingun", 60}, {"ammo_grenades", 2}, {"ammo_tesla", 1},
 		{"weapon_hyperblaster", 30}, {"weapon_plasmabeam", 50},
-		{"weapon_bfg", 50}, {NULL, 0}
+		{"weapon_bfg", 50}, {"weapon_boomer", 30}, {"ammo_trap", 1}, {NULL, 0}
 	};
 	int		i;
 
@@ -322,7 +322,7 @@ void NoAmmoWeaponChange (edict_t *ent)
 	{
 		static char *order[] = {
 			"weapon_disintegrator", "weapon_railgun", "weapon_plasmabeam",
-			"weapon_hyperblaster", "weapon_chaingun", "weapon_machinegun",
+			"weapon_boomer", "weapon_hyperblaster", "weapon_chaingun", "weapon_machinegun",
 			"weapon_supershotgun", "weapon_shotgun", "weapon_phalanx",
 			"weapon_rocketlauncher", "weapon_grenadelauncher",
 			"weapon_chainfist", "weapon_blaster", NULL
@@ -1991,8 +1991,8 @@ void weapon_tesla_fire (edict_t *ent, qboolean held)
 }
 
 // Ground Zero's generic throw: the hand grenade's, by frames
-static void Throw_Generic (edict_t *ent, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int FRAME_THROW_SOUND,
-	int FRAME_THROW_HOLD, int FRAME_THROW_FIRE, int *pause_frames, int EXPLODE, void (*fire)(edict_t *ent, qboolean held))
+static void Throw_Generic (edict_t *ent, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int FRAME_THROW_SOUND, char *prime_sound,
+	int FRAME_THROW_HOLD, int FRAME_THROW_FIRE, int *pause_frames, int EXPLODE, char *primed_sound, void (*fire)(edict_t *ent, qboolean held))
 {
 	int		n;
 
@@ -2048,13 +2048,16 @@ static void Throw_Generic (edict_t *ent, int FRAME_FIRE_LAST, int FRAME_IDLE_LAS
 
 	if (ent->client->weaponstate == WEAPON_FIRING)
 	{
-		if (ent->client->ps.gunframe == FRAME_THROW_SOUND)
-			gi.sound (ent, CHAN_WEAPON, gi.soundindex ("weapons/hgrena1b.wav"), 1, ATTN_NORM, 0);
+		if (prime_sound && ent->client->ps.gunframe == FRAME_THROW_SOUND)
+			gi.sound (ent, CHAN_WEAPON, gi.soundindex (prime_sound), 1, ATTN_NORM, 0);
 
 		if (ent->client->ps.gunframe == FRAME_THROW_HOLD)
 		{
 			if (!ent->client->grenade_time)
 				ent->client->grenade_time = level.time + GRENADE_TIMER + 0.2;
+			// its sound while held
+			if (primed_sound && !ent->client->grenade_blew_up)
+				ent->client->weapon_sound = gi.soundindex (primed_sound);
 
 			// held too long: in the hand
 			if (EXPLODE && !ent->client->grenade_blew_up && level.time >= ent->client->grenade_time)
@@ -2102,6 +2105,110 @@ void Weapon_Tesla (edict_t *ent)
 {
 	static int	pause_frames[]	= {21, 0};
 
-	// (no throw sound: the re-release's -1)
-	Throw_Generic (ent, 8, 32, -1, 1, 2, pause_frames, 0, weapon_tesla_fire);
+	// (no prime sound, as the re-release has it)
+	Throw_Generic (ent, 8, 32, -1, NULL, 1, 2, pause_frames, 0, NULL, weapon_tesla_fire);
+}
+
+/*
+======================================================================
+
+The Reckoning's weapons, as the re-release has them
+
+======================================================================
+*/
+
+/*
+The ion ripper: a boomerang of cells, a little off the line of sight
+*/
+void weapon_ionripper_fire (edict_t *ent)
+{
+	vec3_t	start, forward, right, offset, tempang;
+	int		damage;
+
+	if (deathmatch->value)
+		// tone down for deathmatch
+		damage = 30;
+	else
+		damage = 50;
+	damage *= damage_multiplier;
+
+	VectorCopy (ent->client->v_angle, tempang);
+	tempang[YAW] += crandom ();
+	AngleVectors (tempang, forward, right, NULL);
+
+	VectorScale (forward, -3, ent->client->kick_origin);
+	ent->client->kick_angles[0] = -3;
+
+	VectorSet (offset, 16, 7, ent->viewheight-8);
+	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
+
+	fire_ionripper (ent, start, forward, damage, 500, EF_IONRIPPER);
+
+	// send muzzle flash
+	gi.WriteByte (svc_muzzleflash);
+	gi.WriteShort (ent-g_edicts);
+	gi.WriteByte (MZ_IONRIPPER | is_silenced);
+	gi.multicast (ent->s.origin, MULTICAST_PVS);
+
+	PlayerNoise (ent, start, PNOISE_WEAPON);
+
+	ent->client->ps.gunframe++;
+
+	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+		P_RemoveAmmo (ent, ent->client->pers.weapon->quantity);
+}
+
+void Weapon_Ionripper (edict_t *ent)
+{
+	static int	pause_frames[]	= {36, 0};
+	static int	fire_frames[]	= {6, 0};
+
+	Weapon_Generic (ent, 5, 7, 36, 39, pause_frames, fire_frames, weapon_ionripper_fire);
+}
+
+/*
+The trap: thrown as a hand grenade is, the longer held the further
+*/
+#define TRAP_TIMER		5.0
+#define TRAP_MINSPEED	300
+#define TRAP_MAXSPEED	700
+
+void weapon_trap_fire (edict_t *ent, qboolean held)
+{
+	vec3_t	offset, forward, right, start, angles;
+	float	timer;
+	int		speed;
+
+	// not so far up as to go behind
+	VectorCopy (ent->client->v_angle, angles);
+	if (angles[PITCH] < -62.5)
+		angles[PITCH] = -62.5;
+	AngleVectors (angles, forward, right, NULL);
+
+	VectorSet (offset, 8, 0, ent->viewheight-8);
+	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
+
+	timer = ent->client->grenade_time - level.time;
+	if (ent->health <= 0)
+		speed = TRAP_MINSPEED;
+	else
+	{
+		speed = TRAP_MINSPEED + (TRAP_TIMER - timer) * ((TRAP_MAXSPEED - TRAP_MINSPEED) / TRAP_TIMER);
+		if (speed > TRAP_MAXSPEED)
+			speed = TRAP_MAXSPEED;
+	}
+
+	ent->client->grenade_time = 0;
+
+	fire_trap (ent, start, forward, speed);
+
+	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+		P_RemoveAmmo (ent, 1);
+}
+
+void Weapon_Trap (edict_t *ent)
+{
+	static int	pause_frames[]	= {29, 34, 39, 48, 0};
+
+	Throw_Generic (ent, 15, 48, 5, "weapons/trapcock.wav", 11, 12, pause_frames, 0, "weapons/traploop.wav", weapon_trap_fire);
 }
