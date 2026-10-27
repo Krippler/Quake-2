@@ -80,6 +80,28 @@ void Use_Multi (edict_t *ent, edict_t *other, edict_t *activator)
 	multi_trigger (ent);
 }
 
+/*
+=================
+G_TouchesHull
+
+The re-release's CLIP triggers: whether other is in the trigger's brushes
+themselves, not just their bounding box (gi.Clip).
+=================
+*/
+static qboolean G_TouchesHull (edict_t *self, edict_t *other)
+{
+	trace_t	tr;
+	int		mask;
+
+	if (!gi.Clip)
+		return true;
+	mask = other->clipmask;
+	if (!mask)
+		mask = other->client ? MASK_PLAYERSOLID : (other->svflags & SVF_MONSTER) ? MASK_MONSTERSOLID : MASK_SOLID;
+	tr = gi.Clip (self, other->s.origin, other->mins, other->maxs, other->s.origin, mask);
+	return tr.fraction < 1 || tr.startsolid || tr.allsolid;
+}
+
 void Touch_Multi (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
 	if(other->client)
@@ -104,11 +126,15 @@ void Touch_Multi (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *su
 			return;
 	}
 
+	// the re-release's CLIP: what is in its brushes, not just their box
+	if ((self->spawnflags & 32) && !G_TouchesHull (self, other))
+		return;
+
 	self->activator = other;
 	multi_trigger (self);
 }
 
-/*QUAKED trigger_multiple (.5 .5 .5) ? MONSTER NOT_PLAYER TRIGGERED TOGGLE
+/*QUAKED trigger_multiple (.5 .5 .5) ? MONSTER NOT_PLAYER TRIGGERED TOGGLE LATCHED CLIP
 Variable sized repeatable trigger.  Must be targeted at one or more entities.
 If "delay" is set, the trigger waits some time after activating before firing.
 "wait" : Seconds between triggerings. (.2 default)
@@ -232,7 +258,7 @@ void SP_trigger_multiple (edict_t *ent)
 }
 
 
-/*QUAKED trigger_once (.5 .5 .5) ? x x TRIGGERED
+/*QUAKED trigger_once (.5 .5 .5) ? x x TRIGGERED x x CLIP
 Triggers once, then removes itself.
 You must set the key "target" to the name of another object in the level that has a matching "targetname".
 
@@ -595,6 +621,10 @@ static int windsound;
 
 void trigger_push_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
+	// the re-release's CLIP: what is in its brushes, not just their box
+	if ((self->spawnflags & 16) && !G_TouchesHull (self, other))
+		return;
+
 	if (strcmp(other->classname, "grenade") == 0)
 	{
 		VectorScale (self->movedir, self->speed * 10, other->velocity);
@@ -619,7 +649,7 @@ void trigger_push_touch (edict_t *self, edict_t *other, cplane_t *plane, csurfac
 }
 
 
-/*QUAKED trigger_push (.5 .5 .5) ? PUSH_ONCE
+/*QUAKED trigger_push (.5 .5 .5) ? PUSH_ONCE x x x CLIP
 Pushes the player
 "speed"		defaults to 1000
 */
@@ -642,7 +672,7 @@ trigger_hurt
 ==============================================================================
 */
 
-/*QUAKED trigger_hurt (.5 .5 .5) ? START_OFF TOGGLE SILENT NO_PROTECTION SLOW
+/*QUAKED trigger_hurt (.5 .5 .5) ? START_OFF TOGGLE SILENT NO_PROTECTION SLOW NO_PLAYERS NO_MONSTERS CLIPPED
 Any entity that touches this will be hurt.
 
 It does dmg points of damage each server frame
@@ -673,8 +703,17 @@ void hurt_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *sur
 
 	if (!other->takedamage)
 		return;
+	// the re-release's NO_PLAYERS and NO_MONSTERS
+	if ((self->spawnflags & 32) && other->client)
+		return;
+	if ((self->spawnflags & 64) && (other->svflags & SVF_MONSTER))
+		return;
 
 	if (self->timestamp > level.time)
+		return;
+
+	// and its CLIPPED: what is in its brushes, not just their box
+	if ((self->spawnflags & 128) && !G_TouchesHull (self, other))
 		return;
 
 	if (self->spawnflags & 16)

@@ -310,6 +310,7 @@ extern	cdlight_t	cl_dlights[MAX_DLIGHTS];
 // it can be un-deltad from the original 
 #define	MAX_PARSE_ENTITIES	1024
 extern	entity_state_t	cl_parse_entities[MAX_PARSE_ENTITIES];
+extern	float			cl_parse_scales[MAX_PARSE_ENTITIES];	// and each one's scale (U_SCALE), 0 unscaled
 
 //=============================================================================
 
@@ -529,6 +530,7 @@ void V_RenderView( float stereo_separation );
 void V_AddEntity (entity_t *ent);
 void V_AddParticle (vec3_t org, int color, float alpha);
 void V_AddLight (vec3_t org, float intensity, float r, float g, float b);
+void V_AddSpotLight (vec3_t org, vec3_t dir, float intensity, float outer, float inner);
 void V_AddLightStyle (int style, float r, float g, float b);
 
 //

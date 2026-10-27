@@ -104,6 +104,7 @@ field_t fields[] = {
 	{"map", FOFS(map), F_LSTRING},
 	{"origin", FOFS(s.origin), F_VECTOR},
 	{"frame", FOFS(s.frame), F_INT},		// the re-release's
+	{"scale", FOFS(scale), F_FLOAT},		// and its model's scale
 	{"angles", FOFS(s.angles), F_VECTOR},
 	{"angle", FOFS(s.angles), F_ANGLEHACK},
 
@@ -244,7 +245,6 @@ field_t		clientfields[] =
 	{"pers.lastweapon", CLOFS(pers.lastweapon), F_ITEM},
 	{"newweapon", CLOFS(newweapon), F_ITEM},
 	{"owned_sphere", CLOFS(owned_sphere), F_EDICT},
-	{"flashlight", CLOFS(flashlight), F_EDICT},
 
 	{NULL, 0, F_INT}
 };
@@ -277,6 +277,7 @@ void InitGame (void)
 
 	// latched vars
 	sv_cheats = gi.cvar ("cheats", "0", CVAR_SERVERINFO|CVAR_LATCH);
+	huntercam = gi.cvar ("huntercam", "1", CVAR_SERVERINFO|CVAR_LATCH);
 	gi.cvar ("gamename", GAMEVERSION , CVAR_SERVERINFO | CVAR_LATCH);
 	gi.cvar ("gamedate", __DATE__ , CVAR_SERVERINFO | CVAR_LATCH);
 
@@ -884,6 +885,10 @@ void ReadLevel (char *filename)
 
 		if (!ent->inuse)
 			continue;
+
+		// the engine knows nothing of the re-release's scales till told
+		if (ent->scale)
+			G_SetScale (ent, ent->scale);
 
 		// fire any cross-level triggers
 		if (ent->classname)

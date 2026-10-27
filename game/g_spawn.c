@@ -104,6 +104,7 @@ void SP_misc_ctf_small_banner (edict_t *ent);
 void SP_info_player_team (edict_t *self);
 void SP_game_mode_only (edict_t *self);
 void SP_info_player_coop_lava (edict_t *self);
+void SP_info_world_text (edict_t *self);
 void SP_monster_widow2 (edict_t *ent);
 void SP_object_repair (edict_t *ent);
 void SP_monster_stalker (edict_t *ent);
@@ -292,6 +293,7 @@ spawn_t	spawns[] = {
 	{"item_flag_team2", SP_game_mode_only},
 	{"dm_tag_token", SP_game_mode_only},
 	{"info_player_coop_lava", SP_info_player_coop_lava},
+	{"info_world_text", SP_info_world_text},
 	{"monster_widow2", SP_monster_widow2},
 	{"func_object_repair", SP_object_repair},
 	{"monster_stalker", SP_monster_stalker},
@@ -755,6 +757,8 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 
 		ED_CallSpawn (ent);
 		ent->s.renderfx |= RF_IR_VISIBLE;	// to Ground Zero's IR goggles, as the re-release has it
+		if (ent->inuse && ent->scale)		// the re-release's "scale"
+			G_SetScale (ent, ent->scale);
 	}	
 
 	gi.dprintf ("%i entities inhibited\n", inhibit);

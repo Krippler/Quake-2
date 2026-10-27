@@ -1418,6 +1418,8 @@ void SP_monster_guncmdr (edict_t *self)
 	gi.modelindex ("models/monsters/gunner/gibs/garm.md2");
 	gi.modelindex ("models/monsters/gunner/gibs/gun.md2");
 	gi.modelindex ("models/monsters/gunner/gibs/head.md2");
+
+	self->scale = 1.25;		// the re-release's: a bigger gunner (monster_start)
 	gi.modelindex ("models/proj/flechette/tris.md2");
 
 	VectorSet (self->mins, -16, -16, -24);

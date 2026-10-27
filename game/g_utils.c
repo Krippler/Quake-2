@@ -404,6 +404,22 @@ void G_InitEdict (edict_t *e)
 	e->classname = "noclass";
 	e->gravity = 1.0;
 	e->s.number = e - g_edicts;
+	G_SetScale (e, 0);
+}
+
+/*
+=================
+G_SetScale
+
+The re-release's scale of an entity's model: kept, and given to the engine
+to send (0 or 1 is as it is).
+=================
+*/
+void G_SetScale (edict_t *ent, float scale)
+{
+	ent->scale = (scale == 1) ? 0 : scale;
+	if (gi.SetEntityScale)
+		gi.SetEntityScale (ent, ent->scale);
 }
 
 /*
@@ -460,6 +476,7 @@ void G_FreeEdict (edict_t *ed)
 	}
 
 	memset (ed, 0, sizeof(*ed));
+	G_SetScale (ed, 0);
 	ed->classname = "freed";
 	ed->freetime = level.time;
 	ed->inuse = false;

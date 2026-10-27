@@ -256,8 +256,16 @@ void SV_CalcViewOffset (edict_t *ent)
 	{
 		VectorClear (angles);
 
-		ent->client->ps.viewangles[ROLL] = 40;
-		ent->client->ps.viewangles[PITCH] = -15;
+		if (ent->flags & FL_SAM_RAIMI)
+		{
+			ent->client->ps.viewangles[ROLL] = 0;
+			ent->client->ps.viewangles[PITCH] = 0;
+		}
+		else
+		{
+			ent->client->ps.viewangles[ROLL] = 40;
+			ent->client->ps.viewangles[PITCH] = -15;
+		}
 		ent->client->ps.viewangles[YAW] = ent->client->killer_yaw;
 	}
 	else
@@ -809,70 +817,6 @@ void P_WorldEffects (void)
 G_SetClientEffects
 ===============
 */
-/*
-===============
-G_SetFlashlight
-
-The re-release's flashlight: a white light where the player looks, a
-light entity of theirs that the client draws (RF_CUSTOMLIGHT, as the
-re-release's target_light), since this protocol has no spotlight.
-===============
-*/
-static void flashlight_think (edict_t *self)
-{
-	// gone with its player, or theirs no more (respawned)
-	if (!self->owner || !self->owner->inuse || !self->owner->client || self->owner->client->flashlight != self)
-	{
-		G_FreeEdict (self);
-		return;
-	}
-	self->nextthink = level.time + FRAMETIME;
-}
-
-static void G_SetFlashlight (edict_t *ent)
-{
-	gclient_t	*client = ent->client;
-	edict_t		*light = client->flashlight;
-	vec3_t		start, end, forward;
-	trace_t		tr;
-	float		dist;
-
-	if (!(ent->flags & FL_FLASHLIGHT) || ent->health <= 0 || level.intermissiontime)
-	{
-		if (light)
-			light->svflags |= SVF_NOCLIENT;
-		return;
-	}
-
-	if (!light || !light->inuse || light->owner != ent)
-	{
-		light = client->flashlight = G_Spawn ();
-		light->classname = "flashlight";
-		light->owner = ent;
-		light->movetype = MOVETYPE_NONE;
-		light->solid = SOLID_NOT;
-		light->s.modelindex = 1;		// sent, though nothing of it is drawn
-		light->s.renderfx = RF_CUSTOMLIGHT;
-		light->s.skinnum = 0xffffff00;	// white
-		light->think = flashlight_think;
-		light->nextthink = level.time + FRAMETIME;
-	}
-
-	VectorCopy (ent->s.origin, start);
-	start[2] += ent->viewheight;
-	AngleVectors (client->v_angle, forward, NULL, NULL);
-	VectorMA (start, 1024, forward, end);
-	tr = gi.trace (start, NULL, NULL, end, ent, MASK_SHOT);
-
-	// a little off what it lights, and wider and dimmer further off
-	VectorMA (tr.endpos, -16, forward, light->s.origin);
-	dist = tr.fraction * 1024;
-	light->s.frame = 120 + dist * 0.15;
-
-	light->svflags &= ~SVF_NOCLIENT;
-	gi.linkentity (light);
-}
-
 void G_SetClientEffects (edict_t *ent)
 {
 	int		pa_type;
@@ -885,6 +829,10 @@ void G_SetClientEffects (edict_t *ent)
 
 	if (ent->health <= 0 || level.intermissiontime)
 		return;
+
+	// the re-release's flashlight, which the client shines from their eyes
+	if (ent->flags & FL_FLASHLIGHT)
+		ent->s.renderfx |= RF_FLASHLIGHT;
 
 	if (ent->powerarmor_time > level.time)
 	{
@@ -1233,7 +1181,6 @@ void ClientEndServerFrame (edict_t *ent)
 	G_SetClientEvent (ent);
 
 	G_SetClientEffects (ent);
-	G_SetFlashlight (ent);
 
 	G_SetClientSound (ent);
 

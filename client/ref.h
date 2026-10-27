@@ -73,6 +73,7 @@ typedef struct entity_s
 	struct image_s	*skin;			// NULL for inline skin
 	int		flags;
 
+	float	scale;					// an alias model's (the re-release's); 0 is as it is
 } entity_t;
 
 #define ENTITY_FLAGS  68
@@ -82,6 +83,8 @@ typedef struct
 	vec3_t	origin;
 	vec3_t	color;
 	float	intensity;
+	vec3_t	spot;					// a spotlight's direction (the flashlight's); zero all round
+	float	spotouter, spotinner;	// its cone's edge and full cone, as cosines
 } dlight_t;
 
 typedef struct

@@ -699,6 +699,14 @@ static qboolean M_NavPathToGoal (edict_t *self, float dist)
 	VectorSet (box_max, ground_origin[0] + 16, ground_origin[1] + 16, ground_origin[2] + 32);
 	path_to = path->firstMovePoint;
 
+	// a flyer or swimmer, over the nodes on the floor, is at one when it
+	// is over it
+	if (self->flags & (FL_FLY|FL_SWIM))
+	{
+		box_min[2] -= 128;
+		box_max[2] += 128;
+	}
+
 	if (self->monsterinfo.nav_path_cache_time <= level.time
 		|| (path->returnCode != PathReturnCode_TraversalPending
 		&& path_to[0] >= box_min[0] && path_to[0] <= box_max[0]

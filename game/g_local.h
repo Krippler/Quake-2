@@ -74,6 +74,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define FL_TRAP					0x00010000	// the re-release's: a hazard its paths keep off (grenades, barrels, lasers on)
 #define FL_LASER_FIELD			0x00020000	// the re-release's: a laser, whose beam its paths keep off
 #define FL_FLASHLIGHT			0x00040000	// the re-release's: a player's flashlight is on
+#define FL_SAM_RAIMI			0x00080000	// Ground Zero's: a dead player riding their hunter sphere
 #define FL_RESPAWN				0x80000000	// used for item respawning
 
 
@@ -792,6 +793,7 @@ extern	cvar_t	*bob_pitch;
 extern	cvar_t	*bob_roll;
 
 extern	cvar_t	*sv_cheats;
+extern	cvar_t	*huntercam;		// Ground Zero's: a dead player rides a hunter sphere
 extern	cvar_t	*maxclients;
 extern	cvar_t	*maxspectators;
 
@@ -997,6 +999,7 @@ void	G_UseTargets (edict_t *ent, edict_t *activator);
 void	G_SetMovedir (vec3_t angles, vec3_t movedir);
 
 void	G_InitEdict (edict_t *e);
+void	G_SetScale (edict_t *ent, float scale);
 edict_t	*G_Spawn (void);
 void	G_FreeEdict (edict_t *e);
 
@@ -1066,6 +1069,7 @@ void M_CheckGround (edict_t *ent);
 void ThrowHead (edict_t *self, char *gibname, int damage, int type);
 void ThrowClientHead (edict_t *self, int damage);
 edict_t *ThrowGib (edict_t *self, char *gibname, int damage, int type);
+void LookAtKiller (edict_t *self, edict_t *inflictor, edict_t *attacker);
 void BecomeExplosion1(edict_t *self);
 void G_ClearShadowLights (void);
 void G_SetupShadowLights (void);
@@ -1325,7 +1329,6 @@ struct gclient_s
 	float		nuke_framenum;				// and the A-M bomb's flash, till then
 	float		ir_framenum;				// and the IR goggles
 	edict_t		*owned_sphere;				// and the sphere about them
-	edict_t		*flashlight;				// the re-release's: the light of theirs, where they look
 	float		quadfire_framenum;			// The Reckoning's DualFire
 	float		invincible_framenum;
 	float		breather_framenum;
@@ -1511,6 +1514,9 @@ struct edict_s
 	// a parasite's proboscis (its tip; the tip's, its drawn segment)
 	void		(*postthink) (edict_t *ent);
 	edict_t		*proboscus;
+
+	// the re-release's: the scale its model is drawn at (G_SetScale); 0 is 1
+	float		scale;
 
 	// Ground Zero's hint_path: the next on its chain, which chain, and its
 	// links as monsterlost_checkhint sorts them

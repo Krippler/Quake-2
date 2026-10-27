@@ -2737,12 +2737,12 @@ void SP_target_blacklight (edict_t *ent)
 	VectorClear (ent->mins);
 	VectorClear (ent->maxs);
 
-	// Ground Zero's own model: the re-release's draws a smaller one scaled
-	// up, which this protocol can't
+	// the re-release's: Ground Zero's smaller model, scaled up
 	ent->s.effects |= (EF_TRACKERTRAIL | EF_TRACKER);
 	ent->think = blacklight_think;
-	ent->s.modelindex = gi.modelindex ("models/items/spawngro2/tris.md2");
-	ent->s.frame = 1;
+	ent->s.modelindex = gi.modelindex ("models/items/spawngro3/tris.md2");
+	ent->s.skinnum = 0;
+	G_SetScale (ent, 6);
 	ent->nextthink = level.time + FRAMETIME;
 	gi.linkentity (ent);
 }
@@ -2763,8 +2763,10 @@ void SP_target_orb (edict_t *ent)
 
 	ent->think = blacklight_think;
 	ent->nextthink = level.time + FRAMETIME;
-	ent->s.modelindex = gi.modelindex ("models/items/spawngro2/tris.md2");
+	ent->s.modelindex = gi.modelindex ("models/items/spawngro3/tris.md2");
+	ent->s.skinnum = 1;
 	ent->s.frame = 2;
+	G_SetScale (ent, 8);
 	ent->s.effects |= EF_SPHERETRANS;
 	gi.linkentity (ent);
 }

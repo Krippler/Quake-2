@@ -347,14 +347,20 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     projectiles in `g_rogue.c` (`fire_prox`, `fire_nuke`,
     `T_RadiusNukeDamage`); `weapon_nailgun` and `ammo_nails`, which the
     re-release spawns as them, are stand-ins for them. The ETF's second
-    barrel and the prox have no flashes of their own here (the
-    re-release made them new ones): the first barrel's, and the grenade
-    launcher's, which the re-release's prox flash sounds like. The bomb's
+    barrel and the prox have the re-release's own flashes, `MZ_ETF_RIFLE_2`
+    (32) and `MZ_PROX` (31): Ground Zero's `MZ_SHOTGUN2` and `MZ_UNUSED`,
+    which nothing sent, renumbered as the re-release did, so its demos
+    draw them too. The bomb's
     flash is `client->nuke_framenum`, a white blend fading over two
     seconds.
     The spheres and the doppelganger are `g_sphere.c`; a player's one
     sphere is `client->owned_sphere` (saved), which `T_Damage` halves
     their hurt for (the defender) and tells who hurt them (its pain).
+    A dead player's hunter, rousing 192 or more away from who killed
+    them, takes their view with it (`FL_SAM_RAIMI`, the "sam raimi cam":
+    the body gibbed, the view at the sphere, at a field of view of 140,
+    looking at its quarry), unless `huntercam` is 0 or dmflags forces a
+    respawn, as the re-release has it.
     The IR goggles set `RDF_IRGOGGLES`, which the software renderer
     already draws by; every entity spawned, every gib and every player
     is `RF_IR_VISIBLE`, as the re-release has them.
@@ -375,16 +381,22 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     next after a sighting; `FoundTarget` ends the disguise. The player
     wears `RF_USE_DISGUISE`, which the client already draws, and the
     re-release's `i_disguise` health icon where its pak is.
-    `target_blacklight` and `target_orb` are Ground Zero's, on its
-    `spawngro2` model: the re-release scales a smaller one up, which this
-    protocol cannot. `info_nav_lock` is there, and does nothing: what it
+    `target_blacklight` and `target_orb` are the re-release's, its
+    `spawngro3` scaled up six and eight times. `info_nav_lock` is there,
+    and does nothing: what it
     locks is for the re-release's bots' navigation.
   - `game/g_trigger.c`: `trigger_multiple`'s spawnflag 8 is Ground
     Zero's `TOGGLE` (it starts off; being used turns it on and off,
     instead of firing it), and 16 the re-release's `LATCHED` (it fires
     as the first thing it is for comes into it and as the last leaves,
-    looked for each frame). Its `CLIP` (32, a box touched by the brush's
-    shape, not its bounds) is not here: the game has no `gi.clip`.
+    looked for each frame), and 32 its `CLIP`: a thing sets it off only
+    if its box touches the brush's shape, not just its bounds. That is
+    `gi.Clip` (appended to `game_import_t`, `SV_Clip` in
+    `server/sv_world.c`: one box trace against one entity's model). The
+    same goes for `trigger_push`'s 16 and `trigger_hurt`'s 128, which
+    also takes the re-release's `NO_PLAYERS` (32) and `NO_MONSTERS` (64).
+    `info_world_text` is in `g_misc.c`: its text is drawn only with the
+    re-release's developer tools, so here it is just a point.
   - `game/g_nav.c` (new): the re-release's navigation nodes,
     `bots/navigation/<map>.nav` (versions 2 to 6), and its A* over them.
     The re-release's engine does this, closed; this is the GPL code id
@@ -412,7 +424,15 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     step's height go for the path's point; `blocked_checkjump_rr` jumps
     where a traversal is next, facing along it; hint paths and the
     pursuit's next marker are not taken while pathing. Its temporary
-    melee rush after being blocked is left out.
+    melee rush after being blocked (`AI_TEMP_MELEE_COMBAT`) is not here
+    because it never happens there: its `SV_NewChaseDir` counts to three
+    blocks, but its one caller outside a path (`M_MoveToGoal`) zeroes the
+    count after every call, and the other is on a path, which it rules
+    out. A flyer or swimmer that sees its enemy is taken off its path in
+    `ai_checkattack` (M_MoveToPath's own rule for them, which an attack
+    never reaches, leaving `AI_PATHING` to steer its flight to the old
+    point), and is at a node when over it: the nodes are on the floor,
+    which it hovers above.
   - `game/g_ai.c`: `ai_run`'s temporary goal is freed with its
     `freetime` cleared, for G_Spawn to have again at once: it is never
     linked or sent, and holding a slot half a second for each monster
@@ -428,18 +448,44 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     `misc_viper_missile`, `misc_transport`, `misc_amb4` and
     `target_mal_laser`, from the re-release's.
   - `game/p_view.c`, `game/g_items.c`: the re-release's flashlight
-    (`item_flashlight`, `FL_FLASHLIGHT`). It draws a spotlight by an
-    effect this protocol hasn't the bits for; here it is a light entity
-    of the player's (`client->flashlight`) at where they look,
-    `RF_CUSTOMLIGHT` as `target_light`'s, wider further off.
+    (`item_flashlight`, `FL_FLASHLIGHT`), as `RF_FLASHLIGHT` on the
+    player: renderfx goes out as all 32 bits already, so it takes no
+    change to the protocol, and a client without it draws nothing.
+    `client/cl_ents.c` shines a spotlight (`V_AddSpotLight`) from their
+    eyes along their view, a player's other than this one's by their
+    model's angles (its pitch is a third of the view's). A `dlight_t`
+    with a `spot` is lit by `ref_soft/r_light.c`'s `R_AddSpotLightTo`,
+    each lightmap sample by where it is (`R_SampleGrid`), within its
+    cone and facing it, and models within it by `R_LightPoint`; through
+    walls, as any dynamic light is.
   - `game/g_misc.c`: the re-release's `misc_model` (with the `frame`
     key, which an entity now takes, as there) and
     `misc_player_mannequin`, a player model of a client slot from 253
-    up, as its skin configstring; a mannequin it scales down (boss2's
-    three at .45) is left out, as this protocol can't scale it. The CTF
+    up, as its skin configstring, at its "radius" scale (boss2's three
+    at .45). The CTF
     banners wave; `info_player_team1`/`2` do nothing, and the CTF flags
     and `dm_tag_token` are freed, as outside those games there. Its
     CTF and Ground Zero's tag are not here.
+  - **Scale**, the re-release's (`entity_state_t.scale` there):
+    `entity_state_t` begins the game's `edict_t`, so it cannot grow
+    without breaking the mission packs' game libraries built from
+    `rogue/` and `xatrix/`. The game says it by `gi.SetEntityScale`, at
+    the end of `game_import_t` (`game/g_utils.c`'s `G_SetScale`, which
+    `G_InitEdict` and `G_FreeEdict` clear and `ReadLevel` says again);
+    the server keeps it beside the states (`sv.entscale`,
+    `svs.client_entity_scales`) and sends a change as `U_SCALE` (bit 28,
+    a short of 256ths) by `MSG_WriteDeltaEntityScale`, only to a client
+    whose userinfo has `q2ext`, which this one's does; a client without
+    it sees the model as it is. The client keeps it beside
+    `cl_parse_entities` (`cl_parse_scales`) and gives it the refresh as
+    `entity_t.scale`, which `ref_soft/r_alias.c` scales the model's axes
+    by, about its origin, and the lerp's move back down by. The game:
+    any entity's "scale" key, as the re-release's; a monster's box,
+    mass and stride scaled with it in `monster_start`; its gibs as big;
+    the gunner commander at 1.25, the N64 tank commander and
+    `monster_tank_stand` at 1.5, the trap's food cube by what it ate.
+    Ground Zero's spawn-in effect keeps its own models rather than
+    scaling one.
   - `ref_soft/r_image.c`: a skin is allocated with two rows and more
     either side of it (`R_AllocPixels`): drawing an alias model steps a
     texture pointer along each span, and where a triangle is clipped at

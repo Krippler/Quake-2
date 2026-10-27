@@ -895,6 +895,12 @@ void SP_monster_tank_stand (edict_t *self)
 	gi.soundindex ("misc/bigtele.wav");
 	VectorSet (self->mins, -32, -32, -16);
 	VectorSet (self->maxs, 32, 32, 64);
+	// the re-release's: half as big again, unless the map says
+	if (!self->scale)
+		self->scale = 1.5;
+	VectorScale (self->mins, self->scale, self->mins);
+	VectorScale (self->maxs, self->scale, self->maxs);
+	G_SetScale (self, self->scale);
 	self->use = Use_Boss3;
 	self->think = tank_stand_think;
 	self->nextthink = level.time + FRAMETIME;

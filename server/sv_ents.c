@@ -122,8 +122,9 @@ SV_EmitPacketEntities
 Writes a delta update of an entity_state_t list to the message.
 =============
 */
-void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t *msg)
+void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t *msg, qboolean ext_scale)
 {
+	float	oldscale = 0, newscale = 0;
 	entity_state_t	*oldent, *newent;
 	int		oldindex, newindex;
 	int		oldnum, newnum;
@@ -152,6 +153,7 @@ void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t 
 		{
 			newent = &svs.client_entities[(to->first_entity+newindex)%svs.num_client_entities];
 			newnum = newent->number;
+			newscale = ext_scale ? svs.client_entity_scales[(to->first_entity+newindex)%svs.num_client_entities] : 0;
 		}
 
 		if (oldindex >= from_num_entities)
@@ -160,6 +162,7 @@ void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t 
 		{
 			oldent = &svs.client_entities[(from->first_entity+oldindex)%svs.num_client_entities];
 			oldnum = oldent->number;
+			oldscale = ext_scale ? svs.client_entity_scales[(from->first_entity+oldindex)%svs.num_client_entities] : 0;
 		}
 
 		if (newnum == oldnum)
@@ -168,7 +171,7 @@ void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t 
 			// in any bytes being emited if the entity has not changed at all
 			// note that players are always 'newentities', this updates their oldorigin always
 			// and prevents warping
-			MSG_WriteDeltaEntity (oldent, newent, msg, false, newent->number <= maxclients->value);
+			MSG_WriteDeltaEntityScale (oldent, newent, oldscale, newscale, msg, false, newent->number <= maxclients->value);
 			oldindex++;
 			newindex++;
 			continue;
@@ -176,7 +179,7 @@ void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t 
 
 		if (newnum < oldnum)
 		{	// this is a new entity, send it from the baseline
-			MSG_WriteDeltaEntity (&sv.baselines[newnum], newent, msg, true, true);
+			MSG_WriteDeltaEntityScale (&sv.baselines[newnum], newent, 0, newscale, msg, true, true);
 			newindex++;
 			continue;
 		}
@@ -455,7 +458,7 @@ void SV_WriteFrameToClient (client_t *client, sizebuf_t *msg)
 	SV_WritePlayerstateToClient (oldframe, frame, msg);
 
 	// delta encode the entities
-	SV_EmitPacketEntities (oldframe, frame, msg);
+	SV_EmitPacketEntities (oldframe, frame, msg, client->ext_scale);
 }
 
 
@@ -664,6 +667,7 @@ void SV_BuildClientFrame (client_t *client)
 			ent->s.number = e;
 		}
 		*state = ent->s;
+		svs.client_entity_scales[svs.next_client_entities%svs.num_client_entities] = sv.entscale[e];
 
 		// don't mark players missiles as solid
 		if (ent->owner == client->edict)
@@ -713,7 +717,7 @@ void SV_RecordDemoMessage (void)
 			ent->s.number && 
 			(ent->s.modelindex || ent->s.effects || ent->s.sound || ent->s.event) && 
 			!(ent->svflags & SVF_NOCLIENT))
-			MSG_WriteDeltaEntity (&nostate, &ent->s, &buf, false, true);
+			MSG_WriteDeltaEntityScale (&nostate, &ent->s, 0, sv.entscale[e], &buf, false, true);
 
 		e++;
 		ent = EDICT_NUM(e);

@@ -495,8 +495,10 @@ static void Trap_Think (edict_t *ent)
 			best = G_Spawn ();
 			best->count = ent->mass;
 			SP_item_foodcube (best);
+			// the re-release's: as big as what was eaten
+			G_SetScale (best, 1 + (ent->accel - 100) / 300);
 			VectorCopy (ent->s.origin, best->s.origin);
-			best->s.origin[2] += 24;
+			best->s.origin[2] += 24 * (best->scale ? best->scale : 1);
 			best->s.angles[YAW] = random () * 360;
 			best->velocity[2] = 400;
 			best->think (best);

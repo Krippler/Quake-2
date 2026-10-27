@@ -657,3 +657,46 @@ trace_t SV_Trace (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, edict_t *p
 	return clip.trace;
 }
 
+
+/*
+==================
+SV_Clip
+
+A box moved from start to end against ent alone: against the brushes of
+its model if it has an inline one (a trigger's too), else its bounds. The
+re-release's gi.clip, for a trigger that wants what touches its shape and
+not just its box.
+==================
+*/
+trace_t SV_Clip (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int contentmask)
+{
+	cmodel_t	*model = NULL;
+	trace_t		trace;
+	int			headnode;
+	float		*angles;
+
+	if (!mins)
+		mins = vec3_origin;
+	if (!maxs)
+		maxs = vec3_origin;
+
+	if (ent->s.modelindex > 0 && ent->s.modelindex < MAX_MODELS_EXT)
+		model = sv.models[ent->s.modelindex];
+
+	if (model)
+	{
+		headnode = model->headnode;
+		angles = ent->s.angles;
+	}
+	else
+	{
+		headnode = CM_HeadnodeForBox (ent->mins, ent->maxs);
+		angles = vec3_origin;	// boxes don't rotate
+	}
+
+	trace = CM_TransformedBoxTrace (start, end, mins, maxs, headnode, contentmask, ent->s.origin, angles);
+	if (trace.fraction < 1 || trace.startsolid || trace.allsolid)
+		trace.ent = ent;
+	return trace;
+}
+

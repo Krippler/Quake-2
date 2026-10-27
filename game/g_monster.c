@@ -602,6 +602,16 @@ qboolean monster_start (edict_t *self)
 		self->monsterinfo.checkattack = M_CheckAttack;
 	VectorCopy (self->s.origin, self->s.old_origin);
 
+	// the re-release's scale: its box, weight and stride with it
+	if (self->scale > 0 && self->scale != 1)
+	{
+		self->monsterinfo.scale *= self->scale;
+		VectorScale (self->mins, self->scale, self->mins);
+		VectorScale (self->maxs, self->scale, self->maxs);
+		self->mass *= self->scale;
+		G_SetScale (self, self->scale);
+	}
+
 	if (st.item)
 	{
 		self->item = FindItemByClassname (st.item);

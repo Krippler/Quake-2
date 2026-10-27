@@ -1318,7 +1318,7 @@ void PutClientInServer (edict_t *ent)
 	ent->die = player_die;
 	ent->waterlevel = 0;
 	ent->watertype = 0;
-	ent->flags &= ~FL_NO_KNOCKBACK;
+	ent->flags &= ~(FL_NO_KNOCKBACK|FL_SAM_RAIMI);
 	ent->svflags &= ~SVF_DEADMONSTER;
 
 	VectorCopy (mins, ent->mins);
@@ -1808,14 +1808,24 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 				PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
 		}
 
-		ent->viewheight = pm.viewheight;
+		// riding a hunter sphere, the eye is where it is
+		if (ent->flags & FL_SAM_RAIMI)
+			ent->viewheight = 8;
+		else
+			ent->viewheight = pm.viewheight;
 		ent->waterlevel = pm.waterlevel;
 		ent->watertype = pm.watertype;
 		ent->groundentity = pm.groundentity;
 		if (pm.groundentity)
 			ent->groundentity_linkcount = pm.groundentity->linkcount;
 
-		if (ent->deadflag)
+		if (ent->deadflag && (ent->flags & FL_SAM_RAIMI))
+		{
+			client->ps.viewangles[ROLL] = 0;
+			client->ps.viewangles[PITCH] = 0;
+			client->ps.viewangles[YAW] = client->killer_yaw;
+		}
+		else if (ent->deadflag)
 		{
 			client->ps.viewangles[ROLL] = 40;
 			client->ps.viewangles[PITCH] = -15;

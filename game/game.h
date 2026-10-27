@@ -197,6 +197,14 @@ typedef struct
 	// navigation nodes); -1 and *buffer NULL if there is none
 	int		(*LoadFile) (char *path, void **buffer);
 	void	(*FreeFile) (void *buffer);
+
+	// this engine's: the scale an entity's model is drawn at (the
+	// re-release's), for clients that read it; 1 is as it is
+	void	(*SetEntityScale) (edict_t *ent, float scale);
+
+	// this engine's: a box's move against one entity alone, its brushes if
+	// it has an inline model (the re-release's gi.clip)
+	trace_t	(*Clip) (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int contentmask);
 } game_import_t;
 
 //
