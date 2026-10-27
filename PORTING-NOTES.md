@@ -619,6 +619,10 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   texture's `textures/<name>.mat` naming the material (cached per map),
   and `player/steps/<material>1..4.wav`. A monster's step is the new
   entity event `EV_OTHER_FOOTSTEP`, at `ATTN_IDLE`.
+  Some of those steps (carpet, grass, snow, splash, tile), and
+  `world/klaxon3.wav`, are 24-bit PCM; `ResampleSfx`
+  (`client/snd_mem.c`) takes the top 16 bits of a 24- or 32-bit sample,
+  which it read before as unsigned 8-bit, hence a screech.
 
 ## The system layer
 
