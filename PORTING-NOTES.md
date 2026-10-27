@@ -401,6 +401,33 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     where a traversal is next, facing along it; hint paths and the
     pursuit's next marker are not taken while pathing. Its temporary
     melee rush after being blocked is left out.
+  - `game/g_ai.c`: `ai_run`'s temporary goal is freed with its
+    `freetime` cleared, for G_Spawn to have again at once: it is never
+    linked or sent, and holding a slot half a second for each monster
+    chasing what it can't see ran rbase1 and rware1 out of edicts with
+    a hundred of them after the player.
+  - `game/g_func.c`: Ground Zero's smart water (`func_water` spawnflag
+    2, rmine2's lava): `smart_water_go_up` and `smart_water_blocked`,
+    as the re-release has them. Our `func_water` is classnamed
+    `func_door`, so smart water is known by its `blocked` instead.
+    `p_client.c`'s coop spawns on rmine2 are the lowest
+    `info_player_coop_lava` above it.
+  - `game/g_xatrix.c`: The Reckoning's `rotating_light`,
+    `misc_viper_missile`, `misc_transport`, `misc_amb4` and
+    `target_mal_laser`, from the re-release's.
+  - `game/p_view.c`, `game/g_items.c`: the re-release's flashlight
+    (`item_flashlight`, `FL_FLASHLIGHT`). It draws a spotlight by an
+    effect this protocol hasn't the bits for; here it is a light entity
+    of the player's (`client->flashlight`) at where they look,
+    `RF_CUSTOMLIGHT` as `target_light`'s, wider further off.
+  - `game/g_misc.c`: the re-release's `misc_model` (with the `frame`
+    key, which an entity now takes, as there) and
+    `misc_player_mannequin`, a player model of a client slot from 253
+    up, as its skin configstring; a mannequin it scales down (boss2's
+    three at .45) is left out, as this protocol can't scale it. The CTF
+    banners wave; `info_player_team1`/`2` do nothing, and the CTF flags
+    and `dm_tag_token` are freed, as outside those games there. Its
+    CTF and Ground Zero's tag are not here.
   - `ref_soft/r_image.c`: a skin is allocated with two rows and more
     either side of it (`R_AllocPixels`): drawing an alias model steps a
     texture pointer along each span, and where a triangle is clipped at

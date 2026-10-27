@@ -103,6 +103,7 @@ field_t fields[] = {
 	{"attenuation", FOFS(attenuation), F_FLOAT},
 	{"map", FOFS(map), F_LSTRING},
 	{"origin", FOFS(s.origin), F_VECTOR},
+	{"frame", FOFS(s.frame), F_INT},		// the re-release's
 	{"angles", FOFS(s.angles), F_VECTOR},
 	{"angle", FOFS(s.angles), F_ANGLEHACK},
 
@@ -202,6 +203,7 @@ field_t fields[] = {
 	{"monster_slots", STOFS(monster_slots), F_INT, FFL_SPAWNTEMP},
 	{"healthtarget", FOFS(healthtarget), F_LSTRING},
 	{"goals", STOFS(goals), F_LSTRING, FFL_SPAWNTEMP},
+	{"image", STOFS(image), F_LSTRING, FFL_SPAWNTEMP},
 	{"rgba", FOFS(s.skinnum), F_INT},
 
 //need for item field in edict struct, FFL_SPAWNTEMP item will be skipped on saves
@@ -241,6 +243,7 @@ field_t		clientfields[] =
 	{"pers.lastweapon", CLOFS(pers.lastweapon), F_ITEM},
 	{"newweapon", CLOFS(newweapon), F_ITEM},
 	{"owned_sphere", CLOFS(owned_sphere), F_EDICT},
+	{"flashlight", CLOFS(flashlight), F_EDICT},
 
 	{NULL, 0, F_INT}
 };

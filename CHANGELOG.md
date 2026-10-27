@@ -18,6 +18,18 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   map opens with a trigger, a plat or train, a wall still to be blown
   open and live grenades, barrels and lasers are kept off, as there.
   `nav_enable 0` turns it off.
+- **The rising lava of Ground Zero's lava mine (rmine2).** Once it
+  starts, it climbs after you, faster the further above it you are,
+  and coop players come back in above it, as in Ground Zero. Before, it
+  rose at one steady speed.
+- **The Reckoning's alarm lights, flashing lasers, bomber missiles,
+  ambient hum and Maxx's transport,** on its ship, refinery, hangar and
+  moon base, which had been left out; and the re-release's
+  **flashlight** (the swamp): used, it lights where you look.
+- **The re-release's decoration:** the gibs and shells and the
+  mannequin of the final level (boss2), and the CTF maps' waving
+  banners. Its CTF flags and team starts, and Ground Zero's tag token,
+  are taken out of a game that isn't theirs, as there.
 
 - **The Reckoning's ion ripper and trap, on the re-release's maps and
   any other.** The ion ripper fires a boomerang of cells that rebounds
@@ -52,6 +64,10 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
 
 ### Fixed
 
+- **No more "no free edicts" with a horde after you.** A monster
+  chasing what it can't see took a slot each frame it couldn't have
+  back for half a second; with a hundred at once (the warehouse, the
+  research base), the level ran out of them.
 - **The ammo depot no longer sends you on to the next level four
   seconds in.** Its exit, and 34 other triggers on twelve maps
   (Ground Zero's, Call of the Machine's, Quake 64's orbit, the

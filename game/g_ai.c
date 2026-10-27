@@ -1244,6 +1244,9 @@ void ai_run (edict_t *self, float dist)
 	M_MoveToGoal (self, dist);
 
 	G_FreeEdict(tempgoal);
+	// never linked nor sent, so its slot may be had again at once: with
+	// many monsters chasing, holding each a half second ran out of edicts
+	tempgoal->freetime = 0;
 
 	if (self)
 		self->goalentity = save;

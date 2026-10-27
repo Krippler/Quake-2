@@ -134,6 +134,16 @@ void SP_info_player_deathmatch(edict_t *self)
 potential spawning position for coop games
 */
 
+/*QUAKED info_player_coop_lava (1 0 1) (-16 -16 -24) (16 16 32)
+Ground Zero's: a coop spawning position on rmine2, where the lava level
+is checked.
+*/
+void SP_info_player_coop_lava (edict_t *self)
+{
+	if (!coop->value)
+		G_FreeEdict (self);
+}
+
 void SP_info_player_coop(edict_t *self)
 {
 	if (!coop->value)
@@ -692,7 +702,7 @@ void SaveClientData (void)
 			continue;
 		game.clients[i].pers.health = ent->health;
 		game.clients[i].pers.max_health = ent->max_health;
-		game.clients[i].pers.savedFlags = (ent->flags & (FL_GODMODE|FL_NOTARGET|FL_POWER_ARMOR|FL_DISGUISED));
+		game.clients[i].pers.savedFlags = (ent->flags & (FL_GODMODE|FL_NOTARGET|FL_POWER_ARMOR|FL_DISGUISED|FL_FLASHLIGHT));
 		if (coop->value)
 			game.clients[i].pers.score = ent->client->resp.score;
 	}
@@ -861,11 +871,76 @@ edict_t *SelectDeathmatchSpawnPoint (void)
 }
 
 
+/*
+================
+SelectLavaCoopSpawnPoint
+
+Ground Zero's rmine2: the lowest of its lava spawn points that the
+rising lava has not reached, and no one stands on.
+================
+*/
+void smart_water_blocked (edict_t *self, edict_t *other);
+
+static edict_t *SelectLavaCoopSpawnPoint (edict_t *ent)
+{
+	float	lavatop, lowest;
+	edict_t	*lava, *highestlava, *spot, *pointWithLeastLava;
+	vec3_t	center;
+	int		i;
+
+	// first, find the highest lava; some stop moving once they've
+	// filled their areas
+	lavatop = -99999;
+	highestlava = NULL;
+	for (i = 1; i < globals.num_edicts; i++)
+	{
+		lava = &g_edicts[i];
+		if (!lava->inuse || lava->blocked != smart_water_blocked)
+			continue;
+
+		VectorAdd (lava->absmax, lava->absmin, center);
+		VectorScale (center, 0.5, center);
+
+		if ((gi.pointcontents (center) & MASK_WATER) && lava->absmax[2] > lavatop)
+		{
+			lavatop = lava->absmax[2];
+			highestlava = lava;
+		}
+	}
+
+	if (!highestlava)
+		return NULL;
+
+	// the top of the lava, with a margin (and the box's size)
+	lavatop = highestlava->absmax[2] + 64;
+
+	spot = NULL;
+	lowest = 999999;
+	pointWithLeastLava = NULL;
+	while ((spot = G_Find (spot, FOFS(classname), "info_player_coop_lava")) != NULL)
+	{
+		if (spot->s.origin[2] < lavatop)
+			continue;
+
+		if (PlayersRangeFromSpot (spot) > 32 && spot->s.origin[2] < lowest)
+		{
+			pointWithLeastLava = spot;
+			lowest = spot->s.origin[2];
+		}
+	}
+
+	return pointWithLeastLava;
+}
+
 edict_t *SelectCoopSpawnPoint (edict_t *ent)
 {
 	int		index;
 	edict_t	*spot = NULL;
 	char	*target;
+
+	// Ground Zero's rmine2 keeps clear of its lava
+	if (!Q_stricmp (level.mapname, "rmine2"))
+		return SelectLavaCoopSpawnPoint (ent);
 
 	index = ent->client - game.clients;
 

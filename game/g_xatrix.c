@@ -691,3 +691,277 @@ void SP_item_foodcube (edict_t *self)
 	self->classname = "item_foodcube";
 	self->s.effects |= EF_GIB;
 }
+
+/*QUAKED rotating_light (0 .5 .8) (-8 -8 -8) (8 8 8) START_OFF ALARM
+The Reckoning's. "health"	if set, the light may be killed.
+*/
+static void rotating_light_alarm (edict_t *self)
+{
+	if (self->spawnflags & 1)
+	{
+		self->think = NULL;
+		self->nextthink = 0;
+	}
+	else
+	{
+		gi.sound (self, CHAN_NO_PHS_ADD+CHAN_VOICE, self->moveinfo.sound_start, 1, ATTN_STATIC, 0);
+		self->nextthink = level.time + 1;
+	}
+}
+
+static void rotating_light_killed (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
+{
+	gi.WriteByte (svc_temp_entity);
+	gi.WriteByte (TE_WELDING_SPARKS);
+	gi.WriteByte (30);
+	gi.WritePosition (self->s.origin);
+	gi.WriteDir (vec3_origin);
+	gi.WriteByte (0xe0 + (rand()&7));
+	gi.multicast (self->s.origin, MULTICAST_PVS);
+
+	self->s.effects &= ~EF_SPINNINGLIGHTS;
+	self->use = NULL;
+
+	self->think = G_FreeEdict;
+	self->nextthink = level.time + FRAMETIME;
+}
+
+static void rotating_light_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	if (self->spawnflags & 1)
+	{
+		self->spawnflags &= ~1;
+		self->s.effects |= EF_SPINNINGLIGHTS;
+
+		if (self->spawnflags & 2)
+		{
+			self->think = rotating_light_alarm;
+			self->nextthink = level.time + FRAMETIME;
+		}
+	}
+	else
+	{
+		self->spawnflags |= 1;
+		self->s.effects &= ~EF_SPINNINGLIGHTS;
+	}
+}
+
+void SP_rotating_light (edict_t *self)
+{
+	self->movetype = MOVETYPE_STOP;
+	self->solid = SOLID_BBOX;
+
+	self->s.modelindex = gi.modelindex ("models/objects/light/tris.md2");
+	self->s.frame = 0;
+
+	self->use = rotating_light_use;
+
+	if (self->spawnflags & 1)
+		self->s.effects &= ~EF_SPINNINGLIGHTS;
+	else
+		self->s.effects |= EF_SPINNINGLIGHTS;
+
+	if (!self->speed)
+		self->speed = 32;
+
+	if (!self->health)
+		self->health = 10;
+	self->max_health = self->health;
+	self->die = rotating_light_killed;
+	self->takedamage = DAMAGE_YES;
+
+	if (self->spawnflags & 2)
+		self->moveinfo.sound_start = gi.soundindex ("misc/alarm.wav");
+
+	gi.linkentity (self);
+}
+
+/*QUAKED misc_viper_missile (1 0 0) (-8 -8 -8) (8 8 8)
+The Reckoning's. "dmg"	how much boom should the bomb make? the default value is 250
+*/
+static void misc_viper_missile_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	vec3_t	start, dir;
+
+	self->enemy = G_Find (NULL, FOFS(targetname), self->target);
+	if (!self->enemy)
+	{
+		gi.dprintf ("misc_viper_missile at %s: target %s not found\n", vtos (self->s.origin), self->target ? self->target : "");
+		return;
+	}
+
+	VectorCopy (self->s.origin, start);
+	VectorSubtract (self->enemy->s.origin, start, dir);
+	VectorNormalize (dir);
+
+	monster_fire_rocket (self, start, dir, self->dmg, 500, MZ2_CHICK_ROCKET_1);
+
+	self->nextthink = level.time + FRAMETIME;
+	self->think = G_FreeEdict;
+}
+
+void SP_misc_viper_missile (edict_t *self)
+{
+	self->movetype = MOVETYPE_NONE;
+	self->solid = SOLID_NOT;
+	VectorSet (self->mins, -8, -8, -8);
+	VectorSet (self->maxs, 8, 8, 8);
+
+	if (!self->dmg)
+		self->dmg = 250;
+
+	self->s.modelindex = gi.modelindex ("models/objects/bomb/tris.md2");
+
+	self->use = misc_viper_missile_use;
+	self->svflags |= SVF_NOCLIENT;
+
+	gi.linkentity (self);
+}
+
+/*QUAKED misc_transport (1 0 0) (-8 -8 -8) (8 8 8)
+The Reckoning's: Maxx's transport at end of game.
+*/
+void func_train_find (edict_t *self);
+void misc_strogg_ship_use (edict_t *self, edict_t *other, edict_t *activator);
+
+void SP_misc_transport (edict_t *ent)
+{
+	if (!ent->target)
+	{
+		gi.dprintf ("%s without a target at %s\n", ent->classname, vtos(ent->absmin));
+		G_FreeEdict (ent);
+		return;
+	}
+
+	if (!ent->speed)
+		ent->speed = 300;
+
+	ent->movetype = MOVETYPE_PUSH;
+	ent->solid = SOLID_NOT;
+	ent->s.modelindex = gi.modelindex ("models/objects/ship/tris.md2");
+
+	VectorSet (ent->mins, -16, -16, 0);
+	VectorSet (ent->maxs, 16, 16, 32);
+
+	ent->think = func_train_find;
+	ent->nextthink = level.time + FRAMETIME;
+	ent->use = misc_strogg_ship_use;
+	ent->svflags |= SVF_NOCLIENT;
+	ent->moveinfo.accel = ent->moveinfo.decel = ent->moveinfo.speed = ent->speed;
+
+	ent->spawnflags |= 1;	// TRAIN_START_ON
+
+	gi.linkentity (ent);
+}
+
+/*QUAKED misc_amb4 (1 0 0) (-16 -16 -16) (16 16 16)
+The Reckoning's: Mal's amb4 loop entity.
+*/
+static void amb4_think (edict_t *ent)
+{
+	ent->nextthink = level.time + 2.7;
+	gi.sound (ent, CHAN_VOICE, ent->noise_index, 1, ATTN_NONE, 0);
+}
+
+void SP_misc_amb4 (edict_t *ent)
+{
+	ent->think = amb4_think;
+	ent->nextthink = level.time + 1;
+	ent->noise_index = gi.soundindex ("world/amb4.wav");
+	gi.linkentity (ent);
+}
+
+/*QUAKED target_mal_laser (1 0 0) (-4 -4 -4) (4 4 4) START_ON RED GREEN BLUE YELLOW ORANGE FAT
+The Reckoning's: Mal's laser, which flashes on for a frame each "wait".
+*/
+void target_laser_think (edict_t *self);
+void target_laser_off (edict_t *self);
+
+static void mal_laser_think (edict_t *self);
+
+static void target_mal_laser_on (edict_t *self)
+{
+	if (!self->activator)
+		self->activator = self;
+	self->spawnflags |= 0x80000001;
+	self->svflags &= ~SVF_NOCLIENT;
+	self->flags |= FL_TRAP;
+	self->think = mal_laser_think;
+	self->nextthink = level.time + self->wait + self->delay;
+}
+
+static void target_mal_laser_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	self->activator = activator;
+	if (self->spawnflags & 1)
+		target_laser_off (self);
+	else
+		target_mal_laser_on (self);
+}
+
+static void mal_laser_think2 (edict_t *self)
+{
+	self->svflags |= SVF_NOCLIENT;
+	self->think = mal_laser_think;
+	self->nextthink = level.time + self->wait;
+	self->spawnflags |= 0x80000000;
+}
+
+static void mal_laser_think (edict_t *self)
+{
+	self->svflags &= ~SVF_NOCLIENT;
+	target_laser_think (self);
+	self->think = mal_laser_think2;
+	self->nextthink = level.time + FRAMETIME;
+}
+
+void SP_target_mal_laser (edict_t *self)
+{
+	self->movetype = MOVETYPE_NONE;
+	self->solid = SOLID_NOT;
+	self->s.renderfx |= RF_BEAM|RF_TRANSLUCENT;
+	self->s.modelindex = 1;			// must be non-zero
+	self->flags |= FL_LASER_FIELD;
+
+	// set the beam diameter
+	if (self->spawnflags & 64)
+		self->s.frame = 16;
+	else
+		self->s.frame = 4;
+
+	// set the color
+	if (self->spawnflags & 2)
+		self->s.skinnum = 0xf2f2f0f0;
+	else if (self->spawnflags & 4)
+		self->s.skinnum = 0xd0d1d2d3;
+	else if (self->spawnflags & 8)
+		self->s.skinnum = 0xf3f3f1f1;
+	else if (self->spawnflags & 16)
+		self->s.skinnum = 0xdcdddedf;
+	else if (self->spawnflags & 32)
+		self->s.skinnum = 0xe0e1e2e3;
+
+	G_SetMovedir (self->s.angles, self->movedir);
+
+	if (!self->delay)
+		self->delay = 0.1;
+	if (!self->wait)
+		self->wait = 0.1;
+	if (!self->dmg)
+		self->dmg = 5;
+
+	VectorSet (self->mins, -8, -8, -8);
+	VectorSet (self->maxs, 8, 8, 8);
+
+	self->nextthink = level.time + self->delay;
+	self->think = mal_laser_think;
+
+	self->use = target_mal_laser_use;
+
+	gi.linkentity (self);
+
+	if (self->spawnflags & 1)
+		target_mal_laser_on (self);
+	else
+		target_laser_off (self);
+}

@@ -73,6 +73,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define FL_DOOR					0x00008000	// the re-release's: a door, which its paths go through
 #define FL_TRAP					0x00010000	// the re-release's: a hazard its paths keep off (grenades, barrels, lasers on)
 #define FL_LASER_FIELD			0x00020000	// the re-release's: a laser, whose beam its paths keep off
+#define FL_FLASHLIGHT			0x00040000	// the re-release's: a player's flashlight is on
 #define FL_RESPAWN				0x80000000	// used for item respawning
 
 
@@ -436,6 +437,7 @@ typedef struct
 	char		*sl_styletarget;
 	float		radius;			// the re-release's target_light
 	char		*goals;			// and worldspawn's Quake 64 objectives
+	char		*image;			// the re-release's mannequin's skin
 	float		health_multiplier;	// a monster's health, scaled
 	char		*reinforcements;	// the re-release's summoners': "classname strength;..."
 	int			monster_slots;		// and how much they may have summoned at once
@@ -1322,6 +1324,7 @@ struct gclient_s
 	float		nuke_framenum;				// and the A-M bomb's flash, till then
 	float		ir_framenum;				// and the IR goggles
 	edict_t		*owned_sphere;				// and the sphere about them
+	edict_t		*flashlight;				// the re-release's: the light of theirs, where they look
 	float		quadfire_framenum;			// The Reckoning's DualFire
 	float		invincible_framenum;
 	float		breather_framenum;

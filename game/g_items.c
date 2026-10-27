@@ -658,6 +658,28 @@ void Use_Doppleganger (edict_t *ent, gitem_t *item)
 }
 
 // the IR goggles: a minute of seeing the living, red, in the dark
+/*
+ * the re-release's flashlight: kept, and used to switch it on and off
+ */
+qboolean Pickup_Flashlight (edict_t *ent, edict_t *other)
+{
+	if (other->client->pers.inventory[ITEM_INDEX(ent->item)])
+		return false;	// already has one
+
+	other->client->pers.inventory[ITEM_INDEX(ent->item)] = 1;
+
+	if (!(ent->spawnflags & DROPPED_ITEM) && deathmatch->value)
+		SetRespawn (ent, ent->item->quantity);
+
+	return true;
+}
+
+void Use_Flashlight (edict_t *ent, gitem_t *item)
+{
+	ent->flags ^= FL_FLASHLIGHT;
+	gi.sound (ent, CHAN_AUTO, gi.soundindex ((ent->flags & FL_FLASHLIGHT) ? "items/flashlight_on.wav" : "items/flashlight_off.wav"), 1, ATTN_STATIC, 0);
+}
+
 void Use_IR (edict_t *ent, gitem_t *item)
 {
 	ent->client->pers.inventory[ITEM_INDEX(item)]--;
@@ -2840,6 +2862,30 @@ Ground Zero's IR goggles
 		NULL,
 		0,
 /* precache */ "misc/ir_start.wav"
+	},
+
+/*QUAKED item_flashlight (.3 .3 1) (-16 -16 -16) (16 16 16)
+The re-release's flashlight (xswamp): used, it switches on and off.
+*/
+	{
+		"item_flashlight",
+		Pickup_Flashlight,
+		Use_Flashlight,
+		NULL,
+		NULL,
+		"items/pkup.wav",
+		"models/items/flashlight/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"p_torch",
+/* pickup */	"Flashlight",
+/* width */		2,
+		60,
+		NULL,
+		IT_STAY_COOP,
+		0,
+		NULL,
+		0,
+/* precache */ "items/flashlight_on.wav items/flashlight_off.wav"
 	},
 
 /*QUAKED key_nuke_container (.3 .3 1) (-16 -16 -16) (16 16 16)
