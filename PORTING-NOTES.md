@@ -461,8 +461,8 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
   `func_plat2` from `rogue/src/g_func.c` with the re-release's changes
   (spawnflag 8 is `START_ACTIVE`; a trigger's call is not held back; a
   blocker killed does not turn it round). What the 1997 game still passes
-  over is the re-release's decoration (
-  `misc_model`, `misc_player_mannequin`).
+  over is the re-release's decoration (`misc_model`,
+  `misc_player_mannequin`).
 - **`game/g_misc.c`**, **`client/cl_fx.c`**, **`ref_soft/r_light.c`**: the
   re-release's real-time lights, a `dynamic_light` at each lamp (or
   `shadowlight` keys on a `light`), up to 69 a map: radius, intensity, a
