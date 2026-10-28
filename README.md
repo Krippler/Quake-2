@@ -95,8 +95,8 @@ with `-e QUAKE2_GAME=xatrix` (or `rogue`). A mod that ships a
 the same) runs that; anything else runs on the single-player game's code,
 which is fine for data-only mods.
 
-**Choosing a game.** New Game asks for the difficulty and then which game,
-listing those your data has: Quake II, its demo, The Reckoning and Ground
+**Choosing a game.** The game menu lists the games your data has, and asks
+the difficulty for the one you pick: Quake II, its demo, The Reckoning and Ground
 Zero from their own directories, and, with the 2023 re-release's pak, Quake
 II Remastered, The Reckoning Remastered, Ground Zero Remastered, Call of
 the Machine and Quake 64. Quake II with the re-release's pak in place plays

@@ -9,8 +9,8 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
 
 ### Added
 
-- **Choose the game.** After the difficulty, New Game asks which game to
-  play, out of those your data has: Quake II, The Reckoning and Ground Zero
+- **Choose the game.** The game menu lists the games your data has, then
+  asks the difficulty for the one you pick: Quake II, The Reckoning and Ground Zero
   (from their own directories), and with the 2023 re-release's pak, Quake
   II Remastered, The Reckoning Remastered, Ground Zero Remastered, Call of
   the Machine and Quake 64. Quake II plays the original maps even with the

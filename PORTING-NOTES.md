@@ -1064,8 +1064,9 @@ see-through water and sprites (`R_SpanletTexel`, `SPANLET_K`). Up to about
 15% slower in timedemo at 640x480; off by default. The 2D pictures (the
 HUD, menus, console) are left sharp.
 
-**`client/menu.c`, `qcommon/files.c`**: New Game's choice of game. After
-the difficulty a menu lists the games whose first map is there
+**`client/menu.c`, `qcommon/files.c`**: the choice of game. The game menu
+lists, in place of 1997's easy, medium and hard, the games whose first map
+is there, and the one chosen asks its difficulty and starts
 (`FS_GameHasFile`, which reads a game directory's paks itself, playing or
 not), each started as the re-release's `default.cfg` starts it:
 `*ntro.cin+base1`, `*xin.cin+xswamp`, `*rintro.cin+rmine1`, `mguhub`,
