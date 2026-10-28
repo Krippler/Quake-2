@@ -52,7 +52,9 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   key for it is E) and the weapons you have are round the middle of the
   screen with their ammo; move the mouse to one and let go to switch to
   it. `+wheel2` (Q) is the same for the things you can use: power armour,
-  quad, the compass, the flashlight and the rest. `cl_weapnext` and
+  quad, the compass, the flashlight and the rest. In single player the
+  game slows to a quarter of its speed while one is held, as in the
+  re-release (`cl_wheel_timescale`, 1 for none). `cl_weapnext` and
   `cl_weapprev`, the re-release's mouse wheel, work too.
 - **The re-release's models.** Its monsters, players, weapons and items
   are drawn with its more detailed models and skins where it has them, in

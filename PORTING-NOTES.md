@@ -1038,7 +1038,14 @@ meanwhile, for the mouse's up and down), and the trigger is kept off; let
 go, what it is on is `use`d. Its pictures are the re-release's 24-pixel
 `pics/wheel/` ones, lit when chosen, half as big again at 480 lines, so
 `Draw_StretchPic` now leaves a picture's transparent pixels as they are;
-the inventory's icons without them.
+the inventory's icons without them. Held in single player (this
+process's own server, `maxclients` 1, not paused) the game goes slower, as
+the re-release's engine slows it (`SERVER_FLAG_SLOW_TIME`; how much is the
+engine's, unpublished, so `cl_wheel_timescale`, 0.25): `Qcommon_Frame`
+scales the milliseconds both the server and the client are given, keeping
+what is left of one for the next frame, and `CL_Frame`'s `cl_maxfps` and the
+look stick's speed are reckoned in real time so that the screen and the
+cursor do not slow with it.
 
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,

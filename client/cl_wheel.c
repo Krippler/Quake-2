@@ -30,6 +30,9 @@ when asked ("wheelinv", the inventory, again every half second while one is
 held). Their pictures are the re-release's (pics/wheel/), the inventory's
 without them.
 
+Held in single player, the game goes at a quarter of its speed
+(cl_wheel_timescale), as the re-release's does.
+
 cl_weapnext and cl_weapprev, its mouse wheel's, are weapnext and weapprev.
 */
 
@@ -53,6 +56,7 @@ static int		wheel_asked;	// cls.realtime of the last wheelinv
 static int		wheel_selected = -1;	// the item it is on
 
 static cvar_t	*cl_wheel_sensitivity;
+static cvar_t	*cl_wheel_timescale;
 
 /*
 =================
@@ -152,6 +156,29 @@ qboolean CL_WheelActive (void)
 		wheel_selected = -1;
 	}
 	return wheel_open != 0;
+}
+
+/*
+=================
+CL_WheelTimescale
+
+How fast the game goes (Qcommon_Frame): slower with a wheel held, as the
+re-release has it, when the game is this one's own and no one else's
+=================
+*/
+float CL_WheelTimescale (void)
+{
+	float	scale;
+
+	if (!cl_wheel_timescale || !CL_WheelActive () || !Com_ServerState ()
+		|| Cvar_VariableValue ("maxclients") > 1 || cl_paused->value)
+		return 1;
+	scale = cl_wheel_timescale->value;
+	if (scale <= 0 || scale > 1)
+		return 1;
+	if (scale < 0.05)
+		scale = 0.05;
+	return scale;
 }
 
 /*
@@ -288,4 +315,5 @@ void CL_InitWheel (void)
 	Cmd_AddCommand ("cl_weapnext", CL_WeapNext_f);
 	Cmd_AddCommand ("cl_weapprev", CL_WeapPrev_f);
 	cl_wheel_sensitivity = Cvar_Get ("cl_wheel_sensitivity", "15", CVAR_ARCHIVE);
+	cl_wheel_timescale = Cvar_Get ("cl_wheel_timescale", "0.25", CVAR_ARCHIVE);
 }
