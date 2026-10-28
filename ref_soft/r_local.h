@@ -828,6 +828,8 @@ extern unsigned d_8to24table[256]; // base
 extern cvar_t	*sw_colorlight;
 extern cvar_t	*sw_fog;		// the re-release's fog (r_fog.c)
 extern cvar_t	*sw_md5;		// the re-release's md5 models (r_md5.c)
+extern cvar_t	*sw_texfilter;	// textures smoothed close up (r_scan.c)
+extern const int	d_texkernel[2][2][2];
 void R_ApplyFog (void);
 void R_DrawFlares (void);
 void	R_InitColorLight (void);

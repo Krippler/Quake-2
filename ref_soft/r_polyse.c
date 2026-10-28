@@ -1035,9 +1035,115 @@ void R_PolysetDrawSpansConstant8_66( spanpackage_t *pspanpackage)
 }
 
 #if !id386
+/*
+================
+R_PolysetDrawSpans8_OpaqueFiltered
+
+sw_texfilter for models (D_DrawSpans16Filtered): each pixel's texel moved
+by the screen's 2x2 kernel, kept inside the skin
+================
+*/
+static void R_PolysetDrawSpans8_OpaqueFiltered (spanpackage_t *pspanpackage)
+{
+	int		lcount, s, t, x;
+	byte	*skin, *skinend, *p;
+	const int	(*k)[2];
+
+	skin = r_affinetridesc.pskin;
+	skinend = skin + r_affinetridesc.skinwidth * r_affinetridesc.skinheight;
+
+	do
+	{
+		lcount = d_aspancount - pspanpackage->count;
+
+		errorterm += erroradjustup;
+		if (errorterm >= 0)
+		{
+			d_aspancount += d_countextrastep;
+			errorterm -= erroradjustdown;
+		}
+		else
+		{
+			d_aspancount += ubasestep;
+		}
+
+		if (lcount)
+		{
+			int		lsfrac, ltfrac;
+			byte	*lpdest;
+			byte	*lptex;
+			int		llight;
+			int		lzi;
+			short	*lpz;
+
+			lpdest = pspanpackage->pdest;
+			lptex = pspanpackage->ptex;
+			lpz = pspanpackage->pz;
+			lsfrac = pspanpackage->sfrac;
+			ltfrac = pspanpackage->tfrac;
+			llight = pspanpackage->light;
+			lzi = pspanpackage->zi;
+
+			x = (lpdest - (byte *)d_viewbuffer) % r_screenwidth;
+			k = d_texkernel[((lpdest - (byte *)d_viewbuffer) / r_screenwidth) & 1];
+
+			do
+			{
+				if ((lzi >> 16) >= *lpz)
+				{
+					p = lptex;
+					s = lsfrac + k[x & 1][0];
+					t = ltfrac + k[x & 1][1];
+					if (s >= 0x10000)
+						p++;
+					else if (s < 0)
+						p--;
+					if (t >= 0x10000)
+						p += r_affinetridesc.skinwidth;
+					else if (t < 0)
+						p -= r_affinetridesc.skinwidth;
+					if (p < skin || p >= skinend)
+						p = lptex;
+//PGM
+					if(r_newrefdef.rdflags & RDF_IRGOGGLES && currententity->flags & RF_IR_VISIBLE)
+						*lpdest = ((byte *)vid.colormap)[irtable[*p]];
+					else
+					*lpdest = ((byte *)vid.colormap)[*p + (llight & 0xFF00)];
+//PGM
+					*lpz = lzi >> 16;
+				}
+				lpdest++;
+				x++;
+				lzi += r_zistepx;
+				lpz++;
+				llight += r_lstepx;
+				lptex += a_ststepxwhole;
+				lsfrac += a_sstepxfrac;
+				lptex += lsfrac >> 16;
+				lsfrac &= 0xFFFF;
+				ltfrac += a_tstepxfrac;
+				if (ltfrac & 0x10000)
+				{
+					lptex += r_affinetridesc.skinwidth;
+					ltfrac &= 0xFFFF;
+				}
+			} while (--lcount);
+		}
+
+		pspanpackage++;
+	} while (pspanpackage->count != -999999);
+}
+
 void R_PolysetDrawSpans8_Opaque (spanpackage_t *pspanpackage)
 {
 	int		lcount;
+
+	if (sw_texfilter->value && r_sstepx < 0x10000 && r_sstepx > -0x10000
+		&& r_tstepx < 0x10000 && r_tstepx > -0x10000)
+	{
+		R_PolysetDrawSpans8_OpaqueFiltered (pspanpackage);
+		return;
+	}
 
 	do
 	{

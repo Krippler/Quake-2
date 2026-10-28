@@ -28,6 +28,7 @@ static cvar_t *sw_mode;
 static cvar_t *sw_stipplealpha;
 static cvar_t *sw_colorlight;
 static cvar_t *cl_shadowlights;
+static cvar_t *sw_texfilter;
 static cvar_t *_windowed_mouse;
 static cvar_t *vid_resizescreen;
 
@@ -52,6 +53,7 @@ static menulist_s  		s_fs_box;
 static menulist_s  		s_stipple_box;
 static menulist_s		s_colorlight_box;
 static menulist_s		s_shadowlights_box;
+static menulist_s		s_texfilter_box;
 static menulist_s  		s_windowed_mouse;
 static menuaction_s		s_apply_action;
 static menuaction_s		s_defaults_action;
@@ -76,6 +78,11 @@ static void ColorLightCallback( void *s )
 static void ShadowLightsCallback( void *s )
 {
 	Cvar_SetValue( "cl_shadowlights", ( ( menulist_s * ) s )->curvalue );
+}
+
+static void TexFilterCallback( void *s )
+{
+	Cvar_SetValue( "sw_texfilter", ( ( menulist_s * ) s )->curvalue );
 }
 
 static void ScreenSizeCallback( void *s )
@@ -112,6 +119,7 @@ static void ApplyChanges( void *unused )
 	Cvar_SetValue( "sw_stipplealpha", s_stipple_box.curvalue );
 	Cvar_SetValue( "sw_colorlight", s_colorlight_values[s_colorlight_box.curvalue] );
 	Cvar_SetValue( "cl_shadowlights", s_shadowlights_box.curvalue );
+	Cvar_SetValue( "sw_texfilter", s_texfilter_box.curvalue );
 
 	mode = s_mode_for_item[s_mode_list.curvalue];
 	if ( mode != (int)sw_mode->value )
@@ -205,6 +213,8 @@ void VID_MenuInit( void )
 		sw_colorlight = Cvar_Get( "sw_colorlight", "1", CVAR_ARCHIVE );
 	if ( !cl_shadowlights )
 		cl_shadowlights = Cvar_Get( "cl_shadowlights", "1", CVAR_ARCHIVE );
+	if ( !sw_texfilter )
+		sw_texfilter = Cvar_Get( "sw_texfilter", "0", CVAR_ARCHIVE );
 	if ( !sw_mode )
 		sw_mode = Cvar_Get( "sw_mode", "0", 0 );
 	if ( !sw_stipplealpha )
@@ -284,6 +294,16 @@ void VID_MenuInit( void )
 	s_shadowlights_box.curvalue = cl_shadowlights->value != 0;
 	y += 10;
 
+	// textures smoothed close up, as OpenGL's filtering smooths them
+	s_texfilter_box.generic.type = MTYPE_SPINCONTROL;
+	s_texfilter_box.generic.x	= 0;
+	s_texfilter_box.generic.y	= y;
+	s_texfilter_box.generic.name	= "texture filter";
+	s_texfilter_box.generic.callback = TexFilterCallback;
+	s_texfilter_box.itemnames = yesno_names;
+	s_texfilter_box.curvalue = sw_texfilter->value != 0;
+	y += 10;
+
 	s_fs_box.generic.type = MTYPE_SPINCONTROL;
 	s_fs_box.generic.x	= 0;
 	s_fs_box.generic.y	= y;
@@ -319,6 +339,7 @@ void VID_MenuInit( void )
 	Menu_AddItem( &s_software_menu, ( void * ) &s_stipple_box );
 	Menu_AddItem( &s_software_menu, ( void * ) &s_colorlight_box );
 	Menu_AddItem( &s_software_menu, ( void * ) &s_shadowlights_box );
+	Menu_AddItem( &s_software_menu, ( void * ) &s_texfilter_box );
 	if ( !vid_resizescreen->value )
 	{
 		Menu_AddItem( &s_software_menu, ( void * ) &s_fs_box );

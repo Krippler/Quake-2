@@ -123,7 +123,28 @@ D_DrawTurbulent8Span
 */
 void D_DrawTurbulent8Span (void)
 {
-	int		sturb, tturb;
+	int		sturb, tturb, ks, kt, x, y;
+
+	// sw_texfilter (D_DrawSpans16Filtered): water wraps, so no clamp
+	ks = kt = 0;
+	if (sw_texfilter->value && r_turb_sstep < 0x10000 && r_turb_sstep > -0x10000
+		&& r_turb_tstep < 0x10000 && r_turb_tstep > -0x10000)
+	{
+		x = (r_turb_pdest - (unsigned char *)d_viewbuffer) % r_screenwidth;
+		y = (r_turb_pdest - (unsigned char *)d_viewbuffer) / r_screenwidth;
+		do
+		{
+			ks = d_texkernel[y & 1][x & 1][0];
+			kt = d_texkernel[y & 1][x & 1][1];
+			sturb = ((r_turb_s + ks + r_turb_turb[(r_turb_t>>16)&(CYCLE-1)])>>16)&r_turb_smask;
+			tturb = ((r_turb_t + kt + r_turb_turb[(r_turb_s>>16)&(CYCLE-1)])>>16)&r_turb_tmask;
+			*r_turb_pdest++ = *(r_turb_pbase + tturb*r_turb_width + sturb);
+			r_turb_s += r_turb_sstep;
+			r_turb_t += r_turb_tstep;
+			x++;
+		} while (--r_turb_spancount > 0);
+		return;
+	}
 
 	do
 	{
@@ -413,6 +434,167 @@ void NonTurbulent8 (espan_t *pspan)
 
 /*
 =============
+D_DrawSpans16Filtered
+
+sw_texfilter: the texture smoothed where it is bigger than the screen's
+pixels, as OpenGL's bilinear filter smooths it, the way Unreal's software
+renderer did: each pixel's texture coordinates moved by a fraction of a
+texel, a different one in each of a 2x2 block of the screen's pixels, so
+that close up neighbouring texels mix in a fine dither rather than standing
+as blocks. Further off, where a texel is smaller than a pixel, as before.
+=============
+*/
+// fractions of a texel, s and t, for each pixel of a 2x2 block (v&1, u&1)
+const int d_texkernel[2][2][2] = {
+	{ { -0x4000, -0x8000 }, {  0x4000,       0 } },
+	{ {       0,  0x4000 }, { -0x8000, -0x4000 } }
+};
+
+static void D_DrawSpans16Filtered (espan_t *pspan)
+{
+	int				count, spancount, ss, tt;
+	unsigned char	*pbase, *pdest, *prow;
+	fixed16_t		s, t, snext, tnext, sstep, tstep;
+	float			sdivz, tdivz, zi, z, du, dv, spancountminus1;
+	float			sdivz8stepu, tdivz8stepu, zi8stepu;
+	const int		(*k)[2];
+	qboolean		magnified;
+
+	sstep = 0;
+	tstep = 0;
+
+	pbase = (unsigned char *)cacheblock;
+
+	sdivz8stepu = d_sdivzstepu * 8;
+	tdivz8stepu = d_tdivzstepu * 8;
+	zi8stepu = d_zistepu * 8;
+
+	do
+	{
+		prow = (unsigned char *)d_viewbuffer + r_screenwidth * pspan->v;
+		pdest = prow + pspan->u;
+		k = d_texkernel[pspan->v & 1];
+
+		count = pspan->count;
+
+		du = (float)pspan->u;
+		dv = (float)pspan->v;
+
+		sdivz = d_sdivzorigin + dv*d_sdivzstepv + du*d_sdivzstepu;
+		tdivz = d_tdivzorigin + dv*d_tdivzstepv + du*d_tdivzstepu;
+		zi = d_ziorigin + dv*d_zistepv + du*d_zistepu;
+		z = (float)0x10000 / zi;
+
+		s = (int)(sdivz * z) + sadjust;
+		if (s > bbextents)
+			s = bbextents;
+		else if (s < 0)
+			s = 0;
+
+		t = (int)(tdivz * z) + tadjust;
+		if (t > bbextentt)
+			t = bbextentt;
+		else if (t < 0)
+			t = 0;
+
+		do
+		{
+			if (count >= 8)
+				spancount = 8;
+			else
+				spancount = count;
+
+			count -= spancount;
+
+			if (count)
+			{
+				sdivz += sdivz8stepu;
+				tdivz += tdivz8stepu;
+				zi += zi8stepu;
+				z = (float)0x10000 / zi;
+
+				snext = (int)(sdivz * z) + sadjust;
+				if (snext > bbextents)
+					snext = bbextents;
+				else if (snext < 8)
+					snext = 8;
+
+				tnext = (int)(tdivz * z) + tadjust;
+				if (tnext > bbextentt)
+					tnext = bbextentt;
+				else if (tnext < 8)
+					tnext = 8;
+
+				sstep = (snext - s) >> 3;
+				tstep = (tnext - t) >> 3;
+			}
+			else
+			{
+				spancountminus1 = (float)(spancount - 1);
+				sdivz += d_sdivzstepu * spancountminus1;
+				tdivz += d_tdivzstepu * spancountminus1;
+				zi += d_zistepu * spancountminus1;
+				z = (float)0x10000 / zi;
+				snext = (int)(sdivz * z) + sadjust;
+				if (snext > bbextents)
+					snext = bbextents;
+				else if (snext < 8)
+					snext = 8;
+
+				tnext = (int)(tdivz * z) + tadjust;
+				if (tnext > bbextentt)
+					tnext = bbextentt;
+				else if (tnext < 8)
+					tnext = 8;
+
+				if (spancount > 1)
+				{
+					sstep = (snext - s) / (spancount - 1);
+					tstep = (tnext - t) / (spancount - 1);
+				}
+			}
+
+			magnified = sstep < 0x10000 && sstep > -0x10000
+				&& tstep < 0x10000 && tstep > -0x10000;
+			if (!magnified)
+			{
+				do
+				{
+					*pdest++ = *(pbase + (s >> 16) + (t >> 16) * cachewidth);
+					s += sstep;
+					t += tstep;
+				} while (--spancount > 0);
+			}
+			else
+			{
+				do
+				{
+					ss = s + k[(pdest - prow) & 1][0];
+					tt = t + k[(pdest - prow) & 1][1];
+					if (ss < 0)
+						ss = 0;
+					else if (ss > bbextents)
+						ss = bbextents;
+					if (tt < 0)
+						tt = 0;
+					else if (tt > bbextentt)
+						tt = bbextentt;
+					*pdest++ = *(pbase + (ss >> 16) + (tt >> 16) * cachewidth);
+					s += sstep;
+					t += tstep;
+				} while (--spancount > 0);
+			}
+
+			s = snext;
+			t = tnext;
+
+		} while (count > 0);
+
+	} while ((pspan = pspan->pnext) != NULL);
+}
+
+/*
+=============
 D_DrawSpans16
 
   FIXME: actually make this subdivide by 16 instead of 8!!!
@@ -425,6 +607,12 @@ void D_DrawSpans16 (espan_t *pspan)
 	fixed16_t		s, t, snext, tnext, sstep, tstep;
 	float			sdivz, tdivz, zi, z, du, dv, spancountminus1;
 	float			sdivz8stepu, tdivz8stepu, zi8stepu;
+
+	if (sw_texfilter->value)
+	{
+		D_DrawSpans16Filtered (pspan);
+		return;
+	}
 
 	sstep = 0;	// keep compiler happy
 	tstep = 0;	// ditto

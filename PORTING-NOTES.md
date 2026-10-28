@@ -1047,6 +1047,20 @@ what is left of one for the next frame, and `CL_Frame`'s `cl_maxfps` and the
 look stick's speed are reckoned in real time so that the screen and the
 cursor do not slow with it.
 
+**`ref_soft/r_scan.c`, `ref_soft/r_polyse.c`, `linux/vid_menu.c`**: texture
+filtering, `sw_texfilter` ("texture filter" in the video menu). An 8-bit
+renderer cannot mix texels' colours cheaply, so it is done as Unreal's
+software renderer did it: each pixel's texture coordinates are moved by a
+fraction of a texel, a different one for each pixel of a 2x2 block of the
+screen (`d_texkernel`: a quarter, a half or three quarters, centred), so
+that where a texel covers several pixels its neighbours come into it in a
+fine dither, which the eye takes for a blend. Only where the texture is
+magnified (a step under a texel a pixel, for each 8 pixels of a span), so
+the distance does not shimmer. The world's spans (`D_DrawSpans16Filtered`,
+clamped to the surface cache block), water (which wraps), and models'
+opaque spans (`R_PolysetDrawSpans8_OpaqueFiltered`, kept inside the skin).
+About 15% slower in timedemo at 640x480; off by default.
+
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,
 rather than the top and bottom cropped.
