@@ -391,6 +391,10 @@ typedef struct
 	edict_t		*health_bar_entities[MAX_HEALTH_BARS];
 	float		last_auto_save;
 
+	// the sky's CS_SKYROTATE, which target_sky changes a part of
+	float		skyrotate;
+	int			skyautorotate;
+
 	int			pic_health;
 
 	int			total_secrets;
@@ -420,6 +424,8 @@ typedef struct
 	char		*sky;
 	float		skyrotate;
 	vec3_t		skyaxis;
+	char		*skyautorotate;		// the re-release's: "0" turned skyrotate degrees, not turning
+
 	char		*nextmap;
 
 	int			lip;

@@ -1350,6 +1350,7 @@ void R_SetSky (char *name, float rotate, vec3_t axis)
 	strncpy (skyname, name, sizeof(skyname)-1);
 	skyrotate = rotate;
 	VectorCopy (axis, skyaxis);
+	VectorNormalize (skyaxis);	// R_EmitSkyBox turns the box about it
 
 	for (i=0 ; i<6 ; i++)
 	{

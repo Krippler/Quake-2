@@ -1023,7 +1023,11 @@ void SP_worldspawn (edict_t *ent)
 	else
 		gi.configstring (CS_SKY, "unit1_");
 
-	gi.configstring (CS_SKYROTATE, va("%f", st.skyrotate) );
+	// with the re-release's second number: 1 if it turns by itself,
+	// as all did in 1997, 0 if it is turned skyrotate degrees and stays
+	level.skyrotate = st.skyrotate;
+	level.skyautorotate = st.skyautorotate ? atoi (st.skyautorotate) : 1;
+	gi.configstring (CS_SKYROTATE, va("%f %i", level.skyrotate, level.skyautorotate) );
 
 	gi.configstring (CS_SKYAXIS, va("%f %f %f",
 		st.skyaxis[0], st.skyaxis[1], st.skyaxis[2]) );

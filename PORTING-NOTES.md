@@ -276,7 +276,7 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     `healthtarget` (used from `T_Damage` each time it is hurt) and
     `health_multiplier` (`monster_start`), `target_anger`, `target_music`,
     `target_sky` (the client takes up a sky changed mid-level,
-    `cl_parse.c`), `target_story` (centre-printed), `target_steam`,
+    `cl_parse.c`; with the re-release's `skyautorotate`), `target_story` (centre-printed), `target_steam`,
     `func_eye`, The Reckoning's `misc_nuke`, and `monster_makron` in the
     spawn table; `trigger_fog` is dropped. A brush model's
     `bmodel_anim_` keys are the re-release's texture animation
@@ -929,6 +929,15 @@ channel's share of that and taken back to the palette through a 64x64x64
 table of nearest colours, made once at start-up. The colours the colormap
 never changes -- the fullbrights -- are left alone. Surfaces lit white take
 the old path and come out byte for byte as before.
+
+**`ref_soft/r_rast.c`, `client/cl_view.c`**: the sky turns. id's software
+renderer ignored `skyrotate`, which only its OpenGL one used. The client
+works out how far it is turned each frame (`refdef_t.skyangle`: the time
+by `CS_SKYROTATE`'s speed, or, the re-release's second number 0 --
+`skyautorotate` -- that many degrees and still, as the re-release's base
+maps turn theirs so that their suns are where their light comes from),
+and `R_EmitSkyBox` turns the box's corners, planes and texture axes about
+`skyaxis` by it.
 
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,

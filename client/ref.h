@@ -146,6 +146,11 @@ typedef struct
 
 	int			num_particles;
 	particle_t	*particles;
+
+	// how far the sky is turned about its axis, degrees: the time by
+	// CS_SKYROTATE's speed, or, the re-release's second number 0, that
+	// many degrees and no more
+	float		skyangle;
 } refdef_t;
 
 

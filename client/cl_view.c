@@ -552,6 +552,15 @@ void V_RenderView( float stereo_separation )
 			cl.refdef.fov_y = CalcFov (cl.refdef.fov_x, cl.refdef.width, cl.refdef.height);
 		cl.refdef.time = cl.time*0.001;
 
+		// the sky's turn: "speed" turning, or "angle 0" turned and still
+		{
+			float	rotate = 0;
+			int		autorotate = 1;
+
+			sscanf (cl.configstrings[CS_SKYROTATE], "%f %i", &rotate, &autorotate);
+			cl.refdef.skyangle = autorotate ? cl.refdef.time * rotate : rotate;
+		}
+
 		cl.refdef.areabits = cl.frame.areabits;
 
 		if (!cl_add_entities->value)

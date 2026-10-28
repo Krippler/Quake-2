@@ -207,13 +207,20 @@ void SP_target_music (edict_t *self)
 	self->svflags = SVF_NOCLIENT;
 }
 
-// count: 1 a rotation, 4 an axis; the client takes up the change (cl_parse.c)
+// count: 1 a rotation, 2 whether it turns by itself (style), 4 an axis;
+// the client takes up the change (cl_parse.c)
 void use_target_sky (edict_t *self, edict_t *other, edict_t *activator)
 {
 	if (self->map)
 		gi.configstring (CS_SKY, self->map);
-	if (self->count & 1)
-		gi.configstring (CS_SKYROTATE, va("%f", self->accel));
+	if (self->count & 3)
+	{
+		if (self->count & 1)
+			level.skyrotate = self->accel;
+		if (self->count & 2)
+			level.skyautorotate = self->style;
+		gi.configstring (CS_SKYROTATE, va("%f %i", level.skyrotate, level.skyautorotate));
+	}
 	if (self->count & 4)
 		gi.configstring (CS_SKYAXIS, va("%f %f %f",
 			self->movedir[0], self->movedir[1], self->movedir[2]));
@@ -234,6 +241,11 @@ void SP_target_sky (edict_t *self)
 	{
 		self->count |= 1;
 		self->accel = st.skyrotate;
+	}
+	if (st.skyautorotate)
+	{
+		self->count |= 2;
+		self->style = atoi (st.skyautorotate);
 	}
 }
 

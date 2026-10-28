@@ -19,6 +19,10 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   through their textures while waiting to be pressed and blink once
   pressed, and the animated walls and screens of its maps run and switch
   when used, rather than standing still.
+- **Skies that turn.** The skies the maps set turning (the original
+  game's space station among them) turn, and the re-release's base game
+  maps' skies are turned as it turns them, their suns where their light
+  comes from.
 - **Flashlight zones.** Call of the Machine's dark places switch your
   flashlight on as you go in and off as you come out.
 
