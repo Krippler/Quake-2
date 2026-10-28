@@ -181,6 +181,7 @@ typedef struct model_s
 
 	modtype_t	type;
 	int			numframes;
+	qboolean	md5;		// the re-release's md5 version of it (r_md5.c)
 	
 	int			flags;
 

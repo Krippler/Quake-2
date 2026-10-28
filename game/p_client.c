@@ -1432,7 +1432,7 @@ void PutClientInServer (edict_t *ent)
 		client->resp.spectator = false;
 
 	// CTF's: not on a team yet, an observer, to its menu
-	if (CTFStartClient (ent))
+	if (ctf->value && CTFStartClient (ent))
 		return;
 
 	if (!KillBox (ent))

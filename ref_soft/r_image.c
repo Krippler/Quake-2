@@ -716,6 +716,11 @@ void R_FreeUnusedImages (void)
 	int		i;
 	image_t	*image;
 
+	// a kept skin keeps its md5 version
+	for (i=0, image=r_images ; i<numr_images ; i++, image++)
+		if (image->registration_sequence == registration_sequence && image->md5skin)
+			image->md5skin->registration_sequence = registration_sequence;
+
 	for (i=0, image=r_images ; i<numr_images ; i++, image++)
 	{
 		if (image->registration_sequence == registration_sequence)

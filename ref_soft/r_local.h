@@ -69,8 +69,12 @@ typedef struct image_s
 	int             registration_sequence;  // 0 = free
 	byte		*pixels[4];				// mip levels
 	int			pad;			// bytes kept before pixels[0] (R_AllocPixels)
+	struct image_s	*md5skin;	// its md5/ version (R_MD5Skin), if looked for
+	qboolean	md5tried;
 } image_t;
 
+image_t *R_MD5Skin (image_t *skin);
+void *R_LoadMD5 (char *name, void *md2, int *outlen);
 byte *R_AllocPixels (image_t *image, int size);
 void R_FreePixels (image_t *image);
 
@@ -178,7 +182,7 @@ extern oldrefdef_t      r_refdef;
 #define WARP_WIDTH              320
 #define WARP_HEIGHT             240
 
-#define MAX_LBM_HEIGHT  480
+#define MAX_LBM_HEIGHT  1024	// the re-release's md5 skins; 480 before
 
 
 #define PARTICLE_Z_CLIP 8.0
@@ -227,7 +231,9 @@ extern oldrefdef_t      r_refdef;
 #define NEAR_CLIP       0.01
 
 
-#define MAXALIASVERTS           2000    // TODO: tune this
+#define MAX_ALIAS_VERTS		4096	// the re-release's md5 models; MAX_VERTS before
+#define MAX_ALIAS_TRIS		8192
+#define MAXALIASVERTS           MAX_ALIAS_VERTS
 #define ALIAS_Z_CLIP_PLANE      4
 
 // turbulence stuff
@@ -821,6 +827,7 @@ void	R_CinematicSetPalette( const unsigned char *palette );
 extern unsigned d_8to24table[256]; // base
 extern cvar_t	*sw_colorlight;
 extern cvar_t	*sw_fog;		// the re-release's fog (r_fog.c)
+extern cvar_t	*sw_md5;		// the re-release's md5 models (r_md5.c)
 void R_ApplyFog (void);
 void R_DrawFlares (void);
 void	R_InitColorLight (void);

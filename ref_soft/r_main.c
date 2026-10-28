@@ -253,6 +253,7 @@ void R_Register (void)
 	// in the palette's colours (r_light.c, r_surf.c); 0 for 1997's white
 	sw_colorlight = ri.Cvar_Get ("sw_colorlight", "1", CVAR_ARCHIVE);
 	sw_fog = ri.Cvar_Get ("sw_fog", "1", CVAR_ARCHIVE);
+	sw_md5 = ri.Cvar_Get ("sw_md5", "1", CVAR_ARCHIVE);	// from the next vid_restart
 	sw_drawflat = ri.Cvar_Get ("sw_drawflat", "0", 0);
 	sw_draworder = ri.Cvar_Get ("sw_draworder", "0", 0);
 	// How many edges and surfaces a frame may hold. Run out and faces are

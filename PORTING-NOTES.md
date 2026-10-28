@@ -1000,6 +1000,27 @@ nearest colours; distance fog alone through tables of 64 levels for each
 colour, dithered, height fog for each pixel (its extinction and colour for
 each 2x2 block). `sw_fog 0` turns it off.
 
+**`ref_soft/r_md5.c`** (new), **`ref_soft/r_model.c`**, **`ref_soft/r_alias.c`**:
+the re-release's md5 models. Next to 198 of its `.md2` models it has an
+`md5/` directory with the same model in more polygons: a Doom 3 `.md5mesh`,
+an `.md5anim` whose frames are the `.md2`'s frame for frame, sometimes an
+`.md5scale` (JSON: joints shrunk on some frames, gibbed limbs mostly), and
+its skins as `.png` with more pixels (up to 512x1024). Software draws no
+skeletons, so `R_LoadMD5` poses and skins each frame once, at load, as
+q2pro-ng's `models.c` does, and puts the lot back together as an `.md2`
+that `Mod_LoadAliasModel` takes as it takes any other: one vertex for each
+of the mesh's, each frame's positions quantized to a byte (scale and
+translate for each frame, as an `.md2`'s), its normals the nearest of the
+162 the lighting has (faces' normals, summed over the vertices a seam
+splits), its texture coordinates in the first md5 skin's pixels, its skins
+the `md5/` ones where there are. Frames the md5 has not are its last. An
+entity's own skin (a player's) is used in its `md5/` version if there is
+one (`R_MD5Skin`), and the texture coordinates are scaled to the skin
+drawn if it is another size (`R_AliasPreparePoints`). For them
+`MAX_LBM_HEIGHT` is 1024 and the alias vertex limit 4096 (the biggest has
+3089), its work array static. It costs about 13 ms a model at load.
+`sw_md5 0` and a `vid_restart` go back to the `.md2`s.
+
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,
 rather than the top and bottom cropped.

@@ -48,6 +48,10 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   comes from.
 - **Flashlight zones.** Call of the Machine's dark places switch your
   flashlight on as you go in and off as you come out.
+- **The re-release's models.** Its monsters, players, weapons and items
+  are drawn with its more detailed models and skins where it has them, in
+  the software renderer too (`sw_md5 0` and `vid_restart` go back to the
+  originals).
 
 ## [1.3.25] — 2026-10-27
 
