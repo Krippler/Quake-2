@@ -346,6 +346,9 @@ void CL_FinishMove (usercmd_t *cmd)
 	if (anykeydown && cls.key_dest == key_game)
 		cmd->buttons |= BUTTON_ANY;
 
+	if (CL_WheelActive ())		// held, a wheel's fire is choosing
+		cmd->buttons &= ~BUTTON_ATTACK;
+
 	// send milliseconds of time to apply the move
 	ms = cls.frametime * 1000;
 	if (ms > 250)
@@ -371,6 +374,8 @@ CL_CreateCmd
 usercmd_t CL_CreateCmd (void)
 {
 	usercmd_t	cmd;
+	vec3_t		angles;
+	float		look;
 
 	frame_msec = sys_frame_time - old_sys_frame_time;
 	if (frame_msec < 1)
@@ -382,7 +387,20 @@ usercmd_t CL_CreateCmd (void)
 	CL_BaseMove (&cmd);
 
 	// allow mice or other external controllers to add to the move
-	IN_Move (&cmd);
+	VectorCopy (cl.viewangles, angles);
+	if (CL_WheelActive ())
+	{
+		// a wheel held (cl_wheel.c): the look moves round it, not the
+		// view, the mouse's up and down too, whatever freelook is
+		look = freelook->value;
+		freelook->value = 1;
+		IN_Move (&cmd);
+		freelook->value = look;
+		CL_WheelMove (cl.viewangles[YAW] - angles[YAW], cl.viewangles[PITCH] - angles[PITCH]);
+		VectorCopy (angles, cl.viewangles);
+	}
+	else
+		IN_Move (&cmd);
 
 	CL_FinishMove (&cmd);
 
@@ -407,6 +425,7 @@ CL_InitInput
 void CL_InitInput (void)
 {
 	Cmd_AddCommand ("centerview",IN_CenterView);
+	CL_InitWheel ();
 
 	Cmd_AddCommand ("+moveup",IN_UpDown);
 	Cmd_AddCommand ("-moveup",IN_UpUp);

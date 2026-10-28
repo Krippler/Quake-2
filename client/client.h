@@ -325,6 +325,12 @@ extern	sizebuf_t	net_message;
 
 void DrawString (int x, int y, char *s);
 void DrawAltString (int x, int y, char *s);	// toggle high bit
+
+// cl_wheel.c, the re-release's weapon and powerup wheels
+void CL_InitWheel (void);
+qboolean CL_WheelActive (void);
+void CL_WheelMove (float yaw, float pitch);
+void CL_DrawWheel (void);
 qboolean	CL_CheckOrDownloadFile (char *filename);
 
 void CL_AddNetgraph (void);

@@ -3603,4 +3603,58 @@ void SetItemNames (void)
 	body_armor_index   = ITEM_INDEX(FindItem("Body Armor"));
 	power_screen_index = ITEM_INDEX(FindItem("Power Screen"));
 	power_shield_index = ITEM_INDEX(FindItem("Power Shield"));
+
+	SetWheelItems ();
+}
+
+/*
+===============
+SetWheelItems
+
+The re-release's wheels, in its order: the weapons, and the things to use
+(its grapple among them). The client draws them (cl_wheel.c); what of them
+a player has it asks for ("wheelinv").
+===============
+*/
+static char *wheel_weapons[] = {
+	"weapon_blaster", "weapon_chainfist", "weapon_shotgun", "weapon_supershotgun",
+	"weapon_machinegun", "weapon_etf_rifle", "weapon_chaingun", "ammo_grenades",
+	"ammo_trap", "ammo_tesla", "weapon_grenadelauncher", "weapon_proxlauncher",
+	"weapon_rocketlauncher", "weapon_hyperblaster", "weapon_boomer",
+	"weapon_plasmabeam", "weapon_railgun", "weapon_phalanx", "weapon_bfg",
+	"weapon_disintegrator", NULL
+};
+
+static char *wheel_powerups[] = {
+	"item_compass", "item_flashlight", "item_power_screen", "item_power_shield",
+	"weapon_grapple", "ammo_nuke", "item_quad", "item_quadfire",
+	"item_invulnerability", "item_invisibility", "item_silencer", "item_breather",
+	"item_enviro", "item_adrenaline", "item_ir_goggles", "item_double",
+	"item_sphere_vengeance", "item_sphere_hunter", "item_sphere_defender",
+	"item_doppleganger", "item_tech1", "item_tech2", "item_tech3", "item_tech4",
+	NULL
+};
+
+void SetWheelItems (void)
+{
+	int		i, n, ammo;
+	gitem_t	*it;
+
+	for (i=n=0 ; wheel_weapons[i] && n<MAX_WHEEL_ITEMS ; i++)
+	{
+		it = FindItemByClassname (wheel_weapons[i]);
+		if (!it)
+			continue;
+		ammo = it->ammo ? ITEM_INDEX(FindItem (it->ammo)) : -1;
+		gi.configstring (CS_WHEEL_WEAPONS + n++, va("%i %i %i %s", ITEM_INDEX(it), ammo,
+			(it->flags & IT_AMMO) ? 1 : it->quantity, it->icon));
+	}
+
+	for (i=n=0 ; wheel_powerups[i] && n<MAX_WHEEL_ITEMS ; i++)
+	{
+		it = FindItemByClassname (wheel_powerups[i]);
+		if (!it)
+			continue;
+		gi.configstring (CS_WHEEL_POWERUPS + n++, va("%i %s", ITEM_INDEX(it), it->icon));
+	}
 }

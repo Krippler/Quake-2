@@ -475,6 +475,24 @@ void Cmd_Drop_f (edict_t *ent)
 
 /*
 =================
+Cmd_WheelInv_f
+
+What a player has, for the client's wheels (cl_wheel.c), without the
+inventory shown
+=================
+*/
+void Cmd_WheelInv_f (edict_t *ent)
+{
+	int		i;
+
+	gi.WriteByte (svc_inventory);
+	for (i=0 ; i<MAX_ITEMS ; i++)
+		gi.WriteShort (ent->client->pers.inventory[i]);
+	gi.unicast (ent, false);
+}
+
+/*
+=================
 Cmd_Inven_f
 =================
 */
@@ -1017,6 +1035,8 @@ void ClientCommand (edict_t *ent)
 		Cmd_Noclip_f (ent);
 	else if (Q_stricmp (cmd, "inven") == 0)
 		Cmd_Inven_f (ent);
+	else if (Q_stricmp (cmd, "wheelinv") == 0)
+		Cmd_WheelInv_f (ent);
 	else if (Q_stricmp (cmd, "invnext") == 0)
 		SelectNextItem (ent, -1);
 	else if (Q_stricmp (cmd, "invprev") == 0)

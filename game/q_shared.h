@@ -1241,6 +1241,12 @@ ROGUE - VERSIONS
 // cd_loopcount, 0 for good): the re-release's CS_CD_LOOP_COUNT; after
 // CTF's match configstring (g_ctf.h)
 #define	CS_CD_LOOP_COUNT	(CS_HEALTH_BAR_NAME+2)
+// the re-release's weapon and powerup wheels (g_items.c, cl_wheel.c): what
+// is on each, in its order, one to a configstring: a weapon's
+// "item ammo-item min-ammo icon" (ammo -1 for none), a powerup's "item icon"
+#define	CS_WHEEL_WEAPONS	(CS_CD_LOOP_COUNT+1)
+#define	CS_WHEEL_POWERUPS	(CS_WHEEL_WEAPONS+MAX_WHEEL_ITEMS)
+#define	MAX_WHEEL_ITEMS		32
 
 
 //==============================================

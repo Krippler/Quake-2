@@ -892,6 +892,7 @@ void Cmd_Score_f (edict_t *ent);
 void PrecacheItem (gitem_t *it);
 void InitItems (void);
 void SetItemNames (void);
+void SetWheelItems (void);
 gitem_t	*FindItem (char *pickup_name);
 gitem_t	*FindItemByClassname (char *classname);
 #define	ITEM_INDEX(x) ((x)-itemlist)

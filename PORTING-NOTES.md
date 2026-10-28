@@ -1021,6 +1021,25 @@ drawn if it is another size (`R_AliasPreparePoints`). For them
 3089), its work array static. It costs about 13 ms a model at load.
 `sw_md5 0` and a `vid_restart` go back to the `.md2`s.
 
+**`client/cl_wheel.c`** (new), **`client/cl_input.c`**, **`game/g_items.c`**:
+the re-release's weapon and powerup wheels, which its `default.cfg` binds
+(`+wheel` on e, `+wheel2` on q, `cl_weapnext`/`cl_weapprev` on the mouse
+wheel) and which were unknown commands here. The re-release's game tells its
+client what a player has by stats protocol 34 has no room for, so here the
+game names what goes on each wheel, in the re-release's order, once a level
+(`CS_WHEEL_WEAPONS`: item, ammo item, least ammo, icon; `CS_WHEEL_POWERUPS`:
+item, icon; after `CS_CD_LOOP_COUNT`), and the client asks what the player
+has when one is held and every half second after (`wheelinv`, the
+inventory as `inven` sends it, without showing it). The client only asks a
+game that named them: the mission packs' games would say an unknown
+command as chat. Held, `CL_CreateCmd` puts back the angles the mouse or the
+look stick turned and moves the wheel's cursor by them instead (freelook on
+meanwhile, for the mouse's up and down), and the trigger is kept off; let
+go, what it is on is `use`d. Its pictures are the re-release's 24-pixel
+`pics/wheel/` ones, lit when chosen, half as big again at 480 lines, so
+`Draw_StretchPic` now leaves a picture's transparent pixels as they are;
+the inventory's icons without them.
+
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,
 rather than the top and bottom cropped.
