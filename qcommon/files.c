@@ -56,11 +56,30 @@ typedef struct pack_s
 	FILE	*handle;
 	int		numfiles;
 	packfile_t	*files;
+	qboolean	rerelease;	// the 2023 re-release's (FS_PackIsRerelease)
 } pack_t;
 
 char	fs_gamedir[MAX_OSPATH];
 cvar_t	*fs_basedir;
 cvar_t	*fs_cddir;
+// the original game's copies of the maps the re-release remade, rather than
+// the re-release's: the menu's choice of game (menu.c), latched as a game
+// starts and kept in its saves
+cvar_t	*sv_originalmaps;
+
+/*
+================
+FS_PackIsRerelease
+
+The 2023 re-release's pak: the one with its Quake 64 or Call of the Machine
+maps, beside its remakes of the rest
+================
+*/
+static qboolean FS_PackIsRerelease (const char *name)
+{
+	return !Q_strncasecmp ((char *)name, "maps/q64/", 9)
+		|| !Q_strcasecmp ((char *)name, "maps/mguhub.bsp");
+}
 cvar_t	*fs_gamedirvar;
 
 typedef struct filelink_s
@@ -211,9 +230,10 @@ int FS_FOpenFile (char *filename, FILE **file)
 {
 	searchpath_t	*search;
 	char			netpath[MAX_OSPATH];
-	pack_t			*pak;
-	int				i;
+	pack_t			*pak, *rrpak;
+	int				i, rrfile;
 	filelink_t		*link;
+	qboolean		originalmaps;
 
 	file_from_pak = 0;
 
@@ -233,6 +253,13 @@ int FS_FOpenFile (char *filename, FILE **file)
 		}
 	}
 
+	// sv_originalmaps: the re-release's copy of a map only if there is
+	// no other
+	originalmaps = !fs_skip && sv_originalmaps && sv_originalmaps->value
+		&& !Q_strncasecmp (filename, "maps/", 5);
+	rrpak = NULL;
+	rrfile = 0;
+
 //
 // search through the path, one element at a time
 //
@@ -249,6 +276,15 @@ int FS_FOpenFile (char *filename, FILE **file)
 					if (fs_skip)
 					{	// but a copy further down the path is wanted
 						fs_skip--;
+						break;
+					}
+					if (originalmaps && pak->rerelease)
+					{
+						if (!rrpak)
+						{
+							rrpak = pak;
+							rrfile = i;
+						}
 						break;
 					}
 					file_from_pak = 1;
@@ -283,6 +319,16 @@ int FS_FOpenFile (char *filename, FILE **file)
 			return FS_filelength (*file);
 		}
 		
+	}
+
+	if (rrpak)
+	{	// the re-release's after all
+		file_from_pak = 1;
+		*file = fopen (rrpak->filename, "rb");
+		if (!*file)
+			Com_Error (ERR_FATAL, "Couldn't reopen %s", rrpak->filename);
+		fseek (*file, rrpak->files[rrfile].filepos, SEEK_SET);
+		return rrpak->files[rrfile].filelen;
 	}
 	
 	Com_DPrintf ("FindFile: can't find %s\n", filename);
@@ -588,6 +634,9 @@ pack_t *FS_LoadPackFile (char *packfile)
 	pack->handle = packhandle;
 	pack->numfiles = numpackfiles;
 	pack->files = newfiles;
+	pack->rerelease = false;
+	for (i=0 ; i<numpackfiles && !pack->rerelease ; i++)
+		pack->rerelease = FS_PackIsRerelease (newfiles[i].name);
 	
 	Com_Printf ("Added packfile %s (%i files)\n", packfile, numpackfiles);
 	return pack;
@@ -927,6 +976,72 @@ char *FS_NextPath (char *prevpath)
 
 /*
 ================
+FS_GameHasFile
+
+Where a game directory (BASEDIRNAME, a mission pack's, a mod's) has a file,
+whether that game is the one playing or not: FS_ORIGINAL for a copy loose in
+it or in a pak of its own, FS_RERELEASE for one in the 2023 re-release's pak.
+For the menu's list of the games there are (menu.c).
+================
+*/
+int FS_GameHasFile (char *gamedir, char *filename)
+{
+	char			path[MAX_OSPATH];
+	FILE			*f;
+	dpackheader_t	header;
+	dpackfile_t		*info;
+	int				i, n, p, found, flags;
+	qboolean		rerelease;
+
+	flags = 0;
+	Com_sprintf (path, sizeof(path), "%s/%s/%s", fs_basedir->string, gamedir, filename);
+	if ((f = fopen (path, "rb")) != NULL)
+	{
+		fclose (f);
+		flags |= FS_ORIGINAL;
+	}
+
+	for (p=0 ; p<10 ; p++)
+	{
+		Com_sprintf (path, sizeof(path), "%s/%s/pak%i.pak", fs_basedir->string, gamedir, p);
+		if ((f = fopen (path, "rb")) == NULL)
+			continue;
+		if (fread (&header, 1, sizeof(header), f) != sizeof(header)
+			|| LittleLong (header.ident) != IDPAKHEADER)
+		{
+			fclose (f);
+			continue;
+		}
+		n = LittleLong (header.dirlen) / sizeof(dpackfile_t);
+		info = n > 0 ? malloc (n * sizeof(dpackfile_t)) : NULL;
+		if (!info || fseek (f, LittleLong (header.dirofs), SEEK_SET)
+			|| fread (info, sizeof(dpackfile_t), n, f) != (size_t)n)
+		{
+			free (info);
+			fclose (f);
+			continue;
+		}
+		fclose (f);
+
+		found = 0;
+		rerelease = false;
+		for (i=0 ; i<n ; i++)
+		{
+			info[i].name[sizeof(info[i].name)-1] = 0;
+			if (!Q_strcasecmp (info[i].name, filename))
+				found = 1;
+			if (!rerelease)
+				rerelease = FS_PackIsRerelease (info[i].name);
+		}
+		free (info);
+		if (found)
+			flags |= rerelease ? FS_RERELEASE : FS_ORIGINAL;
+	}
+	return flags;
+}
+
+/*
+================
 FS_InitFilesystem
 ================
 */
@@ -948,6 +1063,7 @@ void FS_InitFilesystem (void)
 	// allows the game to run from outside the data tree
 	//
 	fs_cddir = Cvar_Get ("cddir", "", CVAR_NOSET);
+	sv_originalmaps = Cvar_Get ("sv_originalmaps", "0", CVAR_LATCH);
 	if (fs_cddir->string[0])
 		FS_AddGameDirectory (va("%s/"BASEDIRNAME, fs_cddir->string) );
 

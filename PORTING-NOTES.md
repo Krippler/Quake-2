@@ -1047,6 +1047,39 @@ what is left of one for the next frame, and `CL_Frame`'s `cl_maxfps` and the
 look stick's speed are reckoned in real time so that the screen and the
 cursor do not slow with it.
 
+**`ref_soft/r_scan.c`, `ref_soft/r_polyse.c`, `linux/vid_menu.c`**: texture
+filtering, `sw_texfilter` ("texture filter" in the video menu). An 8-bit
+renderer cannot mix texels' colours cheaply, so it is done as Unreal's
+software renderer did it: each pixel's texture coordinates are moved by a
+fraction of a texel, a different one for each pixel of a 2x2 block of the
+screen (`d_texkernel`: a quarter, a half or three quarters, centred), so
+that where a texel covers several pixels its neighbours come into it in a
+fine dither, which the eye takes for a blend. Only where the texture is
+magnified (a step under a texel a pixel, for each 8 pixels of a span), so
+the distance does not shimmer. The world's spans and the sky's
+(`D_DrawSpans16Filtered`, clamped to the surface cache block), water (which
+wraps), models' spans, opaque and see-through (`R_PolysetFilterTexel`, kept
+inside the skin), and `r_poly.c`'s spanlets, which draw see-through surfaces,
+see-through water and sprites (`R_SpanletTexel`, `SPANLET_K`). Up to about
+15% slower in timedemo at 640x480; off by default. The 2D pictures (the
+HUD, menus, console) are left sharp.
+
+**`client/menu.c`, `qcommon/files.c`**: the choice of game. The game menu
+lists, in place of 1997's easy, medium and hard, the games whose first map
+is there, and the one chosen asks its difficulty and starts
+(`FS_GameHasFile`, which reads a game directory's paks itself, playing or
+not), each started as the re-release's `default.cfg` starts it:
+`*ntro.cin+base1`, `*xin.cin+xswamp`, `*rintro.cin+rmine1`, `mguhub`,
+`q64/rtest`. The Reckoning and Ground Zero from their own directories set
+`game`, for their own game code; their re-release remakes, in its pak, run
+on the base game. For Quake II and the re-release both, the original maps
+are kept by `sv_originalmaps` (latched, so it changes as the new game
+starts and goes into its saves; a save without it reads 0): `FS_FOpenFile`
+passes over the re-release's pak (`pack_t.rerelease`, the pak with
+`maps/q64/` or `maps/mguhub.bsp` in it) for a `maps/` file another copy of
+which is further down the path. `CM_LoadMap` and `R_BeginRegistration`,
+which keep the last map by its name, load it again when it changes.
+
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,
 rather than the top and bottom cropped.

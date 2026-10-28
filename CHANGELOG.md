@@ -5,6 +5,24 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.27] — 2026-10-28
+
+### Added
+
+- **Choose the game.** The game menu lists the games your data has, then
+  asks the difficulty for the one you pick: Quake II, The Reckoning and Ground Zero
+  (from their own directories), and with the 2023 re-release's pak, Quake
+  II Remastered, The Reckoning Remastered, Ground Zero Remastered, Call of
+  the Machine and Quake 64. Quake II plays the original maps even with the
+  re-release's pak in place; saved games remember which (`sv_originalmaps`).
+
+- **Texture filtering in software.** With "texture filter" on in the video
+  menu (`sw_texfilter 1`), everything in the 3D view is smoothed close up
+  rather than drawn as blocks of texels, much as OpenGL's filtering
+  smooths it: walls, floors, the sky, water, windows, models (see-through
+  ones too), the gun and sprites. It costs up to about a sixth of the frame
+  rate.
+
 ## [1.3.26] — 2026-10-28
 
 ### Added

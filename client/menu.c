@@ -1897,17 +1897,53 @@ GAME MENU
 
 static int		m_game_cursor;
 
+/*
+The games to play: those whose first map there is, in the original game's
+paks or a mission pack's, or the 2023 re-release's (FS_GameHasFile), listed
+first in the game menu; chosen, the difficulty, and it starts. A mission
+pack's own runs its own game code in its own directory; the re-release's
+remakes of them run on the single-player game's, which plays them. The
+original game's maps where the re-release has remade them too are
+sv_originalmaps (files.c).
+*/
+typedef struct
+{
+	char	*name;
+	char	*gamedir;		// its directory
+	char	*mapfile;		// its first map, looked for
+	int		where;			// FS_ORIGINAL or FS_RERELEASE
+	char	*start;			// the map command's
+} newgame_t;
+
+static newgame_t newgames[] =
+{
+	{ "Quake II", BASEDIRNAME, "maps/base1.bsp", FS_ORIGINAL, "*ntro.cin+base1" },
+	{ "Quake II demo", BASEDIRNAME, "maps/demo1.bsp", FS_ORIGINAL, "demo1" },
+	{ "Quake II Remastered", BASEDIRNAME, "maps/base1.bsp", FS_RERELEASE, "*ntro.cin+base1" },
+	{ "The Reckoning", "xatrix", "maps/xswamp.bsp", FS_ORIGINAL, "*xin.cin+xswamp" },
+	{ "The Reckoning Remastered", BASEDIRNAME, "maps/xswamp.bsp", FS_RERELEASE, "*xin.cin+xswamp" },
+	{ "Ground Zero", "rogue", "maps/rmine1.bsp", FS_ORIGINAL, "*rintro.cin+rmine1" },
+	{ "Ground Zero Remastered", BASEDIRNAME, "maps/rmine1.bsp", FS_RERELEASE, "*rintro.cin+rmine1" },
+	{ "Call of the Machine", BASEDIRNAME, "maps/mguhub.bsp", FS_RERELEASE, "mguhub" },
+	{ "Quake 64", BASEDIRNAME, "maps/q64/rtest.bsp", FS_RERELEASE, "q64/rtest" },
+};
+
+#define	NUM_NEWGAMES	(sizeof(newgames) / sizeof(newgames[0]))
+
 static menuframework_s	s_game_menu;
-static menuaction_s		s_easy_game_action;
-static menuaction_s		s_medium_game_action;
-static menuaction_s		s_hard_game_action;
+static menuaction_s		s_newgame_actions[NUM_NEWGAMES];
+static menuseparator_s	s_nogame_line;
 static menuaction_s		s_load_game_action;
 static menuaction_s		s_save_game_action;
 static menuaction_s		s_credits_action;
 static menuseparator_s	s_blankline;
 
+static newgame_t		*s_chosen_game;
+
 static void StartGame( void )
 {
+	newgame_t	*g = s_chosen_game;
+
 	// disable updates and start the cinematic going
 	cl.servercount = -1;
 	M_ForceMenuOff ();
@@ -1916,9 +1952,29 @@ static void StartGame( void )
 
 	Cvar_SetValue( "gamerules", 0 );		//PGM
 
-	Cbuf_AddText ("loading ; killserver ; wait ; newgame\n");
+	// the game's directory and its maps, both latched until the new server
+	Cvar_Set( "game", strcmp( g->gamedir, BASEDIRNAME ) ? g->gamedir : "" );
+	Cvar_Set( "sv_originalmaps", g->where == FS_ORIGINAL ? "1" : "0" );
+
+	Cbuf_AddText (va("loading ; killserver ; wait ; maxclients 1 ; deathmatch 0 ; map %s\n", g->start));
 	cls.key_dest = key_game;
 }
+
+/*
+=============================================================================
+
+DIFFICULTY MENU
+
+The chosen game's, and it starts
+
+=============================================================================
+*/
+
+static menuframework_s	s_skill_menu;
+static menuseparator_s	s_skill_title;
+static menuaction_s		s_easy_game_action;
+static menuaction_s		s_medium_game_action;
+static menuaction_s		s_hard_game_action;
 
 static void EasyGameFunc( void *data )
 {
@@ -1938,6 +1994,66 @@ static void HardGameFunc( void *data )
 	StartGame();
 }
 
+static void Skill_MenuInit( void )
+{
+	s_skill_menu.x = viddef.width * 0.50;
+	s_skill_menu.nitems = 0;
+
+	// the game's name over it
+	s_skill_title.generic.type	= MTYPE_SEPARATOR;
+	s_skill_title.generic.name	= s_chosen_game->name;
+	s_skill_title.generic.x		= strlen( s_chosen_game->name ) * 8 - 24;	// over the choices
+	s_skill_title.generic.y		= 0;
+
+	s_easy_game_action.generic.type	= MTYPE_ACTION;
+	s_easy_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
+	s_easy_game_action.generic.x		= 0;
+	s_easy_game_action.generic.y		= 20;
+	s_easy_game_action.generic.name	= "easy";
+	s_easy_game_action.generic.callback = EasyGameFunc;
+
+	s_medium_game_action.generic.type	= MTYPE_ACTION;
+	s_medium_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
+	s_medium_game_action.generic.x		= 0;
+	s_medium_game_action.generic.y		= 30;
+	s_medium_game_action.generic.name	= "medium";
+	s_medium_game_action.generic.callback = MediumGameFunc;
+
+	s_hard_game_action.generic.type	= MTYPE_ACTION;
+	s_hard_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
+	s_hard_game_action.generic.x		= 0;
+	s_hard_game_action.generic.y		= 40;
+	s_hard_game_action.generic.name	= "hard";
+	s_hard_game_action.generic.callback = HardGameFunc;
+
+	Menu_AddItem( &s_skill_menu, ( void * ) &s_skill_title );
+	Menu_AddItem( &s_skill_menu, ( void * ) &s_easy_game_action );
+	Menu_AddItem( &s_skill_menu, ( void * ) &s_medium_game_action );
+	Menu_AddItem( &s_skill_menu, ( void * ) &s_hard_game_action );
+
+	Menu_Center( &s_skill_menu );
+	s_skill_menu.cursor = 2;		// medium
+}
+
+static void Skill_MenuDraw( void )
+{
+	M_Banner( "m_banner_game" );
+	Menu_AdjustCursor( &s_skill_menu, 1 );
+	Menu_Draw( &s_skill_menu );
+}
+
+static const char *Skill_MenuKey( int key )
+{
+	return Default_MenuKey( &s_skill_menu, key );
+}
+
+static void NewGameFunc( void *self )
+{
+	s_chosen_game = &newgames[ ( ( menuaction_s * ) self )->generic.localdata[0] ];
+	Skill_MenuInit();
+	M_PushMenu( Skill_MenuDraw, Skill_MenuKey );
+}
+
 static void LoadGameFunc( void *unused )
 {
 	M_Menu_LoadGame_f ();
@@ -1955,64 +2071,66 @@ static void CreditsFunc( void *unused )
 
 void Game_MenuInit( void )
 {
-	static const char *difficulty_names[] =
-	{
-		"easy",
-		"medium",
-		"hard",
-		0
-	};
+	int		i, n, y;
+	int		where[NUM_NEWGAMES];
 
 	s_game_menu.x = viddef.width * 0.50;
 	s_game_menu.nitems = 0;
 
-	s_easy_game_action.generic.type	= MTYPE_ACTION;
-	s_easy_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
-	s_easy_game_action.generic.x		= 0;
-	s_easy_game_action.generic.y		= 0;
-	s_easy_game_action.generic.name	= "easy";
-	s_easy_game_action.generic.callback = EasyGameFunc;
+	for (i=0 ; i<NUM_NEWGAMES ; i++)
+		where[i] = FS_GameHasFile( newgames[i].gamedir, newgames[i].mapfile );
 
-	s_medium_game_action.generic.type	= MTYPE_ACTION;
-	s_medium_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
-	s_medium_game_action.generic.x		= 0;
-	s_medium_game_action.generic.y		= 10;
-	s_medium_game_action.generic.name	= "medium";
-	s_medium_game_action.generic.callback = MediumGameFunc;
-
-	s_hard_game_action.generic.type	= MTYPE_ACTION;
-	s_hard_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
-	s_hard_game_action.generic.x		= 0;
-	s_hard_game_action.generic.y		= 20;
-	s_hard_game_action.generic.name	= "hard";
-	s_hard_game_action.generic.callback = HardGameFunc;
+	for (i=n=y=0 ; i<NUM_NEWGAMES ; i++)
+	{
+		if ( !( where[i] & newgames[i].where ) )
+			continue;
+		// the demo, only without the full game
+		if ( !strcmp( newgames[i].mapfile, "maps/demo1.bsp" ) && ( where[0] & FS_ORIGINAL ) )
+			continue;
+		s_newgame_actions[n].generic.type	= MTYPE_ACTION;
+		s_newgame_actions[n].generic.flags	= QMF_LEFT_JUSTIFY;
+		s_newgame_actions[n].generic.x		= 0;
+		s_newgame_actions[n].generic.y		= y;
+		s_newgame_actions[n].generic.name	= newgames[i].name;
+		s_newgame_actions[n].generic.localdata[0] = i;
+		s_newgame_actions[n].generic.callback = NewGameFunc;
+		Menu_AddItem( &s_game_menu, ( void * ) &s_newgame_actions[n] );
+		n++;
+		y += 10;
+	}
+	if ( !n )
+	{
+		s_nogame_line.generic.type = MTYPE_SEPARATOR;
+		s_nogame_line.generic.name = "no game data found";
+		s_nogame_line.generic.x = 18 * 4 + 8;
+		s_nogame_line.generic.y = y;
+		Menu_AddItem( &s_game_menu, ( void * ) &s_nogame_line );
+		y += 10;
+	}
 
 	s_blankline.generic.type = MTYPE_SEPARATOR;
 
 	s_load_game_action.generic.type	= MTYPE_ACTION;
 	s_load_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
 	s_load_game_action.generic.x		= 0;
-	s_load_game_action.generic.y		= 40;
+	s_load_game_action.generic.y		= y + 10;
 	s_load_game_action.generic.name	= "load game";
 	s_load_game_action.generic.callback = LoadGameFunc;
 
 	s_save_game_action.generic.type	= MTYPE_ACTION;
 	s_save_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
 	s_save_game_action.generic.x		= 0;
-	s_save_game_action.generic.y		= 50;
+	s_save_game_action.generic.y		= y + 20;
 	s_save_game_action.generic.name	= "save game";
 	s_save_game_action.generic.callback = SaveGameFunc;
 
 	s_credits_action.generic.type	= MTYPE_ACTION;
 	s_credits_action.generic.flags  = QMF_LEFT_JUSTIFY;
 	s_credits_action.generic.x		= 0;
-	s_credits_action.generic.y		= 60;
+	s_credits_action.generic.y		= y + 40;
 	s_credits_action.generic.name	= "credits";
 	s_credits_action.generic.callback = CreditsFunc;
 
-	Menu_AddItem( &s_game_menu, ( void * ) &s_easy_game_action );
-	Menu_AddItem( &s_game_menu, ( void * ) &s_medium_game_action );
-	Menu_AddItem( &s_game_menu, ( void * ) &s_hard_game_action );
 	Menu_AddItem( &s_game_menu, ( void * ) &s_blankline );
 	Menu_AddItem( &s_game_menu, ( void * ) &s_load_game_action );
 	Menu_AddItem( &s_game_menu, ( void * ) &s_save_game_action );

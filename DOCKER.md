@@ -66,8 +66,9 @@ see-through grates are not drawn as such.
 
 Each other directory with pak files, a `maps` directory or a
 `gamex86_64.so` in it is a game: `ctf`, a mission pack, a mod. Start on one
-with `-e QUAKE2_GAME=xatrix`; New Game in the menu then starts that game's
-campaign. From the console, `game rogue` followed by a `map` switches too.
+with `-e QUAKE2_GAME=xatrix`, or pick it in the game menu, which lists
+each game your data has before asking the difficulty. From the console,
+`game rogue` followed by a `map` switches too.
 
 | What you have | What happens |
 | --- | --- |

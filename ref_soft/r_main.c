@@ -119,6 +119,7 @@ cvar_t	*sw_maxedges;
 cvar_t	*sw_maxsurfs;
 cvar_t  *sw_mode;
 cvar_t  *scr_scale;
+cvar_t	*sw_texfilter;
 cvar_t	*sw_reportedgeout;
 cvar_t	*sw_reportsurfout;
 cvar_t  *sw_stipplealpha;
@@ -254,6 +255,7 @@ void R_Register (void)
 	sw_colorlight = ri.Cvar_Get ("sw_colorlight", "1", CVAR_ARCHIVE);
 	sw_fog = ri.Cvar_Get ("sw_fog", "1", CVAR_ARCHIVE);
 	sw_md5 = ri.Cvar_Get ("sw_md5", "1", CVAR_ARCHIVE);	// from the next vid_restart
+	sw_texfilter = ri.Cvar_Get ("sw_texfilter", "0", CVAR_ARCHIVE);
 	sw_drawflat = ri.Cvar_Get ("sw_drawflat", "0", 0);
 	sw_draworder = ri.Cvar_Get ("sw_draworder", "0", 0);
 	// How many edges and surfaces a frame may hold. Run out and faces are
