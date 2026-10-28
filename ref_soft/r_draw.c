@@ -306,7 +306,16 @@ void Draw_StretchPicImplementation (int x, int y, int w, int h, image_t	*pic)
 	{
 		sv = (skip + v)*pic->height/h;
 		source = pic->pixels[0] + sv*pic->width;
-		if (w == pic->width)
+		if (pic->transparent)
+		{
+			// with holes (the re-release's wheel's pictures, cl_wheel.c)
+			f = 0;
+			fstep = pic->width*0x10000/w;
+			for (u=0 ; u<w ; u++, f += fstep)
+				if (source[f>>16] != TRANSPARENT_COLOR)
+					dest[u] = source[f>>16];
+		}
+		else if (w == pic->width)
 			memcpy (dest, source, w);
 		else
 		{

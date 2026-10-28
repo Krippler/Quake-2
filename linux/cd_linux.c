@@ -83,6 +83,11 @@ static int CDAudio_GetAudioDiskInfo(void)
 
 
 // a track by its number; the CD has no named tracks
+// a drive loops a track for good, whatever the map says
+void CDAudio_SetLoopCount (char *count)
+{
+}
+
 void CDAudio_PlayName(char *name, qboolean looping)
 {
 	CDAudio_Play(atoi(name), looping);

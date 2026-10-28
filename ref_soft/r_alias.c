@@ -252,9 +252,11 @@ void R_AliasPreparePoints (void)
 	dstvert_t	*pstverts;
 	dtriangle_t	*ptri;
 	finalvert_t	*pfv[3];
-	finalvert_t	finalverts[MAXALIASVERTS +
+	// static: the re-release's md5 models have too many for the stack
+	static finalvert_t	finalverts[MAXALIASVERTS +
 						((CACHE_SIZE - 1) / sizeof(finalvert_t)) + 3];
 	finalvert_t	*pfinalverts;
+	int			sscale, tscale;
 
 //PGM
 	iractive = (r_newrefdef.rdflags & RDF_IRGOGGLES && currententity->flags & RF_IR_VISIBLE);
@@ -282,6 +284,15 @@ void R_AliasPreparePoints (void)
 	pstverts = (dstvert_t *)((byte *)s_pmdl + s_pmdl->ofs_st);
 	ptri = (dtriangle_t *)((byte *)s_pmdl + s_pmdl->ofs_tris);
 
+	// s and t in 16.16: an md5 model's are its skin's pixels, and the skin
+	// may be another size (a player's own, with no md5 version)
+	sscale = tscale = 1 << 16;
+	if (currentmodel->md5)
+	{
+		sscale = (r_affinetridesc.skinwidth << 16) / s_pmdl->skinwidth;
+		tscale = (r_affinetridesc.skinheight << 16) / s_pmdl->skinheight;
+	}
+
 	if ( ( currententity->flags & RF_WEAPONMODEL ) && ( r_lefthand->value == 1.0F ) )
 	{
 		for (i=0 ; i<s_pmdl->num_tris ; i++, ptri++)
@@ -294,14 +305,14 @@ void R_AliasPreparePoints (void)
 				continue;		// completely clipped
 
 			// insert s/t coordinates
-			pfv[0]->s = pstverts[ptri->index_st[0]].s << 16;
-			pfv[0]->t = pstverts[ptri->index_st[0]].t << 16;
+			pfv[0]->s = pstverts[ptri->index_st[0]].s * sscale;
+			pfv[0]->t = pstverts[ptri->index_st[0]].t * tscale;
 
-			pfv[1]->s = pstverts[ptri->index_st[1]].s << 16;
-			pfv[1]->t = pstverts[ptri->index_st[1]].t << 16;
+			pfv[1]->s = pstverts[ptri->index_st[1]].s * sscale;
+			pfv[1]->t = pstverts[ptri->index_st[1]].t * tscale;
 
-			pfv[2]->s = pstverts[ptri->index_st[2]].s << 16;
-			pfv[2]->t = pstverts[ptri->index_st[2]].t << 16;
+			pfv[2]->s = pstverts[ptri->index_st[2]].s * sscale;
+			pfv[2]->t = pstverts[ptri->index_st[2]].t * tscale;
 
 			if ( ! (pfv[0]->flags | pfv[1]->flags | pfv[2]->flags) )
 			{	// totally unclipped
@@ -329,14 +340,14 @@ void R_AliasPreparePoints (void)
 				continue;		// completely clipped
 
 			// insert s/t coordinates
-			pfv[0]->s = pstverts[ptri->index_st[0]].s << 16;
-			pfv[0]->t = pstverts[ptri->index_st[0]].t << 16;
+			pfv[0]->s = pstverts[ptri->index_st[0]].s * sscale;
+			pfv[0]->t = pstverts[ptri->index_st[0]].t * tscale;
 
-			pfv[1]->s = pstverts[ptri->index_st[1]].s << 16;
-			pfv[1]->t = pstverts[ptri->index_st[1]].t << 16;
+			pfv[1]->s = pstverts[ptri->index_st[1]].s * sscale;
+			pfv[1]->t = pstverts[ptri->index_st[1]].t * tscale;
 
-			pfv[2]->s = pstverts[ptri->index_st[2]].s << 16;
-			pfv[2]->t = pstverts[ptri->index_st[2]].t << 16;
+			pfv[2]->s = pstverts[ptri->index_st[2]].s * sscale;
+			pfv[2]->t = pstverts[ptri->index_st[2]].t * tscale;
 
 			if ( ! (pfv[0]->flags | pfv[1]->flags | pfv[2]->flags) )
 			{	// totally unclipped
@@ -851,7 +862,11 @@ static qboolean R_AliasSetupSkin (void)
 	image_t			*pskindesc;
 
 	if (currententity->skin)
+	{
 		pskindesc = currententity->skin;
+		if (currentmodel->md5)
+			pskindesc = R_MD5Skin (pskindesc);
+	}
 	else
 	{
 		skinnum = currententity->skinnum;

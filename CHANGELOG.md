@@ -5,6 +5,62 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.26] — 2026-10-28
+
+### Added
+
+- **Bosses' health bars.** Call of the Machine's bosses have their name
+  and a bar of their health across the top of the screen while you fight
+  them, as in the re-release.
+- **Autosaves.** Call of the Machine's levels save the game as you reach
+  their checkpoints, to the slot the game saves to on entering a level
+  (no more than once a minute).
+- **Animated buttons and screens.** The re-release's buttons flash
+  through their textures while waiting to be pressed and blink once
+  pressed, and the animated walls and screens of its maps run and switch
+  when used, rather than standing still.
+- **Music plays round four times, then track 11**, as the original game's
+  CD music did on PC (`cd_loopcount`, `cd_looptrack`); Quake 64's and Call
+  of the Machine's maps play theirs for good, as they ask. A map whose
+  named music file is missing (ndctf0's) plays its numbered track.
+- **Capture the Flag.** With `ctf 1` in a deathmatch, Threewave CTF is
+  played in the base game, as in the re-release: on its CTF maps
+  (q2ctf1-5, q2kctf1-2, ndctf0) and its Quake 64 deathmatch maps, with
+  the flags, techs, grapple, team menus, scoreboard and matches. Its
+  dmflags for forced joining, armour protection and no techs are the
+  re-release's settings `g_teamplay_force_join`,
+  `g_teamplay_armor_protect` and `g_allow_techs` instead.
+- **Tag.** Ground Zero's deathmatch tag game, `gamerules 1`: hold the
+  token for 3 a frag and a quad every fifth; frag its holder for 5 and
+  the token.
+- **The compass.** On the re-release's maps you have its compass (in the
+  inventory, or `use compass`): used, it shows the way to where you are
+  to go next, a glowing arrow at a time, as there.
+- **Lens flares.** The glows Call of the Machine and the Quake 64 levels
+  put at their lamps are drawn.
+- **Fog.** The re-release's maps' fog -- the haze of the base game's
+  levels and the coloured height fog of Call of the Machine's, which
+  changes as you go from place to place -- is drawn, in the software
+  renderer (`sw_fog 0` turns it off).
+- **Skies that turn.** The skies the maps set turning (the original
+  game's space station among them) turn, and the re-release's base game
+  maps' skies are turned as it turns them, their suns where their light
+  comes from.
+- **Flashlight zones.** Call of the Machine's dark places switch your
+  flashlight on as you go in and off as you come out.
+- **The weapon and powerup wheels.** Hold `+wheel` (the re-release's
+  key for it is E) and the weapons you have are round the middle of the
+  screen with their ammo; move the mouse to one and let go to switch to
+  it. `+wheel2` (Q) is the same for the things you can use: power armour,
+  quad, the compass, the flashlight and the rest. In single player the
+  game slows to a quarter of its speed while one is held, as in the
+  re-release (`cl_wheel_timescale`, 1 for none). `cl_weapnext` and
+  `cl_weapprev`, the re-release's mouse wheel, work too.
+- **The re-release's models.** Its monsters, players, weapons and items
+  are drawn with its more detailed models and skins where it has them, in
+  the software renderer too (`sw_md5 0` and `vid_restart` go back to the
+  originals).
+
 ## [1.3.25] — 2026-10-27
 
 ### Added

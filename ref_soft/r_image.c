@@ -238,7 +238,7 @@ NULL for anything else, or for a file shorter than it says it is.
 void LoadTGA (char *name, byte **pic, int *width, int *height)
 {
 	byte	*buffer, *p, *end, *out;
-	int		length, type, bpp, w, h, flip, row, col, i, n, rle, count;
+	int		length, type, bpp, w, h, flip, row, col, i, n, rle, count, grey;
 	byte	c[4];
 
 	*pic = NULL;
@@ -254,10 +254,18 @@ void LoadTGA (char *name, byte **pic, int *width, int *height)
 	h = buffer[14] | (buffer[15] << 8);
 	bpp = buffer[16];
 	flip = !(buffer[17] & 0x20);	// rows bottom first, the usual way
-	if ((type != 2 && type != 10) || buffer[1] != 0 || (bpp != 24 && bpp != 32)
+	// colour (2, 10 run-length), or grey (3, 11), as the re-release's
+	// flares are
+	grey = (type == 3 || type == 11);
+	if ((type != 2 && type != 10 && !grey) || buffer[1] != 0
+		|| (grey ? (bpp != 8 && bpp != 16) : (bpp != 24 && bpp != 32))
 		|| w <= 0 || h <= 0 || w > 4096 || h > 4096)
 		goto bad;
 	bpp >>= 3;
+	if (type == 11)
+		type = 10;		// the same packets, of grey
+	else if (type == 3)
+		type = 2;
 	p = buffer + 18 + buffer[0];
 
 	out = malloc (w*h*4);
@@ -284,16 +292,32 @@ void LoadTGA (char *name, byte **pic, int *width, int *height)
 				}
 				if (p + bpp > end)
 					goto badout;
-				c[2] = p[0]; c[1] = p[1]; c[0] = p[2];
-				c[3] = bpp == 4 ? p[3] : 255;
+				if (grey)
+				{
+					c[0] = c[1] = c[2] = p[0];
+					c[3] = bpp == 2 ? p[1] : 255;
+				}
+				else
+				{
+					c[2] = p[0]; c[1] = p[1]; c[0] = p[2];
+					c[3] = bpp == 4 ? p[3] : 255;
+				}
 				p += bpp;
 			}
 			else if (!rle)
 			{
 				if (p + bpp > end)
 					goto badout;
-				c[2] = p[0]; c[1] = p[1]; c[0] = p[2];
-				c[3] = bpp == 4 ? p[3] : 255;
+				if (grey)
+				{
+					c[0] = c[1] = c[2] = p[0];
+					c[3] = bpp == 2 ? p[1] : 255;
+				}
+				else
+				{
+					c[2] = p[0]; c[1] = p[1]; c[0] = p[2];
+					c[3] = bpp == 4 ? p[3] : 255;
+				}
 				p += bpp;
 			}
 			for (i=0 ; i<4 ; i++)
@@ -653,8 +677,8 @@ image_t	*R_FindImage (char *name, imagetype_t type)
 	{
 		image = R_LoadWal (name);
 	}
-	else if (!strcmp(name+len-4, ".tga"))
-		return NULL;	// ri.Sys_Error (ERR_DROP, "R_FindImage: can't load %s in software renderer", name);
+	else if (!strcmp(name+len-4, ".tga") || !strcmp(name+len-4, ".png"))
+		return R_LoadTrueColor (name, type);	// asked for by its own name (the re-release's flares)
 	else
 		return NULL;	// ri.Sys_Error (ERR_DROP, "R_FindImage: bad extension on: %s", name);
 
@@ -691,6 +715,11 @@ void R_FreeUnusedImages (void)
 {
 	int		i;
 	image_t	*image;
+
+	// a kept skin keeps its md5 version
+	for (i=0, image=r_images ; i<numr_images ; i++, image++)
+		if (image->registration_sequence == registration_sequence && image->md5skin)
+			image->md5skin->registration_sequence = registration_sequence;
 
 	for (i=0, image=r_images ; i<numr_images ; i++, image++)
 	{

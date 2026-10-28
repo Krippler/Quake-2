@@ -104,6 +104,16 @@ field_t fields[] = {
 	{"map", FOFS(map), F_LSTRING},
 	{"origin", FOFS(s.origin), F_VECTOR},
 	{"frame", FOFS(s.frame), F_INT},		// the re-release's
+	{"bmodel_anim_start", FOFS(bmodel_anim.start), F_INT},	// the re-release's texture animation
+	{"bmodel_anim_end", FOFS(bmodel_anim.end), F_INT},
+	{"bmodel_anim_style", FOFS(bmodel_anim.style), F_INT},
+	{"bmodel_anim_speed", FOFS(bmodel_anim.speed), F_INT},
+	{"bmodel_anim_nowrap", FOFS(bmodel_anim.nowrap), F_INT},
+	{"bmodel_anim_alt_start", FOFS(bmodel_anim.alt_start), F_INT},
+	{"bmodel_anim_alt_end", FOFS(bmodel_anim.alt_end), F_INT},
+	{"bmodel_anim_alt_style", FOFS(bmodel_anim.alt_style), F_INT},
+	{"bmodel_anim_alt_speed", FOFS(bmodel_anim.alt_speed), F_INT},
+	{"bmodel_anim_alt_nowrap", FOFS(bmodel_anim.alt_nowrap), F_INT},
 	{"scale", FOFS(scale), F_FLOAT},		// and its model's scale
 	{"angles", FOFS(s.angles), F_VECTOR},
 	{"angle", FOFS(s.angles), F_ANGLEHACK},
@@ -175,26 +185,26 @@ field_t fields[] = {
 	{"shadowlightstyletarget", STOFS(sl_styletarget), F_LSTRING, FFL_SPAWNTEMP},
 	// what the renderer has no use for: it is a shadow map's size
 	{"shadowlightresolution", 0, F_IGNORE, FFL_SPAWNTEMP},
-	// the re-release's, that this renderer has no use for: it draws no fog;
-	// its sky does not turn, so not whether it turns by itself; the frames
-	// a brush model's texture animates through are its texture's own chain
-	// here, as in 1997; and an achievement is the re-release's platform's
-	{"fog_color", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"fog_density", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"fog_sky_factor", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"heightfog_density", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"heightfog_falloff", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"heightfog_start_color", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"heightfog_end_color", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"heightfog_start_dist", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"heightfog_end_dist", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"skyautorotate", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"bmodel_anim_start", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"bmodel_anim_end", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"bmodel_anim_speed", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"bmodel_anim_alt_start", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"bmodel_anim_alt_end", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"bmodel_anim_alt_speed", 0, F_IGNORE, FFL_SPAWNTEMP},
+	// the re-release's fog (g_trigger.c, p_client.c)
+	{"fog_density", FOFS(fog[FOG_DENSITY]), F_FLOAT},
+	{"fog_color", FOFS(fog[FOG_COLOR]), F_VECTOR},
+	{"fog_sky_factor", FOFS(fog[FOG_SKY_FACTOR]), F_FLOAT},
+	{"heightfog_start_color", FOFS(fog[FOG_HF_START_COLOR]), F_VECTOR},
+	{"heightfog_start_dist", FOFS(fog[FOG_HF_START_DIST]), F_FLOAT},
+	{"heightfog_end_color", FOFS(fog[FOG_HF_END_COLOR]), F_VECTOR},
+	{"heightfog_end_dist", FOFS(fog[FOG_HF_END_DIST]), F_FLOAT},
+	{"heightfog_falloff", FOFS(fog[FOG_HF_FALLOFF]), F_FLOAT},
+	{"heightfog_density", FOFS(fog[FOG_HF_DENSITY]), F_FLOAT},
+	{"fog_density_off", FOFS(fog_off[FOG_DENSITY]), F_FLOAT},
+	{"fog_color_off", FOFS(fog_off[FOG_COLOR]), F_VECTOR},
+	{"fog_sky_factor_off", FOFS(fog_off[FOG_SKY_FACTOR]), F_FLOAT},
+	{"heightfog_start_color_off", FOFS(fog_off[FOG_HF_START_COLOR]), F_VECTOR},
+	{"heightfog_start_dist_off", FOFS(fog_off[FOG_HF_START_DIST]), F_FLOAT},
+	{"heightfog_end_color_off", FOFS(fog_off[FOG_HF_END_COLOR]), F_VECTOR},
+	{"heightfog_end_dist_off", FOFS(fog_off[FOG_HF_END_DIST]), F_FLOAT},
+	{"heightfog_falloff_off", FOFS(fog_off[FOG_HF_FALLOFF]), F_FLOAT},
+	{"heightfog_density_off", FOFS(fog_off[FOG_HF_DENSITY]), F_FLOAT},
+	// an achievement is the re-release's platform's
 	{"achievement", 0, F_IGNORE, FFL_SPAWNTEMP},
 	{"shadowlight", FOFS(shadowlight), F_LSTRING, FFL_NOSPAWN},
 	{"item", STOFS(item), F_LSTRING, FFL_SPAWNTEMP},
@@ -205,7 +215,10 @@ field_t fields[] = {
 	{"healthtarget", FOFS(healthtarget), F_LSTRING},
 	{"goals", STOFS(goals), F_LSTRING, FFL_SPAWNTEMP},
 	{"image", STOFS(image), F_LSTRING, FFL_SPAWNTEMP},
+	{"fade_start_dist", STOFS(fade_start_dist), F_FLOAT, FFL_SPAWNTEMP},
+	{"fade_end_dist", STOFS(fade_end_dist), F_FLOAT, FFL_SPAWNTEMP},
 	{"music", STOFS(music), F_LSTRING, FFL_SPAWNTEMP},
+	{"loop_count", STOFS(loop_count), F_LSTRING, FFL_SPAWNTEMP},
 	{"rgba", FOFS(s.skinnum), F_INT},
 
 //need for item field in edict struct, FFL_SPAWNTEMP item will be skipped on saves
@@ -215,6 +228,7 @@ field_t fields[] = {
 	{"sky", STOFS(sky), F_LSTRING, FFL_SPAWNTEMP},
 	{"skyrotate", STOFS(skyrotate), F_FLOAT, FFL_SPAWNTEMP},
 	{"skyaxis", STOFS(skyaxis), F_VECTOR, FFL_SPAWNTEMP},
+	{"skyautorotate", STOFS(skyautorotate), F_LSTRING, FFL_SPAWNTEMP},
 	{"minyaw", STOFS(minyaw), F_FLOAT, FFL_SPAWNTEMP},
 	{"maxyaw", STOFS(maxyaw), F_FLOAT, FFL_SPAWNTEMP},
 	{"minpitch", STOFS(minpitch), F_FLOAT, FFL_SPAWNTEMP},
@@ -235,6 +249,9 @@ field_t		levelfields[] =
 	{"disguise_violator", LLOFS(disguise_violator), F_EDICT},
 	{"sound_entity", LLOFS(sound_entity), F_EDICT},
 	{"sound2_entity", LLOFS(sound2_entity), F_EDICT},
+	{"health_bar_entities[0]", LLOFS(health_bar_entities[0]), F_EDICT},
+	{"health_bar_entities[1]", LLOFS(health_bar_entities[1]), F_EDICT},
+	{"current_dynamic_poi", LLOFS(current_dynamic_poi), F_EDICT},
 
 	{NULL, 0, F_INT}
 };
@@ -292,6 +309,9 @@ void InitGame (void)
 	dmflags = gi.cvar ("dmflags", "0", CVAR_SERVERINFO);
 	fraglimit = gi.cvar ("fraglimit", "0", CVAR_SERVERINFO);
 	timelimit = gi.cvar ("timelimit", "0", CVAR_SERVERINFO);
+	capturelimit = gi.cvar ("capturelimit", "0", CVAR_SERVERINFO);	// CTF's
+	gamerules = gi.cvar ("gamerules", "0", CVAR_SERVERINFO|CVAR_LATCH);	// Ground Zero's
+	instantweap = gi.cvar ("instantweap", "0", CVAR_SERVERINFO);
 	password = gi.cvar ("password", "", CVAR_USERINFO);
 	spectator_password = gi.cvar ("spectator_password", "", CVAR_USERINFO);
 	filterban = gi.cvar ("filterban", "1", 0);
@@ -329,6 +349,8 @@ void InitGame (void)
 	game.maxclients = maxclients->value;
 	game.clients = gi.TagMalloc (game.maxclients * sizeof(game.clients[0]), TAG_GAME);
 	globals.num_edicts = game.maxclients+1;
+
+	CTFInit ();
 }
 
 //=========================================================

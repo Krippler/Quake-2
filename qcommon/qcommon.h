@@ -228,7 +228,8 @@ enum svc_ops_e
 	svc_packetentities,			// [...]
 	svc_deltapacketentities,	// [...]
 	svc_frame,
-	svc_muzzleflash3			// the re-release's: svc_muzzleflash2, its flash a short
+	svc_muzzleflash3,			// the re-release's: svc_muzzleflash2, its flash a short
+	svc_fog						// this engine's, to q2ext clients: [short] msec, FOG_VALUES floats
 };
 
 //==============================================
@@ -834,6 +835,7 @@ void CL_Init (void);
 void CL_Drop (void);
 void CL_Shutdown (void);
 void CL_Frame (int msec);
+float CL_WheelTimescale (void);	// cl_wheel.c: 1, or slower with a wheel held
 void Con_Print (char *text);
 void SCR_BeginLoadingPlaque (void);
 

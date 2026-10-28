@@ -164,9 +164,15 @@ typedef struct
 
 	struct sfx_s	*sound_precache[MAX_SOUNDS];
 	struct image_s	*image_precache[MAX_IMAGES];
+	struct image_s	*flare_image;	// the re-release's flares' own (misc/flare.tga)
 
 	clientinfo_t	clientinfo[MAX_CLIENTS];
 	clientinfo_t	baseclientinfo;
+
+	// the re-release's fog (svc_fog): gone over to from fog_from to
+	// fog_to in fog_msec from fog_start (cl.time), CL_CurrentFog
+	float		fog_from[FOG_VALUES], fog_to[FOG_VALUES];
+	int			fog_start, fog_msec;
 } client_state_t;
 
 extern	client_state_t	cl;
@@ -319,6 +325,12 @@ extern	sizebuf_t	net_message;
 
 void DrawString (int x, int y, char *s);
 void DrawAltString (int x, int y, char *s);	// toggle high bit
+
+// cl_wheel.c, the re-release's weapon and powerup wheels
+void CL_InitWheel (void);
+qboolean CL_WheelActive (void);
+void CL_WheelMove (float yaw, float pitch);
+void CL_DrawWheel (void);
 qboolean	CL_CheckOrDownloadFile (char *filename);
 
 void CL_AddNetgraph (void);
@@ -514,6 +526,9 @@ void CL_ParseServerMessage (void);
 
 // cl_loc.c
 char *CL_Localize (char *s);
+void CL_CurrentFog (float *fog);
+struct image_s *CL_RegisterImage (char *name);
+void V_AddFlare (vec3_t org, float *color, float alpha, float radius, struct image_s *image);
 void CL_LoadClientinfo (clientinfo_t *ci, char *s);
 void SHOWNET(char *s);
 void CL_ParseClientinfo (int player);

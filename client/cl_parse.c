@@ -46,7 +46,8 @@ char *svc_strings[256] =
 	"svc_packetentities",
 	"svc_deltapacketentities",
 	"svc_frame",
-	"svc_muzzleflash3"
+	"svc_muzzleflash3",
+	"svc_fog"
 };
 
 //=============================================================================
@@ -532,6 +533,8 @@ void CL_ParseConfigString (void)
 
 	if (i >= CS_LIGHTS && i < CS_LIGHTS+MAX_LIGHTSTYLES)
 		CL_SetLightstyle (i - CS_LIGHTS);
+	else if (i == CS_CD_LOOP_COUNT)
+		CDAudio_SetLoopCount (cl.configstrings[CS_CD_LOOP_COUNT]);
 	else if (i == CS_CDTRACK)
 	{
 		if (cl.refresh_prepped)
@@ -570,7 +573,7 @@ void CL_ParseConfigString (void)
 	else if (i >= CS_IMAGES && i < CS_IMAGES+MAX_MODELS)
 	{
 		if (cl.refresh_prepped)
-			cl.image_precache[i-CS_IMAGES] = re.RegisterPic (cl.configstrings[i]);
+			cl.image_precache[i-CS_IMAGES] = CL_RegisterImage (cl.configstrings[i]);
 	}
 	else if (i >= CS_PLAYERSKINS && i < CS_PLAYERSKINS+MAX_CLIENTS)
 	{
@@ -657,6 +660,38 @@ void SHOWNET(char *s)
 {
 	if (cl_shownet->value>=2)
 		Com_Printf ("%3i:%s\n", net_message.readcount-1, s);
+}
+
+/*
+=====================
+CL_ParseFog
+
+svc_fog: the fog to go over to, from as it is now, in so many
+milliseconds (the re-release's trigger_fog, a level's own at once)
+=====================
+*/
+void CL_ParseFog (void)
+{
+	int		i, msec = MSG_ReadShort (&net_message) & 0xffff;
+
+	CL_CurrentFog (cl.fog_from);
+	for (i = 0 ; i < FOG_VALUES ; i++)
+		cl.fog_to[i] = MSG_ReadFloat (&net_message);
+	cl.fog_start = cl.time;
+	cl.fog_msec = msec;
+}
+
+void CL_CurrentFog (float *fog)
+{
+	int		i;
+	float	f = 1;
+
+	if (cl.fog_msec > 0 && cl.time < cl.fog_start + cl.fog_msec)
+		f = (cl.time - cl.fog_start) / (float)cl.fog_msec;
+	if (f < 0)
+		f = 0;
+	for (i = 0 ; i < FOG_VALUES ; i++)
+		fog[i] = cl.fog_from[i] + (cl.fog_to[i] - cl.fog_from[i]) * f;
 }
 
 /*
@@ -784,6 +819,10 @@ void CL_ParseServerMessage (void)
 
 		case svc_muzzleflash3:
 			CL_ParseMuzzleFlash2 (true);
+			break;
+
+		case svc_fog:
+			CL_ParseFog ();
 			break;
 
 		case svc_download:

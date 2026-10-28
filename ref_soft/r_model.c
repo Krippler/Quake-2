@@ -107,7 +107,8 @@ model_t *Mod_ForName (char *name, qboolean crash)
 {
 	model_t	*mod;
 	unsigned *buf;
-	int		i;
+	int		i, md5len;
+	void	*md5;
 	
 	if (!name[0])
 		ri.Sys_Error (ERR_DROP,"Mod_ForName: NULL name");
@@ -169,8 +170,19 @@ model_t *Mod_ForName (char *name, qboolean crash)
 	switch (LittleLong(*(unsigned *)buf))
 	{
 	case IDALIASHEADER:
+		// the re-release's md5 version of it, if it has one, as an .md2
+		md5 = R_LoadMD5 (mod->name, buf, &md5len);
+		if (md5)
+		{
+			loadmodel->extradata = Hunk_Begin (md5len + 0x10000);
+			Mod_LoadAliasModel (mod, md5);
+			mod->md5 = true;
+			free (md5);
+			break;
+		}
 		loadmodel->extradata = Hunk_Begin (0x200000);
 		Mod_LoadAliasModel (mod, buf);
+		mod->md5 = false;
 		break;
 		
 	case IDSPRITEHEADER:
@@ -1636,7 +1648,7 @@ void Mod_LoadAliasModel (model_t *mod, void *buffer)
 	if (pheader->num_xyz <= 0)
 		ri.Sys_Error (ERR_DROP, "model %s has no vertices", mod->name);
 
-	if (pheader->num_xyz > MAX_VERTS)
+	if (pheader->num_xyz > MAX_ALIAS_VERTS)
 		ri.Sys_Error (ERR_DROP, "model %s has too many vertices", mod->name);
 
 	if (pheader->num_st <= 0)

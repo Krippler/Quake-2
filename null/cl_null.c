@@ -20,6 +20,11 @@ void CL_Shutdown (void)
 {
 }
 
+float CL_WheelTimescale (void)
+{
+	return 1;
+}
+
 void CL_Frame (int msec)
 {
 }

@@ -252,6 +252,8 @@ void R_Register (void)
 	// the coloured light of the maps' lightmaps and of the dynamic lights,
 	// in the palette's colours (r_light.c, r_surf.c); 0 for 1997's white
 	sw_colorlight = ri.Cvar_Get ("sw_colorlight", "1", CVAR_ARCHIVE);
+	sw_fog = ri.Cvar_Get ("sw_fog", "1", CVAR_ARCHIVE);
+	sw_md5 = ri.Cvar_Get ("sw_md5", "1", CVAR_ARCHIVE);	// from the next vid_restart
 	sw_drawflat = ri.Cvar_Get ("sw_drawflat", "0", 0);
 	sw_draworder = ri.Cvar_Get ("sw_draworder", "0", 0);
 	// How many edges and surfaces a frame may hold. Run out and faces are
@@ -1063,6 +1065,9 @@ void R_RenderFrame (refdef_t *fd)
 
 	R_DrawAlphaSurfaces();
 
+	R_ApplyFog ();
+	R_DrawFlares ();
+
 	R_SetLightLevel ();
 
 	if (r_dowarp)
@@ -1350,6 +1355,7 @@ void R_SetSky (char *name, float rotate, vec3_t axis)
 	strncpy (skyname, name, sizeof(skyname)-1);
 	skyrotate = rotate;
 	VectorCopy (axis, skyaxis);
+	VectorNormalize (skyaxis);	// R_EmitSkyBox turns the box about it
 
 	for (i=0 ; i<6 ; i++)
 	{

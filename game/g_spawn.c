@@ -102,7 +102,6 @@ void SP_misc_player_mannequin (edict_t *self);
 void SP_misc_ctf_banner (edict_t *ent);
 void SP_misc_ctf_small_banner (edict_t *ent);
 void SP_info_player_team (edict_t *self);
-void SP_game_mode_only (edict_t *self);
 void SP_info_player_coop_lava (edict_t *self);
 void SP_info_world_text (edict_t *self);
 void SP_monster_widow2 (edict_t *ent);
@@ -132,6 +131,10 @@ void SP_func_animation (edict_t *ent);
 void SP_misc_nuke (edict_t *ent);
 void SP_monster_makron (edict_t *ent);
 void SP_cotm_none (edict_t *ent);
+void SP_target_healthbar (edict_t *ent);
+void SP_target_autosave (edict_t *ent);
+void SP_trigger_flashlight (edict_t *ent);
+void SP_trigger_fog (edict_t *ent);
 void SP_target_secret (edict_t *ent);
 void SP_target_goal (edict_t *ent);
 void SP_target_splash (edict_t *ent);
@@ -289,9 +292,7 @@ spawn_t	spawns[] = {
 	{"misc_ctf_small_banner", SP_misc_ctf_small_banner},
 	{"info_player_team1", SP_info_player_team},
 	{"info_player_team2", SP_info_player_team},
-	{"item_flag_team1", SP_game_mode_only},
-	{"item_flag_team2", SP_game_mode_only},
-	{"dm_tag_token", SP_game_mode_only},
+	{"dm_tag_token", SP_dm_tag_token},
 	{"info_player_coop_lava", SP_info_player_coop_lava},
 	{"info_world_text", SP_info_world_text},
 	{"monster_widow2", SP_monster_widow2},
@@ -320,10 +321,10 @@ spawn_t	spawns[] = {
 	{"func_animation", SP_func_animation},
 	{"misc_nuke", SP_misc_nuke},
 	{"monster_makron", SP_monster_makron},
-	{"target_healthbar", SP_cotm_none},
-	{"target_autosave", SP_cotm_none},
-	{"trigger_fog", SP_cotm_none},
-	{"trigger_flashlight", SP_cotm_none},
+	{"target_healthbar", SP_target_healthbar},
+	{"target_autosave", SP_target_autosave},
+	{"trigger_fog", SP_trigger_fog},
+	{"trigger_flashlight", SP_trigger_flashlight},
 	{"target_secret", SP_target_secret},
 	{"target_goal", SP_target_goal},
 	{"target_splash", SP_target_splash},
@@ -516,6 +517,26 @@ void ED_ParseField (char *key, char *value, edict_t *ent)
 	float	v;
 	vec3_t	vec;
 
+	// the re-release's colour: 0xRRGGBBAA as a number, or four values,
+	// 0 to 1 or 0 to 255, its ED_LoadColor
+	if (!Q_stricmp (key, "rgba") && strchr (value, ' '))
+	{
+		float		c[4] = {0, 0, 0, 1};
+		qboolean	is_float = true;
+		int			i;
+
+		sscanf (value, "%f %f %f %f", &c[0], &c[1], &c[2], &c[3]);
+		for (i = 0 ; i < 4 ; i++)
+			if (c[i] > 1)
+				is_float = false;
+		if (is_float)
+			for (i = 0 ; i < 4 ; i++)
+				c[i] *= 255;
+		ent->s.skinnum = ((int)c[3] & 255) | (((int)c[2] & 255) << 8)
+			| (((int)c[1] & 255) << 16) | ((int)c[0] << 24);
+		return;
+	}
+
 	for (f=fields ; f->name ; f++)
 	{
 		if (!(f->flags & FFL_NOSPAWN) && !Q_stricmp(f->name, key))
@@ -551,6 +572,10 @@ void ED_ParseField (char *key, char *value, edict_t *ent)
 			case F_IGNORE:
 				break;
 			}
+			// the re-release's: a texture animation is had by giving
+			// its start or its end
+			if (!Q_stricmp (key, "bmodel_anim_start") || !Q_stricmp (key, "bmodel_anim_end"))
+				ent->bmodel_anim.enabled = true;
 			return;
 		}
 	}
@@ -679,6 +704,8 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	int			i;
 	float		skill_level;
 
+	InitGameRules ();	// Ground Zero's deathmatch games, each level anew
+
 	skill_level = floor (skill->value);
 	if (skill_level < 0)
 		skill_level = 0;
@@ -774,6 +801,9 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 #endif
 
 	G_FindTeams ();
+	CTFSpawn ();		// CTF's
+	if (DMGame.PostInitSetup)	// Ground Zero's deathmatch games'
+		DMGame.PostInitSetup ();
 	G_SetupShadowLights ();
 	InitHintPaths ();
 	Nav_Load (level.mapname);
@@ -862,6 +892,12 @@ char *single_statusbar =
 "if 11 "
 "	xv	148 "
 "	pic	11 "
+"endif "
+
+// the re-release's bosses' health bars
+"if 18 "
+"	yt	24 "
+"	health_bars "
 "endif "
 ;
 
@@ -1010,21 +1046,49 @@ void SP_worldspawn (edict_t *ent)
 	else
 		gi.configstring (CS_SKY, "unit1_");
 
-	gi.configstring (CS_SKYROTATE, va("%f", st.skyrotate) );
+	// with the re-release's second number: 1 if it turns by itself,
+	// as all did in 1997, 0 if it is turned skyrotate degrees and stays
+	level.skyrotate = st.skyrotate;
+	level.skyautorotate = st.skyautorotate ? atoi (st.skyautorotate) : 1;
+	gi.configstring (CS_SKYROTATE, va("%f %i", level.skyrotate, level.skyautorotate) );
 
 	gi.configstring (CS_SKYAXIS, va("%f %f %f",
 		st.skyaxis[0], st.skyaxis[1], st.skyaxis[2]) );
 
-	// the re-release's: a music file by its name, over the track number
-	if (st.music && st.music[0])
+	// the re-release's: a music file by its name, over the track number,
+	// which our client falls back on if it has not the file ("name number";
+	// another client takes it for 0, as it did the name)
+	if (st.music && st.music[0] && ent->sounds)
+		gi.configstring (CS_CDTRACK, va("%s %i", st.music, ent->sounds));
+	else if (st.music && st.music[0])
 		gi.configstring (CS_CDTRACK, st.music);
 	else
 		gi.configstring (CS_CDTRACK, va("%i", ent->sounds) );
 
+	// and how many times round before cd_looptrack: Quake 64's for good
+	if (level.is_n64)
+		gi.configstring (CS_CD_LOOP_COUNT, "0");
+	else if (st.loop_count)
+		gi.configstring (CS_CD_LOOP_COUNT, va("%i", atoi (st.loop_count)));
+	else
+		gi.configstring (CS_CD_LOOP_COUNT, "");
+
 	gi.configstring (CS_MAXCLIENTS, va("%i", (int)(maxclients->value) ) );
 
 	// status bar program
-	if (deathmatch->value)
+	if (deathmatch->value && ctf->value)
+	{
+		// CTF's, and its pictures
+		gi.configstring (CS_STATUSBAR, ctf_statusbar);
+		gi.imageindex ("i_ctf1");
+		gi.imageindex ("i_ctf2");
+		gi.imageindex ("i_ctf1d");
+		gi.imageindex ("i_ctf2d");
+		gi.imageindex ("i_ctf1t");
+		gi.imageindex ("i_ctf2t");
+		gi.imageindex ("i_ctfj");
+	}
+	else if (deathmatch->value)
 		gi.configstring (CS_STATUSBAR, dm_statusbar);
 	else
 		gi.configstring (CS_STATUSBAR, single_statusbar);
@@ -1107,6 +1171,7 @@ void SP_worldspawn (edict_t *ent)
 	gi.modelindex ("#a_trap.md2");
 	gi.modelindex ("#w_etfrifle.md2");
 	gi.modelindex ("#w_plauncher.md2");
+	gi.modelindex ("#w_grapple.md2");		// CTF's grapple, WEAP_GRAPPLE
 
 	//-------------------
 

@@ -73,6 +73,8 @@ medge_t			*r_skyedges;
 int				*r_skysurfedges;
 
 // I just copied this data from a box map...
+extern vec3_t	skyaxis;	// r_main.c, R_SetSky
+
 int skybox_planes[12] = {2,-128, 0,-128, 2,128, 1,128, 0,128, 1,-128};
 
 int box_surfedges[24] = { 1,2,3,4,  -1,5,6,7,  8,9,-6,10,  -2,-7,-9,11,
@@ -171,6 +173,8 @@ void R_EmitSkyBox (void)
 {
 	int		i, j;
 	int		oldkey;
+	vec3_t	v, rv;
+	qboolean	rotated;
 
 	if (insubmodel)
 		return;		// submodels should never have skies
@@ -179,23 +183,54 @@ void R_EmitSkyBox (void)
 
 	r_skyframe = r_framecount;
 
+	// the box turned about skyaxis by r_newrefdef.skyangle (CS_SKYROTATE):
+	// its corners, its planes' normals and its texture axes all by the
+	// same rotation, so the pictures stay on the box as it turns
+	rotated = r_newrefdef.skyangle != 0 && VectorLength (skyaxis) > 0;
+
 	// set the eight fake vertexes
 	for (i=0 ; i<8 ; i++)
+	{
 		for (j=0 ; j<3 ; j++)
-			r_skyverts[i].position[j] = r_origin[j] + box_verts[i][j]*128;
+			v[j] = box_verts[i][j]*128;
+		if (rotated)
+		{
+			RotatePointAroundVector (rv, skyaxis, v, r_newrefdef.skyangle);
+			VectorCopy (rv, v);
+		}
+		VectorAdd (r_origin, v, r_skyverts[i].position);
+	}
 
 	// set the six fake planes
 	for (i=0 ; i<6 ; i++)
-		if (skybox_planes[i*2+1] > 0)
-			r_skyplanes[i].dist = r_origin[skybox_planes[i*2]]+128;
+	{
+		VectorClear (v);
+		v[skybox_planes[i*2]] = 1;
+		if (rotated)
+		{
+			RotatePointAroundVector (r_skyplanes[i].normal, skyaxis, v, r_newrefdef.skyangle);
+			r_skyplanes[i].type = PLANE_ANYZ;
+		}
 		else
-			r_skyplanes[i].dist = r_origin[skybox_planes[i*2]]-128;
+		{
+			VectorCopy (v, r_skyplanes[i].normal);
+			r_skyplanes[i].type = skybox_planes[i*2];
+		}
+		r_skyplanes[i].signbits = (r_skyplanes[i].normal[0] < 0) | ((r_skyplanes[i].normal[1] < 0) << 1) | ((r_skyplanes[i].normal[2] < 0) << 2);
+		r_skyplanes[i].dist = DotProduct (r_origin, r_skyplanes[i].normal) + skybox_planes[i*2+1];
+	}
 
 	// fix texture offseets
 	for (i=0 ; i<6 ; i++)
 	{
-		r_skytexinfo[i].vecs[0][3] = -DotProduct (r_origin, r_skytexinfo[i].vecs[0]);
-		r_skytexinfo[i].vecs[1][3] = -DotProduct (r_origin, r_skytexinfo[i].vecs[1]);
+		for (j=0 ; j<2 ; j++)
+		{
+			if (rotated)
+				RotatePointAroundVector (r_skytexinfo[i].vecs[j], skyaxis, box_vecs[i][j], r_newrefdef.skyangle);
+			else
+				VectorCopy (box_vecs[i][j], r_skytexinfo[i].vecs[j]);
+			r_skytexinfo[i].vecs[j][3] = -DotProduct (r_origin, r_skytexinfo[i].vecs[j]);
+		}
 	}
 
 	// emit the six faces

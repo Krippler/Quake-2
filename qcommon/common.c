@@ -1527,6 +1527,8 @@ Qcommon_Frame
 */
 void Qcommon_Frame (int msec)
 {
+	static float	wheeltime;
+	float		wheelscale;
 	char	*s;
 	int		time_before, time_between, time_after;
 
@@ -1565,6 +1567,18 @@ void Qcommon_Frame (int msec)
 		if (msec < 1)
 			msec = 1;
 	}
+
+	// the re-release's wheels slow the game while held, in single player
+	// (cl_wheel.c); what is left of a millisecond kept for the next frame
+	wheelscale = CL_WheelTimescale ();
+	if (wheelscale < 1)
+	{
+		wheeltime += msec * wheelscale;
+		msec = (int)wheeltime;
+		wheeltime -= msec;
+	}
+	else
+		wheeltime = 0;
 
 	if (showtrace->value)
 	{

@@ -38,6 +38,8 @@ cvar_t	*dmflags;
 cvar_t	*skill;
 cvar_t	*fraglimit;
 cvar_t	*timelimit;
+cvar_t	*capturelimit;		// CTF's
+cvar_t	*instantweap;
 cvar_t	*password;
 cvar_t	*spectator_password;
 cvar_t	*maxclients;
@@ -222,6 +224,13 @@ void EndDMLevel (void)
 	char *s, *t, *f;
 	static const char *seps = " ,\n\r";
 
+	// CTF's: an election's map
+	if (*level.forcemap)
+	{
+		BeginIntermission (CreateTargetChangeLevel (level.forcemap) );
+		return;
+	}
+
 	// stay on same level flag
 	if ((int)dmflags->value & DF_SAME_LEVEL)
 	{
@@ -285,6 +294,15 @@ void CheckDMRules (void)
 	if (!deathmatch->value)
 		return;
 
+	// CTF's: its captures, and none of this in a match
+	if (ctf->value && CTFCheckRules ())
+	{
+		EndDMLevel ();
+		return;
+	}
+	if (CTFInMatch ())
+		return;
+
 	if (timelimit->value)
 	{
 		if (level.time >= timelimit->value*60)
@@ -324,6 +342,9 @@ void ExitLevel (void)
 	int		i;
 	edict_t	*ent;
 	char	command [256];
+
+	if (CTFNextMap ())		// CTF's: a match's
+		return;
 
 	Com_sprintf (command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
 	gi.AddCommandString (command);

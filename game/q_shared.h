@@ -616,6 +616,10 @@ typedef struct
 // colour skinnum (0xRRGGBBxx); RF_CUSTOM_LIGHT in its engine
 #define RF_CUSTOMLIGHT		0x00080000
 #define RF_FLASHLIGHT		0x00100000		// the re-release's flashlight, which this client draws (cl_ents.c)
+// the re-release's misc_flare: a glow, no model, colour skinnum (0xRRGGBBAA),
+// size its scale, picture frame with RF_CUSTOMSKIN, gone between distances
+// modelindex2 and 3 (cl_ents.c, r_fog.c)
+#define RF_FLARE			0x00200000
 //ROGUE
 
 // player_state_t->refdef flags
@@ -1102,6 +1106,7 @@ typedef enum
 #define	STAT_FLASHES			15		// cleared each frame, 1 = health, 2 = armor
 #define STAT_CHASE				16
 #define STAT_SPECTATOR			17
+#define STAT_HEALTH_BARS		18		// the re-release's: two bosses' health, a byte each, 0x80 shown and 0..127 of it
 
 #define	MAX_STATS				32
 
@@ -1214,6 +1219,34 @@ ROGUE - VERSIONS
 // configstrings, which it uses for nothing else (g_misc.c, cl_fx.c)
 #define	CS_SHADOWLIGHTS		CS_GENERAL
 #define	MAX_SHADOWLIGHT_CS	256
+
+// the re-release's fog, as the game sets a player's (gi.SetFog), svc_fog
+// carries it and refdef_t has it: its distance fog's density, colour and
+// how much of it the sky takes, then its height fog's colour and height
+// where it starts and ends, its falloff and its density; colours 0 to 1
+#define	FOG_DENSITY			0
+#define	FOG_COLOR			1		// 3
+#define	FOG_SKY_FACTOR		4
+#define	FOG_HF_START_COLOR	5		// 3
+#define	FOG_HF_START_DIST	8
+#define	FOG_HF_END_COLOR	9		// 3
+#define	FOG_HF_END_DIST		12
+#define	FOG_HF_FALLOFF		13
+#define	FOG_HF_DENSITY		14
+#define	FOG_VALUES			15
+
+// the re-release's health bar's name, after them (g_cotm.c, cl_scrn.c)
+#define	CS_HEALTH_BAR_NAME	(CS_SHADOWLIGHTS+MAX_SHADOWLIGHT_CS)
+// and how many times the music plays before cd_looptrack ("" the client's
+// cd_loopcount, 0 for good): the re-release's CS_CD_LOOP_COUNT; after
+// CTF's match configstring (g_ctf.h)
+#define	CS_CD_LOOP_COUNT	(CS_HEALTH_BAR_NAME+2)
+// the re-release's weapon and powerup wheels (g_items.c, cl_wheel.c): what
+// is on each, in its order, one to a configstring: a weapon's
+// "item ammo-item min-ammo icon" (ammo -1 for none), a powerup's "item icon"
+#define	CS_WHEEL_WEAPONS	(CS_CD_LOOP_COUNT+1)
+#define	CS_WHEEL_POWERUPS	(CS_WHEEL_WEAPONS+MAX_WHEEL_ITEMS)
+#define	MAX_WHEEL_ITEMS		32
 
 
 //==============================================

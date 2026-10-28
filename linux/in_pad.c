@@ -652,12 +652,12 @@ void IN_PadMove (usercmd_t *cmd)
 // Looking: degrees a second, on a curve so a small push aims finely. CL_ClampPitch
 // keeps the result inside what the server allows.
 	c = joy_lookcurve->value > 0 ? joy_lookcurve->value : 1;
-	t = joy_lookspeed->value * cls.frametime;
+	t = joy_lookspeed->value * cls.frametime / CL_WheelTimescale ();	// real time, a wheel slowing the game
 	if (lx)
 		cl.viewangles[YAW] -= (lx < 0 ? -1 : 1) * pow (fabs (lx), c) * t;
 	if (ly)
 		cl.viewangles[PITCH] += (ly < 0 ? -1 : 1) * pow (fabs (ly), c)
-			* joy_lookspeed_y->value * cls.frametime
+			* joy_lookspeed_y->value * cls.frametime / CL_WheelTimescale ()
 			* (joy_invert->value ? -1 : 1);
 }
 

@@ -27,6 +27,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	GAME_INCLUDE
 #include "game.h"
 
+// Threewave CTF's menus, as the re-release has CTF in the base game
+#include "p_menu.h"
+
 // the "gameversion" client command will print this plus compile date
 #define	GAMEVERSION	"baseq2"
 
@@ -264,6 +267,7 @@ typedef struct
 #define IT_STAY_COOP	8
 #define IT_KEY			16
 #define IT_POWERUP		32
+#define IT_TECH			64		// CTF's
 
 // gitem_t->weapmodel for weapons indicates model index
 #define WEAP_BLASTER			1 
@@ -285,6 +289,7 @@ typedef struct
 #define WEAP_TRAP				17
 #define WEAP_ETFRIFLE			18
 #define WEAP_PROXLAUNCH			19
+#define WEAP_GRAPPLE			20		// CTF's
 
 typedef struct gitem_s
 {
@@ -350,6 +355,9 @@ typedef struct
 } game_locals_t;
 
 
+#define	MAX_HEALTH_BARS		2
+#define	MAX_HELP_POINTS		128		// the compass's path, at most
+
 //
 // this structure is cleared as each map is entered
 // it is read/written to the level.sav file for savegames
@@ -362,6 +370,7 @@ typedef struct
 	char		level_name[MAX_QPATH];	// the descriptive name (Outer Base, etc)
 	char		mapname[MAX_QPATH];		// the server name (base1, etc)
 	char		nextmap[MAX_QPATH];		// go here when fraglimit is hit
+	char		forcemap[MAX_QPATH];	// CTF's: go here (an election)
 
 	// intermission state
 	float		intermissiontime;		// time the intermission was started
@@ -383,6 +392,23 @@ typedef struct
 	int			sound_entity_framenum;
 	edict_t		*sound2_entity;
 	int			sound2_entity_framenum;
+
+	// the re-release's: the target_healthbars shown, and when it last
+	// autosaved (g_cotm.c)
+	edict_t		*health_bar_entities[MAX_HEALTH_BARS];
+	float		last_auto_save;
+
+	// the sky's CS_SKYROTATE, which target_sky changes a part of
+	float		skyrotate;
+	int			skyautorotate;
+
+	// the re-release's point of interest, where the compass points
+	// (target_poi): whether there is one, where, the stage it is at, and
+	// the teamed one to pick from again each time (DYNAMIC)
+	qboolean	valid_poi;
+	vec3_t		current_poi;
+	int			current_poi_stage;
+	edict_t		*current_dynamic_poi;
 
 	int			pic_health;
 
@@ -413,6 +439,8 @@ typedef struct
 	char		*sky;
 	float		skyrotate;
 	vec3_t		skyaxis;
+	char		*skyautorotate;		// the re-release's: "0" turned skyrotate degrees, not turning
+
 	char		*nextmap;
 
 	int			lip;
@@ -438,8 +466,10 @@ typedef struct
 	char		*sl_styletarget;
 	float		radius;			// the re-release's target_light
 	char		*goals;			// and worldspawn's Quake 64 objectives
-	char		*image;			// the re-release's mannequin's skin
+	char		*image;			// the re-release's mannequin's skin, a flare's picture
+	float		fade_start_dist, fade_end_dist;	// and a flare's distances
 	char		*music;			// and worldspawn's music, by its file's name
+	char		*loop_count;	// and how often it plays round (CS_CD_LOOP_COUNT)
 	float		health_multiplier;	// a monster's health, scaled
 	char		*reinforcements;	// the re-release's summoners': "classname strength;..."
 	int			monster_slots;		// and how much they may have summoned at once
@@ -739,6 +769,7 @@ extern	int	body_armor_index;
 #define MOD_DOPPLE_EXPLODE	51
 #define MOD_DOPPLE_VENGEANCE	52
 #define MOD_DOPPLE_HUNTER	53
+#define MOD_GRAPPLE			54		// CTF's
 
 // Ground Zero's spheres (their spawnflags)
 #define SPHERE_DEFENDER		0x0001
@@ -861,6 +892,7 @@ void Cmd_Score_f (edict_t *ent);
 void PrecacheItem (gitem_t *it);
 void InitItems (void);
 void SetItemNames (void);
+void SetWheelItems (void);
 gitem_t	*FindItem (char *pickup_name);
 gitem_t	*FindItemByClassname (char *classname);
 #define	ITEM_INDEX(x) ((x)-itemlist)
@@ -883,6 +915,12 @@ void	G_ProjectSource (vec3_t point, vec3_t distance, vec3_t forward, vec3_t righ
 edict_t *G_Find (edict_t *from, int fieldofs, char *match);
 edict_t *findradius (edict_t *from, vec3_t org, float rad);
 edict_t *G_PickTarget (char *targetname);
+void G_SetHealthBars (edict_t *ent);
+void G_HealthBarHandOff (edict_t *from, edict_t *to);
+void P_ToggleFlashlight (edict_t *ent, qboolean on);
+void target_poi_use (edict_t *ent, edict_t *other, edict_t *activator);
+void Compass_Update (edict_t *ent, qboolean first);
+void Use_Compass (edict_t *ent, gitem_t *item);
 void G_SetGoal (void);
 
 // g_xatrix.c
@@ -1160,6 +1198,14 @@ void DeathmatchScoreboardMessage (edict_t *client, edict_t *killer);
 // g_pweapon.c
 //
 void PlayerNoise(edict_t *who, vec3_t where, int type);
+void P_ProjectSource (gclient_t *client, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result);
+void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int FRAME_DEACTIVATE_LAST, int *pause_frames, int *fire_frames, void (*fire)(edict_t *ent));
+extern qboolean	is_quad;
+qboolean CheckFlood (edict_t *ent);
+qboolean CheckTeamDamage (edict_t *targ, edict_t *attacker);
+void EndDMLevel (void);
+extern cvar_t	*capturelimit;
+extern cvar_t	*instantweap;
 
 //
 // m_move.c
@@ -1242,6 +1288,11 @@ typedef struct
 	int			helpchanged;
 
 	qboolean	spectator;			// client is a spectator
+
+	// the re-release's: the fog this player is to have (FOG_VALUES), and
+	// how long, in seconds, to go over to it (trigger_fog)
+	float		wanted_fog[FOG_VALUES];
+	float		fog_transition_time;
 } client_persistant_t;
 
 // client data that stays across deathmatch respawns
@@ -1250,6 +1301,18 @@ typedef struct
 	client_persistant_t	coop_respawn;	// what to set client->pers to on a respawn
 	int			enterframe;			// level.framenum the client entered the game
 	int			score;				// frags, etc
+	// CTF's
+	int			ctf_team;			// CTF team
+	int			ctf_state;
+	float		ctf_lasthurtcarrier;
+	float		ctf_lastreturnedflag;
+	float		ctf_flagsince;
+	float		ctf_lastfraggedcarrier;
+	qboolean	id_state;
+	qboolean	voted; // for elections
+	qboolean	ready;
+	qboolean	admin;
+	struct ghost_s *ghost; // for ghost codes
 	vec3_t		cmd_angles;			// angles sent over in the last command
 
 	qboolean	spectator;			// client is a spectator
@@ -1269,6 +1332,8 @@ struct gclient_s
 	pmove_state_t		old_pmove;	// for detecting out-of-pmove changes
 
 	qboolean	showscores;			// set layout stat
+	qboolean	inmenu;				// CTF's: in a menu
+	pmenuhnd_t	*menu;				// and which
 	qboolean	showinventory;		// set layout stat
 	qboolean	showhelp;
 	qboolean	showhelpicon;
@@ -1329,6 +1394,19 @@ struct gclient_s
 	float		nuke_framenum;				// and the A-M bomb's flash, till then
 	float		ir_framenum;				// and the IR goggles
 	edict_t		*owned_sphere;				// and the sphere about them
+
+	// the fog last sent them (gi.SetFog), and whether it has to be again
+	// (a new level, a loaded game), at once
+	float		fog[FOG_VALUES];
+	qboolean	fog_unsent;
+
+	// the re-release's compass: the path to the point of interest, the
+	// next of its points to show and when
+	vec3_t		help_points[MAX_HELP_POINTS + 1];
+	vec3_t		help_poi_location;
+	qboolean	help_draw_points;
+	int			help_draw_index, help_draw_count;
+	float		help_draw_time;
 	float		quadfire_framenum;			// The Reckoning's DualFire
 	float		invincible_framenum;
 	float		breather_framenum;
@@ -1351,6 +1429,16 @@ struct gclient_s
 
 	edict_t		*chase_target;		// player we are chasing
 	qboolean	update_chase;		// need to update chase info?
+
+	// CTF's
+	void		*ctf_grapple;		// entity of grapple
+	int			ctf_grapplestate;		// true if pulling
+	float		ctf_grapplereleasetime;	// time of grapple release
+	float		ctf_regentime;		// regen tech
+	float		ctf_techsndtime;
+	float		ctf_lasttechmsg;
+	float		menutime;			// time to update menu
+	qboolean	menudirty;
 };
 
 
@@ -1518,6 +1606,26 @@ struct edict_s
 	// the re-release's: the scale its model is drawn at (G_SetScale); 0 is 1
 	float		scale;
 
+	// the re-release's: a brush model's texture animation, run by
+	// G_RunBmodelAnimation (g_phys.c) through its frames from start to end
+	// a frame each speed milliseconds; style 0 forwards, 1 backwards, 2 at
+	// random; nowrap stops at the end. The alt_ set is run instead while
+	// alternate is (a button pressed, a func_animation used). enabled if
+	// it was given a start or an end.
+	struct
+	{
+		int		start, end, style, speed, nowrap;
+		int		alt_start, alt_end, alt_style, alt_speed, alt_nowrap;
+		qboolean	enabled, alternate, currently_alternate;
+		float	next_tick;
+	} bmodel_anim;
+
+	// the re-release's fog keys (FOG_VALUES, q_shared.h): the world's own,
+	// and a trigger_fog's (or the info_notnull it targets) going one way
+	// and, _off, the other
+	float		fog[FOG_VALUES];
+	float		fog_off[FOG_VALUES];
+
 	// Ground Zero's hint_path: the next on its chain, which chain, and its
 	// links as monsterlost_checkhint sorts them
 	edict_t		*hint_chain;
@@ -1526,3 +1634,29 @@ struct edict_s
 	int			hint_chain_id;
 };
 
+// Ground Zero's deathmatch games, gamerules (g_newdm.c): the hooks a game
+// sets, called where they are
+typedef struct
+{
+	void	(*GameInit) (void);
+	void	(*PostInitSetup) (void);
+	void	(*PlayerDeath) (edict_t *targ, edict_t *inflictor, edict_t *attacker);
+	void	(*Score) (edict_t *attacker, edict_t *victim, int scoreChange, int mod);
+	void	(*PlayerEffects) (edict_t *ent);
+	void	(*DogTag) (edict_t *ent, edict_t *killer, char **pic);
+	void	(*PlayerDisconnect) (edict_t *ent);
+	int		(*ChangeDamage) (edict_t *targ, edict_t *attacker, int damage, int mod);
+} dm_game_rt;
+
+extern dm_game_rt	DMGame;
+extern cvar_t	*gamerules;
+void InitGameRules (void);
+void G_Score (edict_t *scorer, edict_t *victim, int change);
+qboolean Tag_PickupToken (edict_t *ent, edict_t *other);
+void Tag_DropToken (edict_t *ent, gitem_t *item);
+void SP_dm_tag_token (edict_t *self);
+edict_t *SelectDeathmatchSpawnPoint (void);
+void SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles);
+
+// Threewave CTF, in the base game as the re-release has it
+#include "g_ctf.h"

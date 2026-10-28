@@ -775,4 +775,7 @@ void MakronToss_rr (edict_t *self)
 	ent->enemy = self->enemy;
 
 	MakronSpawn (ent);
+
+	// its health bar goes over to him
+	G_HealthBarHandOff (self, ent);
 }

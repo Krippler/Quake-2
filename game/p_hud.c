@@ -81,6 +81,9 @@ void BeginIntermission (edict_t *targ)
 	if (level.intermissiontime)
 		return;		// already activated
 
+	if (deathmatch->value && ctf->value)	// CTF's team scores
+		CTFCalcScores ();
+
 	game.autosaved = false;
 
 	// respawn any dead clients
@@ -184,6 +187,12 @@ void DeathmatchScoreboardMessage (edict_t *ent, edict_t *killer)
 	edict_t		*cl_ent;
 	char	*tag;
 
+	if (ctf->value)		// CTF's, by team
+	{
+		CTFScoreboardMessage (ent, killer);
+		return;
+	}
+
 	// sort the clients by score
 	total = 0;
 	for (i=0 ; i<game.maxclients ; i++)
@@ -232,6 +241,8 @@ void DeathmatchScoreboardMessage (edict_t *ent, edict_t *killer)
 			tag = "tag2";
 		else
 			tag = NULL;
+		if (DMGame.DogTag)		// Ground Zero's deathmatch games' own
+			DMGame.DogTag (cl_ent, killer, &tag);
 		if (tag)
 		{
 			Com_sprintf (entry, sizeof(entry),
@@ -285,6 +296,9 @@ void Cmd_Score_f (edict_t *ent)
 {
 	ent->client->showinventory = false;
 	ent->client->showhelp = false;
+
+	if (ent->client->menu)		// CTF's
+		PMenu_Close (ent);
 
 	if (!deathmatch->value && !coop->value)
 		return;
@@ -545,6 +559,11 @@ void G_SetStats (edict_t *ent)
 		ent->client->ps.stats[STAT_HELPICON] = 0;
 
 	ent->client->ps.stats[STAT_SPECTATOR] = 0;
+
+	G_SetHealthBars (ent);
+
+	if (ctf->value)
+		SetCTFStats (ent);		// CTF's
 }
 
 /*

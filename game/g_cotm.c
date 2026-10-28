@@ -207,13 +207,20 @@ void SP_target_music (edict_t *self)
 	self->svflags = SVF_NOCLIENT;
 }
 
-// count: 1 a rotation, 4 an axis; the client takes up the change (cl_parse.c)
+// count: 1 a rotation, 2 whether it turns by itself (style), 4 an axis;
+// the client takes up the change (cl_parse.c)
 void use_target_sky (edict_t *self, edict_t *other, edict_t *activator)
 {
 	if (self->map)
 		gi.configstring (CS_SKY, self->map);
-	if (self->count & 1)
-		gi.configstring (CS_SKYROTATE, va("%f", self->accel));
+	if (self->count & 3)
+	{
+		if (self->count & 1)
+			level.skyrotate = self->accel;
+		if (self->count & 2)
+			level.skyautorotate = self->style;
+		gi.configstring (CS_SKYROTATE, va("%f %i", level.skyrotate, level.skyautorotate));
+	}
 	if (self->count & 4)
 		gi.configstring (CS_SKYAXIS, va("%f %f %f",
 			self->movedir[0], self->movedir[1], self->movedir[2]));
@@ -234,6 +241,11 @@ void SP_target_sky (edict_t *self)
 	{
 		self->count |= 1;
 		self->accel = st.skyrotate;
+	}
+	if (st.skyautorotate)
+	{
+		self->count |= 2;
+		self->style = atoi (st.skyautorotate);
 	}
 }
 
@@ -489,28 +501,213 @@ void SP_func_eye (edict_t *ent)
 
 func_animation
 
-A solid brush model whose using switches its textures' animation. Its
-animation is the re-release's; here it stays as it is.
+A solid brush model whose using switches its textures' animation, from
+its bmodel_anim_ keys to its bmodel_anim_alt_ ones and back
+(G_RunBmodelAnimation, g_phys.c). START_ON starts on the alt_ ones.
 
 ==============================================================================
 */
 
+#define SPAWNFLAG_ANIMATION_START_ON	1
+
+static void func_animation_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	self->bmodel_anim.alternate = !self->bmodel_anim.alternate;
+}
+
 void SP_func_animation (edict_t *self)
 {
+	if (!self->bmodel_anim.enabled)
+	{
+		gi.dprintf ("%s at %s has no animation\n", self->classname, vtos (self->s.origin));
+		G_FreeEdict (self);
+		return;
+	}
+
 	self->movetype = MOVETYPE_PUSH;
 	gi.setmodel (self, self->model);
 	self->solid = SOLID_BSP;
+
+	self->use = func_animation_use;
+	self->bmodel_anim.alternate = (self->spawnflags & SPAWNFLAG_ANIMATION_START_ON) != 0;
+	self->s.frame = self->bmodel_anim.alternate ? self->bmodel_anim.alt_start : self->bmodel_anim.start;
+
 	gi.linkentity (self);
 }
 
 /*
 ==============================================================================
 
-What has no part here: its health bars, autosaves, fog and flashlight
-triggers are the re-release's engine's. Taken out quietly.
+Its health bars and autosaves; and, for whatever has no part here, a
+spawn function that takes it out quietly.
 
 ==============================================================================
 */
+
+/*QUAKED target_healthbar (0 1 0) (-8 -8 -8) (8 8 8) PVS_ONLY
+The re-release's: when used, its target monster's health is a bar at the
+top of the screen, "message" (its name, a $key of the localization file)
+above it, until it dies and "delay" seconds after. PVS_ONLY: only while it
+is in sight of a player's place. Two may be shown at once.
+*/
+#define SPAWNFLAG_HEALTHBAR_PVS_ONLY	1
+
+static void use_target_healthbar (edict_t *ent, edict_t *other, edict_t *activator)
+{
+	edict_t	*target = G_PickTarget (ent->target);
+	int		i;
+
+	if (!target)
+	{
+		gi.dprintf ("%s at %s: no target\n", ent->classname, vtos (ent->s.origin));
+		G_FreeEdict (ent);
+		return;
+	}
+
+	for (i = 0; i < MAX_HEALTH_BARS; i++)
+	{
+		if (level.health_bar_entities[i])
+			continue;
+
+		ent->enemy = target;
+		level.health_bar_entities[i] = ent;
+		gi.configstring (CS_HEALTH_BAR_NAME, ent->message);
+		return;
+	}
+
+	gi.dprintf ("%s at %s: too many health bars\n", ent->classname, vtos (ent->s.origin));
+	G_FreeEdict (ent);
+}
+
+static void check_target_healthbar (edict_t *ent)
+{
+	edict_t	*target = G_PickTarget (ent->target);
+
+	if (!target || !(target->svflags & SVF_MONSTER))
+	{
+		if (target)
+			gi.dprintf ("%s at %s: target %s is not a monster\n", ent->classname, vtos (ent->s.origin), target->classname);
+		G_FreeEdict (ent);
+	}
+}
+
+void SP_target_healthbar (edict_t *self)
+{
+	if (deathmatch->value)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+
+	if (!self->target || !*self->target || !self->message)
+	{
+		gi.dprintf ("%s at %s: no target or message\n", self->classname, vtos (self->s.origin));
+		G_FreeEdict (self);
+		return;
+	}
+
+	self->use = use_target_healthbar;
+	self->think = check_target_healthbar;
+	self->nextthink = level.time + FRAMETIME;
+}
+
+// Jorg's bar goes over to the Makron he throws out (MakronToss)
+void G_HealthBarHandOff (edict_t *from, edict_t *to)
+{
+	int		i;
+
+	for (i = 0; i < MAX_HEALTH_BARS; i++)
+		if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == from)
+			level.health_bar_entities[i]->enemy = to;
+}
+
+/*
+STAT_HEALTH_BARS, a byte for each bar: 0x80 if it is shown, and in the
+bits under it how much health is left of 127. A bar's monster dead, it is
+shown empty for its delay, then gone; Jorg dead is shown empty till his
+Makron is out, and the Makron not yet spawned (MakronSpawn after 0.8
+seconds, the 1997 Jorg's) is shown empty too.
+*/
+void G_SetHealthBars (edict_t *ent)
+{
+	edict_t	*bar, *enemy;
+	int		i, value, stat = 0;
+	float	remaining;
+
+	for (i = 0; i < MAX_HEALTH_BARS; i++)
+	{
+		bar = level.health_bar_entities[i];
+		value = 0;
+
+		if (!bar)
+			;
+		else if (bar->timestamp)
+		{
+			if (bar->timestamp < level.time)
+				level.health_bar_entities[i] = NULL;
+			else
+				value = 0x80;
+		}
+		else
+		{
+			enemy = bar->enemy;
+			if (enemy && enemy->inuse && !(enemy->svflags & SVF_MONSTER))
+				value = 0x80;	// a Makron about to be
+			else if (!enemy || !enemy->inuse || enemy->health <= 0)
+			{
+				if (enemy && enemy->inuse && !strcmp (enemy->classname, "monster_jorg"))
+					value = 0x80;
+				else if (bar->delay)
+				{
+					bar->timestamp = level.time + bar->delay;
+					value = 0x80;
+				}
+				else
+					level.health_bar_entities[i] = NULL;
+			}
+			else if ((bar->spawnflags & SPAWNFLAG_HEALTHBAR_PVS_ONLY) && !gi.inPVS (ent->s.origin, enemy->s.origin))
+				;
+			else
+			{
+				remaining = enemy->max_health > 0 ? (float)enemy->health / enemy->max_health : 1;
+				if (remaining > 1)
+					remaining = 1;
+				value = ((int)(remaining * 127) & 0x7f) | 0x80;
+			}
+		}
+
+		stat |= value << (i * 8);
+	}
+
+	ent->client->ps.stats[STAT_HEALTH_BARS] = (short)stat;
+}
+
+/*QUAKED target_autosave (0 1 0) (-8 -8 -8) (8 8 8)
+The re-release's: when used, the game is saved, to the slot the game saves
+to on entering a level, if it has not been in the last minute
+(g_athena_auto_save_min_time, seconds, as the re-release names it) of the level.
+*/
+static void use_target_autosave (edict_t *ent, edict_t *other, edict_t *activator)
+{
+	float	min_time = gi.cvar ("g_athena_auto_save_min_time", "60", CVAR_NOSET)->value;
+
+	if (level.time - level.last_auto_save > min_time)
+	{
+		gi.AddCommandString ("autosave\n");
+		level.last_auto_save = level.time;
+	}
+}
+
+void SP_target_autosave (edict_t *self)
+{
+	if (deathmatch->value)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+
+	self->use = use_target_autosave;
+}
 
 void SP_cotm_none (edict_t *self)
 {

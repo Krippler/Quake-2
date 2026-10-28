@@ -910,6 +910,11 @@ void bfg_think (edict_t *self)
 		if (!(ent->svflags & SVF_MONSTER) && (!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
 			continue;
 
+		// CTF's: not your own team
+		if (ctf->value && ent->client && self->owner->client &&
+			ent->client->resp.ctf_team == self->owner->client->resp.ctf_team)
+			continue;
+
 		VectorMA (ent->absmin, 0.5, ent->size, point);
 
 		VectorSubtract (point, self->s.origin, dir);

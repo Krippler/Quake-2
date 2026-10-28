@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "m_player.h"
 
 
-static qboolean	is_quad;
+qboolean	is_quad;
 static qboolean	is_quadfire;		// The Reckoning's DualFire
 static int		damage_multiplier = 1;	// quad's 4, and Ground Zero's double damage 2
 static byte		is_silenced;
@@ -44,7 +44,7 @@ turned that way. Something close in front, a monster or a player within
 pierces what is in front of it.
 =================
 */
-static void P_ProjectSource (gclient_t *client, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result)
+void P_ProjectSource (gclient_t *client, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result)
 {
 	vec3_t	_distance, eye, end;
 	edict_t	*ent;
@@ -511,9 +511,25 @@ void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST,
 {
 	gitem_t	*weapon = ent->client->pers.weapon;
 
+	int		oldstate = ent->client->weaponstate;
+
 	Weapon_Generic2 (ent, FRAME_ACTIVATE_LAST, FRAME_FIRE_LAST, FRAME_IDLE_LAST, FRAME_DEACTIVATE_LAST, pause_frames, fire_frames, fire);
 	// (not if that changed weapons)
-	if (is_quadfire && ent->inuse && ent->client->pers.weapon == weapon)
+	if (!ent->inuse || ent->client->pers.weapon != weapon)
+		return;
+	if (is_quadfire)
+	{
+		Weapon_Generic2 (ent, FRAME_ACTIVATE_LAST, FRAME_FIRE_LAST, FRAME_IDLE_LAST, FRAME_DEACTIVATE_LAST, pause_frames, fire_frames, fire);
+		return;
+	}
+
+	// CTF's: the frame run again with the haste tech, or for the grapple
+	// but while it fires
+	if (weapon && !Q_stricmp (weapon->pickup_name, "Grapple") && ent->client->weaponstate == WEAPON_FIRING)
+		return;
+	if ((CTFApplyHaste (ent) || (weapon && !Q_stricmp (weapon->pickup_name, "Grapple")
+		&& ent->client->weaponstate != WEAPON_FIRING))
+		&& oldstate == ent->client->weaponstate)
 		Weapon_Generic2 (ent, FRAME_ACTIVATE_LAST, FRAME_FIRE_LAST, FRAME_IDLE_LAST, FRAME_DEACTIVATE_LAST, pause_frames, fire_frames, fire);
 }
 
@@ -555,10 +571,15 @@ static void Weapon_Generic2 (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FI
 
 	if (ent->client->weaponstate == WEAPON_ACTIVATING)
 	{
-		if (ent->client->ps.gunframe == FRAME_ACTIVATE_LAST)
+		if (ent->client->ps.gunframe == FRAME_ACTIVATE_LAST || instantweap->value)
 		{
 			ent->client->weaponstate = WEAPON_READY;
 			ent->client->ps.gunframe = FRAME_IDLE_FIRST;
+			// CTF's instantweap: ready at once, and run as ready
+			if (instantweap->value)
+				Weapon_Generic2 (ent, FRAME_ACTIVATE_LAST, FRAME_FIRE_LAST,
+					FRAME_IDLE_LAST, FRAME_DEACTIVATE_LAST, pause_frames,
+					fire_frames, fire);
 			return;
 		}
 
@@ -569,6 +590,11 @@ static void Weapon_Generic2 (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FI
 	if ((ent->client->newweapon) && (ent->client->weaponstate != WEAPON_FIRING))
 	{
 		ent->client->weaponstate = WEAPON_DROPPING;
+		if (instantweap->value)		// CTF's: changed at once
+		{
+			ChangeWeapon (ent);
+			return;
+		}
 		ent->client->ps.gunframe = FRAME_DEACTIVATE_FIRST;
 
 		if ((FRAME_DEACTIVATE_LAST - FRAME_DEACTIVATE_FIRST) < 4)
@@ -654,10 +680,14 @@ static void Weapon_Generic2 (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FI
 		{
 			if (ent->client->ps.gunframe == fire_frames[n])
 			{
-				if (ent->client->quad_framenum > level.framenum)
+				// CTF's strength tech's sound, or the quad's
+				if (CTFApplyStrengthSound (ent))
+					;
+				else if (ent->client->quad_framenum > level.framenum)
 					gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 				else if (ent->client->double_framenum > level.framenum)
 					gi.sound(ent, CHAN_ITEM, gi.soundindex("misc/ddamage3.wav"), 1, ATTN_NORM, 0);
+				CTFApplyHasteSound (ent);
 
 				fire (ent);
 				break;

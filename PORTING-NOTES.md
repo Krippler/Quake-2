@@ -132,10 +132,15 @@ built for Yamagi Quake II, whose game API is id's, drops in.
   extension; `cd play` and `cd loop` take either. A number is also looked
   for as a bare `NN.<ext>`, as Yamagi's and Quake II RTX's rips are named.
   The re-release's numbering (its mission packs' 12 to 21, Quake 64's 64
-  to 79) is played as it is. Its `CS_CD_LOOP_COUNT` is not: a track loops
-  for good here, as on the CD. Every map that sets it (Call of the
-  Machine's, and Quake 64's by the game) sets 0, taken to mean the same;
-  what its engine does without it is not known here. The game sends `target_goal`'s "sounds" when the last goal is
+  to 79) is played as it is. A looping track plays `cd_loopcount` times (4)
+  and then `cd_looptrack` (11) for good, as id's Windows CD player had it
+  (`cd_win.c`), the switch made in `CDAudio_Update`, not in the middle of
+  mixing; or, if there is no loop track, the same for good. The
+  re-release's `CS_CD_LOOP_COUNT` (here `CS_HEALTH_BAR_NAME+2`, a map's
+  `loop_count`, 0 on Quake 64's) overrides the count, 0 for good; that
+  its empty default is the 1997 player's is taken, not known. Worldspawn's
+  "music" goes with its "sounds" ("file number"), and the client plays the
+  number if it has not the file: ndctf0's `D_DDTBLU.ogg` is in no release. The game sends `target_goal`'s "sounds" when the last goal is
   done (unless KEEP_MUSIC) and `target_camera`'s when it starts, as the
   re-release does. `cd_linux.c`'s drive has numbers only.
 - **`client/menu.c`**: Options has a music volume slider, for `cd_volume`,
@@ -258,8 +263,22 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     (id's quake2-rerelease-dll, GPL): `target_gravity`,
     `target_killplayers`, `target_soundfx`, `target_light`,
     `misc_hologram`, `misc_lavaball`, `monster_tank_stand`,
-    `item_invisibility`; `target_poi` (its compass) and `misc_flare` (its
-    renderer's) are dropped. `target_light` is a light carried by an
+    `item_invisibility`, `misc_flare` and `target_poi`. A flare is sent
+    as `target_light` is, model 1 and nothing of it drawn, `RF_FLARE`,
+    its colour in `skinnum` (an "rgba" key of four numbers is taken as
+    the re-release takes it, in `ED_ParseField`), its size its scale, its
+    picture `frame`, its fading distances `modelindex2` and 3; the client
+    passes it to the renderer (`refdef_t.flares`), which adds its glow
+    where the z-buffer says its middle can be seen (`R_DrawFlares`,
+    `r_fog.c`), and now loads a `.tga` asked for by its own name, grey
+    ones too. `target_poi` is the re-release's, teams and stages, and
+    its compass an item every player has in single player on its maps
+    ("Compass", `Use_Compass`): it finds the way to the point along the
+    navigation nodes and shows it a point every 0.2 seconds, the
+    re-release's pointer model dropping into place there for ten seconds,
+    with its sound to that player alone (an `svc_sound` the game writes
+    itself). Its pointers are not the player's alone here, and the point's
+    picture on the screen is its HUD's, which this client has not got. `target_light` is a light carried by an
     entity, `RF_CUSTOMLIGHT` (`q_shared.h`), radius in `frame` and colour
     in `skinnum`, which the client adds as a dynamic light and does not
     draw (`cl_ents.c`); the game keeps the light styles, `g_lightstyles`,
@@ -276,10 +295,29 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     `healthtarget` (used from `T_Damage` each time it is hurt) and
     `health_multiplier` (`monster_start`), `target_anger`, `target_music`,
     `target_sky` (the client takes up a sky changed mid-level,
-    `cl_parse.c`), `target_story` (centre-printed), `target_steam`,
+    `cl_parse.c`; with the re-release's `skyautorotate`), `target_story` (centre-printed), `target_steam`,
     `func_eye`, The Reckoning's `misc_nuke`, and `monster_makron` in the
-    spawn table; `target_healthbar`, `target_autosave`, `trigger_fog` and
-    `trigger_flashlight` are dropped, `func_animation` is a still brush.
+    spawn table. `trigger_fog` (`g_trigger.c`) changes a player's fog,
+    going in one way or the other, or blended by how far in they are,
+    over its `delay`. A brush model's
+    `bmodel_anim_` keys are the re-release's texture animation
+    (`edict_t.bmodel_anim`, run first in `G_RunEntity` by
+    `G_RunBmodelAnimation`): its frame stepped through a range at a
+    speed, and through its `alt_` range instead while a button is pressed
+    (`button_wait`/`button_done`, no `EF_ANIM01`/`23` then) or after a
+    `func_animation` is used. `target_healthbar` puts a boss's health in `STAT_HEALTH_BARS`
+    (18; a byte for each of two bars, 0x80 shown and 0 to 127 of it) and
+    its name in `CS_HEALTH_BAR_NAME` (the general configstring after the
+    shadow lights'), which the single-player status bar draws with the
+    client's new `health_bars` layout command (`cl_scrn.c`), as the
+    re-release's HUD does; Jorg's goes over to the Makron he throws out
+    (`G_HealthBarHandOff`). `target_autosave` runs the engine's new
+    `autosave` command (`sv_ccmds.c`): a quiet save to `save0`, the slot
+    a level is saved to on being entered, no more than once a minute
+    (`g_athena_auto_save_min_time`, as the re-release names it).
+    `trigger_flashlight` (in `g_trigger.c`) turns a player's flashlight
+    on, off, or by which way they go through it (`P_ToggleFlashlight`,
+    `g_items.c`).
     A class with no spawn function that `G_StandIn` has a stand-in for is
     spawned as that, from `ED_CallSpawn`.
   - `game/g_xatrix.c` (new): The Reckoning's weapons its monsters fire,
@@ -463,9 +501,32 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     `misc_player_mannequin`, a player model of a client slot from 253
     up, as its skin configstring, at its "radius" scale (boss2's three
     at .45). The CTF
-    banners wave; `info_player_team1`/`2` do nothing, and the CTF flags
-    and `dm_tag_token` are freed, as outside those games there. Its
-    CTF and Ground Zero's tag are not here.
+    banners wave.
+  - **CTF** (`game/g_ctf.c`, `g_ctf.h`, `p_menu.c`, `p_menu.h`, new), in
+    the base game, as the re-release has it: Threewave CTF from `ctf/`,
+    on with `ctf 1` in deathmatch (latched; forced off without
+    deathmatch), and its hooks from `ctf/`'s game where they are, each
+    kept to CTF -- the flags, techs and grapple (in the item list after
+    the rest, so that no item before them moves), its spawn points,
+    skins, scores and scoreboard, status bar, team chat (`CheckFlood`,
+    now `Cmd_Say_f`'s too), menus, elections, matches, the grapple's
+    pull in `ClientThink`, the techs in `T_Damage` and `Weapon_Generic`
+    (with The Reckoning's DualFire), `instantweap`. What clashed: its
+    stats 17 to 28 are 19 to 30 (after `STAT_SPECTATOR` and
+    `STAT_HEALTH_BARS`; its status bar and scoreboard layouts too), its
+    match configstring `CS_MAXCLIENTS-1` is `CS_AIRACCEL` and so is
+    after the health bar's name, and its dmflags 131072 to 524288 are
+    Ground Zero's, and are the re-release's cvars instead:
+    `g_teamplay_force_join`, `g_teamplay_armor_protect`, `g_allow_techs`
+    and `g_allow_grapple` ("auto": in CTF). Its own teleporters and
+    banners give way to the base game's. `ctf/`'s library is still built.
+  - **Tag** (`game/g_newdm.c`, new), Ground Zero's deathmatch game,
+    `gamerules 1`, as the re-release has it: `DMGame`, the hooks a game
+    sets (each level anew, `InitGameRules` in `SpawnEntities`), called in
+    `T_Damage`, `player_die`, `ClientDisconnect`, `G_SetClientEffects`,
+    the scoreboard's dogtags, and the obituary's scores (`G_Score`); the
+    token is `dm_tag_token` (put at a spawn point if the map has none),
+    the item "Tag Token". Its deathball, `gamerules 2`, is not here.
   - **Scale**, the re-release's (`entity_state_t.scale` there):
     `entity_state_t` begins the game's `edict_t`, so it cannot grow
     without breaking the mission packs' game libraries built from
@@ -912,6 +973,79 @@ channel's share of that and taken back to the palette through a 64x64x64
 table of nearest colours, made once at start-up. The colours the colormap
 never changes -- the fullbrights -- are left alone. Surfaces lit white take
 the old path and come out byte for byte as before.
+
+**`ref_soft/r_rast.c`, `client/cl_view.c`**: the sky turns. id's software
+renderer ignored `skyrotate`, which only its OpenGL one used. The client
+works out how far it is turned each frame (`refdef_t.skyangle`: the time
+by `CS_SKYROTATE`'s speed, or, the re-release's second number 0 --
+`skyautorotate` -- that many degrees and still, as the re-release's base
+maps turn theirs so that their suns are where their light comes from),
+and `R_EmitSkyBox` turns the box's corners, planes and texture axes about
+`skyaxis` by it.
+
+**`ref_soft/r_fog.c`** (new), **`client/cl_parse.c`**, **`server/sv_game.c`**:
+the re-release's fog, its distance fog and its height fog, which 102 of its
+maps have and trigger_fog changes as you go. The game works out the fog each
+player is to have (the world's fog keys, then `trigger_fog`'s) and says it
+by `gi.SetFog` (appended to `game_import_t`) when it changes, with how long
+to take over it; the server sends it, reliably, as `svc_fog` (after
+`svc_muzzleflash3`), to clients that say `q2ext`; the client goes over to
+it in that time and gives it the renderer in `refdef_t.fog`. The renderer
+goes over the view once drawn, before the underwater warp, by the depths
+the z-buffer kept (0x8000/z; the sky's are negative), with the formulas of
+the re-release's shaders as q2pro-ng has them: distance fog by depth, the
+sky by its sky factor, height fog by where each pixel is in the world. The
+colours are mixed and taken back to the palette through sw_colorlight's
+nearest colours; distance fog alone through tables of 64 levels for each
+colour, dithered, height fog for each pixel (its extinction and colour for
+each 2x2 block). `sw_fog 0` turns it off.
+
+**`ref_soft/r_md5.c`** (new), **`ref_soft/r_model.c`**, **`ref_soft/r_alias.c`**:
+the re-release's md5 models. Next to 198 of its `.md2` models it has an
+`md5/` directory with the same model in more polygons: a Doom 3 `.md5mesh`,
+an `.md5anim` whose frames are the `.md2`'s frame for frame, sometimes an
+`.md5scale` (JSON: joints shrunk on some frames, gibbed limbs mostly), and
+its skins as `.png` with more pixels (up to 512x1024). Software draws no
+skeletons, so `R_LoadMD5` poses and skins each frame once, at load, as
+q2pro-ng's `models.c` does, and puts the lot back together as an `.md2`
+that `Mod_LoadAliasModel` takes as it takes any other: one vertex for each
+of the mesh's, each frame's positions quantized to a byte (scale and
+translate for each frame, as an `.md2`'s), its normals the nearest of the
+162 the lighting has (faces' normals, summed over the vertices a seam
+splits), its texture coordinates in the first md5 skin's pixels, its skins
+the `md5/` ones where there are. Frames the md5 has not are its last. An
+entity's own skin (a player's) is used in its `md5/` version if there is
+one (`R_MD5Skin`), and the texture coordinates are scaled to the skin
+drawn if it is another size (`R_AliasPreparePoints`). For them
+`MAX_LBM_HEIGHT` is 1024 and the alias vertex limit 4096 (the biggest has
+3089), its work array static. It costs about 13 ms a model at load.
+`sw_md5 0` and a `vid_restart` go back to the `.md2`s.
+
+**`client/cl_wheel.c`** (new), **`client/cl_input.c`**, **`game/g_items.c`**:
+the re-release's weapon and powerup wheels, which its `default.cfg` binds
+(`+wheel` on e, `+wheel2` on q, `cl_weapnext`/`cl_weapprev` on the mouse
+wheel) and which were unknown commands here. The re-release's game tells its
+client what a player has by stats protocol 34 has no room for, so here the
+game names what goes on each wheel, in the re-release's order, once a level
+(`CS_WHEEL_WEAPONS`: item, ammo item, least ammo, icon; `CS_WHEEL_POWERUPS`:
+item, icon; after `CS_CD_LOOP_COUNT`), and the client asks what the player
+has when one is held and every half second after (`wheelinv`, the
+inventory as `inven` sends it, without showing it). The client only asks a
+game that named them: the mission packs' games would say an unknown
+command as chat. Held, `CL_CreateCmd` puts back the angles the mouse or the
+look stick turned and moves the wheel's cursor by them instead (freelook on
+meanwhile, for the mouse's up and down), and the trigger is kept off; let
+go, what it is on is `use`d. Its pictures are the re-release's 24-pixel
+`pics/wheel/` ones, lit when chosen, half as big again at 480 lines, so
+`Draw_StretchPic` now leaves a picture's transparent pixels as they are;
+the inventory's icons without them. Held in single player (this
+process's own server, `maxclients` 1, not paused) the game goes slower, as
+the re-release's engine slows it (`SERVER_FLAG_SLOW_TIME`; how much is the
+engine's, unpublished, so `cl_wheel_timescale`, 0.25): `Qcommon_Frame`
+scales the milliseconds both the server and the client are given, keeping
+what is left of one for the next frame, and `CL_Frame`'s `cl_maxfps` and the
+look stick's speed are reckoned in real time so that the screen and the
+cursor do not slow with it.
 
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,

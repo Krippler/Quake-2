@@ -249,6 +249,32 @@ void PF_SetEntityScale (edict_t *ent, float scale)
 
 
 /*
+===============
+PF_SetFog
+
+A player's fog, as the game would have it: sent to them, reliably, if
+their client draws it ("q2ext").
+===============
+*/
+void PF_SetFog (edict_t *ent, float *fog, int msec)
+{
+	int			i, e = NUM_FOR_EDICT (ent);
+	client_t	*cl;
+
+	if (e < 1 || e > maxclients->value)
+		return;
+	cl = svs.clients + e - 1;
+	if (cl->state < cs_connected || !cl->ext_scale)
+		return;
+
+	MSG_WriteByte (&cl->netchan.message, svc_fog);
+	MSG_WriteShort (&cl->netchan.message, msec < 0 ? 0 : msec > 65535 ? 65535 : msec);
+	for (i = 0 ; i < FOG_VALUES ; i++)
+		MSG_WriteFloat (&cl->netchan.message, fog[i]);
+}
+
+
+/*
 =================
 PF_inPVS
 
@@ -408,6 +434,7 @@ void SV_InitGameProgs (void)
 	import.FreeFile = FS_FreeFile;
 	import.SetEntityScale = PF_SetEntityScale;
 	import.Clip = SV_Clip;
+	import.SetFog = PF_SetFog;
 	import.SetAreaPortalState = CM_SetAreaPortalState;
 	import.AreasConnected = CM_AreasConnected;
 

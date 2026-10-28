@@ -592,6 +592,12 @@ void P_FallingDamage (edict_t *ent)
 	}
 	delta = delta*delta * 0.0001;
 
+	// CTF's: never hurt just after letting go of the grapple, or on it
+	if (level.time - ent->client->ctf_grapplereleasetime <= FRAMETIME * 2 ||
+		(ent->client->ctf_grapple &&
+		ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY))
+		return;
+
 	// never take falling damage if completely underwater
 	if (ent->waterlevel == 3)
 		return;
@@ -848,6 +854,10 @@ void G_SetClientEffects (edict_t *ent)
 		}
 	}
 
+	CTFEffects (ent);		// CTF's flags carried
+	if (DMGame.PlayerEffects)	// Ground Zero's deathmatch games'
+		DMGame.PlayerEffects (ent);
+
 	if (ent->client->quad_framenum > level.framenum)
 	{
 		remaining = ent->client->quad_framenum - level.framenum;
@@ -1016,7 +1026,13 @@ newanim:
 	client->anim_duck = duck;
 	client->anim_run = run;
 
-	if (!ent->groundentity)
+	if (!ent->groundentity && client->ctf_grapple)
+	{
+		// CTF's: on the grapple, standing, not jumping
+		ent->s.frame = FRAME_stand01;
+		client->anim_end = FRAME_stand40;
+	}
+	else if (!ent->groundentity)
 	{
 		client->anim_priority = ANIM_JUMP;
 		if (ent->s.frame != FRAME_jump2)
@@ -1060,10 +1076,33 @@ Called for each player at the end of the server frame
 and right after spawning
 =================
 */
+/*
+The re-release's P_ForceFogTransition: the fog the player is to have sent
+them if it has changed, gone over to in their fog_transition_time, or at
+once on a new level or a loaded game.
+*/
+static void G_SendFog (edict_t *ent)
+{
+	gclient_t	*client = ent->client;
+
+	if (!client->pers.connected)
+		return;		// not yet there: sent as they begin
+	if (!client->fog_unsent && !memcmp (client->fog, client->pers.wanted_fog, sizeof(client->fog)))
+		return;
+
+	gi.SetFog (ent, client->pers.wanted_fog,
+		client->fog_unsent ? 0 : (int)(client->pers.fog_transition_time * 1000));
+	memcpy (client->fog, client->pers.wanted_fog, sizeof(client->fog));
+	client->fog_unsent = false;
+}
+
 void ClientEndServerFrame (edict_t *ent)
 {
 	float	bobtime;
 	int		i;
+
+	G_SendFog (ent);
+	Compass_Update (ent, false);
 
 	current_player = ent;
 	current_client = ent->client;
@@ -1196,7 +1235,14 @@ void ClientEndServerFrame (edict_t *ent)
 	// if the scoreboard is up, update it
 	if (ent->client->showscores && !(level.framenum & 31) )
 	{
-		DeathmatchScoreboardMessage (ent, ent->enemy);
+		if (ent->client->menu)		// CTF's menu, not the scores
+		{
+			PMenu_Do_Update (ent);
+			ent->client->menudirty = false;
+			ent->client->menutime = level.time;
+		}
+		else
+			DeathmatchScoreboardMessage (ent, ent->enemy);
 		gi.unicast (ent, false);
 	}
 }

@@ -1691,7 +1691,9 @@ void CL_Frame (int msec)
 	{
 		if (cls.state == ca_connected && extratime < 100)
 			return;			// don't flood packets out while connecting
-		if (extratime < 1000/cl_maxfps->value)
+		// in game time: a wheel slowing it (cl_wheel.c) leaves the
+		// frames as many in real time
+		if (extratime < 1000/cl_maxfps->value * CL_WheelTimescale ())
 			return;			// framerate is too high
 	}
 
