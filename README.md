@@ -89,11 +89,19 @@ release's `music/` folder is found by itself.
 **Mission packs.** The Reckoning (`xatrix`) and Ground Zero (`rogue`) play
 with their own game code, which this repository carries in Yamagi Quake II's
 GPLv2 versions ([`xatrix/`](xatrix), [`rogue/`](rogue)). Put each pack's
-directory beside `baseq2` and start on it with `-e QUAKE2_GAME=xatrix` (or
-`rogue`); New Game then starts the pack's own campaign. A mod that ships a
+directory beside `baseq2` and pick it in the menu (below), or start on it
+with `-e QUAKE2_GAME=xatrix` (or `rogue`). A mod that ships a
 `gamex86_64.so` built for this engine or for Yamagi Quake II (the game API is
 the same) runs that; anything else runs on the single-player game's code,
 which is fine for data-only mods.
+
+**Choosing a game.** New Game asks for the difficulty and then which game,
+listing those your data has: Quake II, its demo, The Reckoning and Ground
+Zero from their own directories, and, with the 2023 re-release's pak, Quake
+II Remastered, The Reckoning Remastered, Ground Zero Remastered, Call of
+the Machine and Quake 64. Quake II with the re-release's pak in place plays
+the original maps; Quake II Remastered plays its remade ones. Saved games
+remember which.
 
 ## Common settings
 

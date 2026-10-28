@@ -1064,6 +1064,21 @@ see-through water and sprites (`R_SpanletTexel`, `SPANLET_K`). Up to about
 15% slower in timedemo at 640x480; off by default. The 2D pictures (the
 HUD, menus, console) are left sharp.
 
+**`client/menu.c`, `qcommon/files.c`**: New Game's choice of game. After
+the difficulty a menu lists the games whose first map is there
+(`FS_GameHasFile`, which reads a game directory's paks itself, playing or
+not), each started as the re-release's `default.cfg` starts it:
+`*ntro.cin+base1`, `*xin.cin+xswamp`, `*rintro.cin+rmine1`, `mguhub`,
+`q64/rtest`. The Reckoning and Ground Zero from their own directories set
+`game`, for their own game code; their re-release remakes, in its pak, run
+on the base game. For Quake II and the re-release both, the original maps
+are kept by `sv_originalmaps` (latched, so it changes as the new game
+starts and goes into its saves; a save without it reads 0): `FS_FOpenFile`
+passes over the re-release's pak (`pack_t.rerelease`, the pak with
+`maps/q64/` or `maps/mguhub.bsp` in it) for a `maps/` file another copy of
+which is further down the path. `CM_LoadMap` and `R_BeginRegistration`,
+which keep the last map by its name, load it again when it changes.
+
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,
 rather than the top and bottom cropped.

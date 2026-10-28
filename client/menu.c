@@ -1906,7 +1906,51 @@ static menuaction_s		s_save_game_action;
 static menuaction_s		s_credits_action;
 static menuseparator_s	s_blankline;
 
-static void StartGame( void )
+/*
+=============================================================================
+
+CHOOSE GAME MENU
+
+After the difficulty, which game: those whose first map there is, in the
+original game's paks or a mission pack's, or the 2023 re-release's
+(FS_GameHasFile). A mission pack's own runs its own game code in its own
+directory; the re-release's remakes of them run on the single-player game's,
+which plays them. The original game's maps where the re-release has remade
+them too are sv_originalmaps (files.c).
+
+=============================================================================
+*/
+
+typedef struct
+{
+	char	*name;
+	char	*gamedir;		// its directory
+	char	*mapfile;		// its first map, looked for
+	int		where;			// FS_ORIGINAL or FS_RERELEASE
+	char	*start;			// the map command's
+} newgame_t;
+
+static newgame_t newgames[] =
+{
+	{ "Quake II", BASEDIRNAME, "maps/base1.bsp", FS_ORIGINAL, "*ntro.cin+base1" },
+	{ "Quake II demo", BASEDIRNAME, "maps/demo1.bsp", FS_ORIGINAL, "demo1" },
+	{ "Quake II Remastered", BASEDIRNAME, "maps/base1.bsp", FS_RERELEASE, "*ntro.cin+base1" },
+	{ "The Reckoning", "xatrix", "maps/xswamp.bsp", FS_ORIGINAL, "*xin.cin+xswamp" },
+	{ "The Reckoning Remastered", BASEDIRNAME, "maps/xswamp.bsp", FS_RERELEASE, "*xin.cin+xswamp" },
+	{ "Ground Zero", "rogue", "maps/rmine1.bsp", FS_ORIGINAL, "*rintro.cin+rmine1" },
+	{ "Ground Zero Remastered", BASEDIRNAME, "maps/rmine1.bsp", FS_RERELEASE, "*rintro.cin+rmine1" },
+	{ "Call of the Machine", BASEDIRNAME, "maps/mguhub.bsp", FS_RERELEASE, "mguhub" },
+	{ "Quake 64", BASEDIRNAME, "maps/q64/rtest.bsp", FS_RERELEASE, "q64/rtest" },
+};
+
+#define	NUM_NEWGAMES	(sizeof(newgames) / sizeof(newgames[0]))
+
+static menuframework_s	s_newgame_menu;
+static menuaction_s		s_newgame_actions[NUM_NEWGAMES];
+
+static void M_Menu_NewGame_f (void);
+
+static void StartGame( newgame_t *g )
 {
 	// disable updates and start the cinematic going
 	cl.servercount = -1;
@@ -1916,26 +1960,91 @@ static void StartGame( void )
 
 	Cvar_SetValue( "gamerules", 0 );		//PGM
 
-	Cbuf_AddText ("loading ; killserver ; wait ; newgame\n");
+	// the game's directory and its maps, both latched until the new server
+	Cvar_Set( "game", strcmp( g->gamedir, BASEDIRNAME ) ? g->gamedir : "" );
+	Cvar_Set( "sv_originalmaps", g->where == FS_ORIGINAL ? "1" : "0" );
+
+	Cbuf_AddText (va("loading ; killserver ; wait ; maxclients 1 ; deathmatch 0 ; map %s\n", g->start));
 	cls.key_dest = key_game;
+}
+
+static void NewGameFunc( void *self )
+{
+	StartGame( &newgames[ ( ( menuaction_s * ) self )->generic.localdata[0] ] );
+}
+
+static void NewGame_MenuInit( void )
+{
+	int		i, n, y;
+	int		where[NUM_NEWGAMES];
+
+	s_newgame_menu.x = viddef.width * 0.50;
+	s_newgame_menu.nitems = 0;
+
+	for (i=0 ; i<NUM_NEWGAMES ; i++)
+		where[i] = FS_GameHasFile( newgames[i].gamedir, newgames[i].mapfile );
+
+	for (i=n=y=0 ; i<NUM_NEWGAMES ; i++)
+	{
+		if ( !( where[i] & newgames[i].where ) )
+			continue;
+		// the demo, only without the full game
+		if ( !strcmp( newgames[i].mapfile, "maps/demo1.bsp" ) && ( where[0] & FS_ORIGINAL ) )
+			continue;
+		s_newgame_actions[n].generic.type	= MTYPE_ACTION;
+		s_newgame_actions[n].generic.flags	= QMF_LEFT_JUSTIFY;
+		s_newgame_actions[n].generic.x		= 0;
+		s_newgame_actions[n].generic.y		= y;
+		s_newgame_actions[n].generic.name	= newgames[i].name;
+		s_newgame_actions[n].generic.localdata[0] = i;
+		s_newgame_actions[n].generic.callback = NewGameFunc;
+		Menu_AddItem( &s_newgame_menu, ( void * ) &s_newgame_actions[n] );
+		n++;
+		y += 10;
+	}
+
+	Menu_Center( &s_newgame_menu );
+}
+
+static void NewGame_MenuDraw( void )
+{
+	M_Banner( "m_banner_game" );
+	if ( !s_newgame_menu.nitems )
+	{
+		M_Print( 160 - 17*4, 120, "no game data found" );
+		return;
+	}
+	Menu_AdjustCursor( &s_newgame_menu, 1 );
+	Menu_Draw( &s_newgame_menu );
+}
+
+static const char *NewGame_MenuKey( int key )
+{
+	return Default_MenuKey( &s_newgame_menu, key );
+}
+
+static void M_Menu_NewGame_f (void)
+{
+	NewGame_MenuInit();
+	M_PushMenu( NewGame_MenuDraw, NewGame_MenuKey );
 }
 
 static void EasyGameFunc( void *data )
 {
 	Cvar_ForceSet( "skill", "0" );
-	StartGame();
+	M_Menu_NewGame_f();
 }
 
 static void MediumGameFunc( void *data )
 {
 	Cvar_ForceSet( "skill", "1" );
-	StartGame();
+	M_Menu_NewGame_f();
 }
 
 static void HardGameFunc( void *data )
 {
 	Cvar_ForceSet( "skill", "2" );
-	StartGame();
+	M_Menu_NewGame_f();
 }
 
 static void LoadGameFunc( void *unused )

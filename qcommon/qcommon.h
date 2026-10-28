@@ -712,6 +712,9 @@ void	FS_FCloseFile (FILE *f);
 // note: this can't be called from another DLL, due to MS libc issues
 
 int		FS_LoadFile (char *path, void **buffer);
+#define	FS_ORIGINAL		1
+#define	FS_RERELEASE	2
+int		FS_GameHasFile (char *gamedir, char *filename);	// FS_ORIGINAL, FS_RERELEASE
 int		FS_LoadFileSkip (char *path, void **buffer, int skip);
 int		FS_FOpenFileSkip (char *filename, FILE **file, int skip);
 int		FS_LoadUsableFile (char *path, void **buffer,

@@ -9,6 +9,13 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
 
 ### Added
 
+- **Choose the game.** After the difficulty, New Game asks which game to
+  play, out of those your data has: Quake II, The Reckoning and Ground Zero
+  (from their own directories), and with the 2023 re-release's pak, Quake
+  II Remastered, The Reckoning Remastered, Ground Zero Remastered, Call of
+  the Machine and Quake 64. Quake II plays the original maps even with the
+  re-release's pak in place; saved games remember which (`sv_originalmaps`).
+
 - **Texture filtering in software.** With "texture filter" on in the video
   menu (`sw_texfilter 1`), everything in the 3D view is smoothed close up
   rather than drawn as blocks of texels, much as OpenGL's filtering

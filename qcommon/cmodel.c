@@ -578,10 +578,14 @@ cmodel_t *CM_LoadMap (char *name, qboolean clientload, unsigned *checksum)
 	dheader_t		header;
 	int				length;
 	static unsigned	last_checksum;
+	static float	last_originalmaps;
 
 	map_noareas = Cvar_Get ("map_noareas", "0", 0);
 
-	if (  !strcmp (map_name, name) && (clientload || !Cvar_VariableValue ("flushmap")) )
+	// the same map, unless it is now the other copy of it (sv_originalmaps,
+	// files.c)
+	if (  !strcmp (map_name, name) && (clientload || !Cvar_VariableValue ("flushmap"))
+		&& Cvar_VariableValue ("sv_originalmaps") == last_originalmaps )
 	{
 		*checksum = last_checksum;
 		if (!clientload)
@@ -591,6 +595,8 @@ cmodel_t *CM_LoadMap (char *name, qboolean clientload, unsigned *checksum)
 		}
 		return &map_cmodels[0];		// still have the right version
 	}
+
+	last_originalmaps = Cvar_VariableValue ("sv_originalmaps");
 
 	// free old stuff
 	numplanes = 0;

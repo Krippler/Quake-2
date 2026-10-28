@@ -457,6 +457,9 @@ void SV_ReadServerFile (void)
 
 	// read all CVAR_LATCH cvars
 	// these will be things like coop, skill, deathmatch, etc
+	// (sv_originalmaps among them since the menu's choice of game; a save
+	// from before is of the re-release's maps if there are any)
+	Cvar_ForceSet ("sv_originalmaps", "0");
 	while (1)
 	{
 		if (!fread (name, 1, sizeof(name), f))
