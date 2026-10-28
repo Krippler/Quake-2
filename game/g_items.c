@@ -689,6 +689,178 @@ void Use_Flashlight (edict_t *ent, gitem_t *item)
 	P_ToggleFlashlight (ent, !(ent->flags & FL_FLASHLIGHT));
 }
 
+/*
+The re-release's compass: used, it shows the way to the level's point of
+interest (target_poi), along the navigation nodes, a point at a time --
+its pointer at each, dropping into place and pointing on, with the
+marker's sound, heard by this player alone -- as far as 4096 units, or as
+the player could hear. Its own picture of the point on the screen is its
+HUD's, which this client has not got; and its pointers are seen by this
+player alone, which here they are not.
+*/
+#define	SVC_SOUND		9		// svc_sound, as the engine numbers it
+#define	SND_POS_ONLY	4		// SND_POS: where, and no entity
+
+// a marker drops into its place over a second, and is there ten
+static void compass_marker_think (edict_t *self)
+{
+	float	f = 1 - (level.time - self->timestamp);
+
+	if (level.time >= self->timestamp + 10)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+	self->s.origin[2] = self->pos1[2] + (f > 0 ? f * f * f * f * f * 512 : 0);
+	gi.linkentity (self);
+	self->nextthink = level.time + FRAMETIME;
+}
+
+static void Compass_Marker (edict_t *ent, vec3_t at, vec3_t dir, qboolean first)
+{
+	edict_t	*m;
+	int		sound;
+
+	// the last time's are taken away
+	if (first)
+		for (m = g_edicts + 1 + game.maxclients ; m < g_edicts + globals.num_edicts ; m++)
+			if (m->inuse && m->owner == ent && m->classname && !strcmp (m->classname, "compass_marker"))
+				G_FreeEdict (m);
+
+	m = G_Spawn ();
+	m->classname = "compass_marker";
+	m->owner = ent;
+	m->movetype = MOVETYPE_NONE;
+	m->solid = SOLID_NOT;
+	m->s.modelindex = gi.modelindex ("models/objects/pointer/tris.md2");
+	m->s.renderfx = RF_FULLBRIGHT;	// the re-release's is half see-through; here it glows
+	vectoangles (dir, m->s.angles);
+	G_SetScale (m, 2.5);
+	VectorCopy (at, m->pos1);
+	m->pos1[2] += 16;
+	VectorCopy (m->pos1, m->s.origin);
+	m->s.origin[2] += 512;
+	m->timestamp = level.time;
+	m->think = compass_marker_think;
+	m->nextthink = level.time + FRAMETIME;
+	gi.linkentity (m);
+
+	// its index first: registering it sends a configstring, through the
+	// same buffer as this
+	sound = gi.soundindex ("misc/help_marker.wav");
+	gi.WriteByte (SVC_SOUND);
+	gi.WriteByte (SND_POS_ONLY);
+	gi.WriteByte (sound);
+	gi.WritePosition (at);
+	gi.unicast (ent, false);
+}
+
+void Compass_Update (edict_t *ent, qboolean first)
+{
+	gclient_t	*cl = ent->client;
+	vec3_t		*p = cl->help_points, d, dir;
+
+	// nothing to send a player not yet there (a loaded game's first frames)
+	if (!cl->help_draw_points || cl->help_draw_time >= level.time || !cl->pers.connected)
+		return;
+
+	// not too far, nor where the player could not hear it
+	VectorSubtract (p[cl->help_draw_index], ent->s.origin, d);
+	if (VectorLength (d) > 4096 || !gi.inPHS (ent->s.origin, p[cl->help_draw_index]))
+	{
+		cl->help_draw_points = false;
+		return;
+	}
+
+	if (cl->help_draw_index == cl->help_draw_count - 1)
+		VectorSubtract (cl->help_poi_location, p[cl->help_draw_index], dir);
+	else
+		VectorSubtract (p[cl->help_draw_index + 1], p[cl->help_draw_index], dir);
+	VectorNormalize (dir);
+	Compass_Marker (ent, p[cl->help_draw_index], dir, first);
+
+	if (cl->help_draw_index == cl->help_draw_count - 1)
+	{
+		cl->help_draw_points = false;
+		return;
+	}
+
+	cl->help_draw_index++;
+	cl->help_draw_time = level.time + 0.2;
+}
+
+void Use_Compass (edict_t *ent, gitem_t *item)
+{
+	gclient_t		*cl = ent->client;
+	nav_request_t	request;
+	nav_info_t		info;
+	vec3_t			d, eye, ahead, forward;
+	trace_t			tr;
+	int				i;
+
+	if (!level.valid_poi)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "%s\n", "There is no point of interest.");
+		return;
+	}
+
+	if (level.current_dynamic_poi && level.current_dynamic_poi->use)
+		level.current_dynamic_poi->use (level.current_dynamic_poi, ent, ent);
+
+	VectorCopy (level.current_poi, cl->help_poi_location);
+
+	memset (&request, 0, sizeof(request));
+	VectorCopy (ent->s.origin, request.start);
+	VectorCopy (level.current_poi, request.goal);
+	request.moveDist = 64;
+	request.pathFlags = PathFlags_All;
+	request.ignoreNodeFlags = true;
+	request.minHeight = 128;
+	request.maxHeight = 128;
+	request.radius = 1024;
+	request.points = cl->help_points + 1;
+	request.maxPoints = MAX_HELP_POINTS;
+
+	if (!Nav_GetPathToGoal (&request, &info))
+	{
+		gi.sound (ent, CHAN_AUTO, gi.soundindex ("misc/help_marker.wav"), 1, ATTN_NORM, 0);
+		return;
+	}
+
+	cl->help_draw_points = true;
+	cl->help_draw_count = info.numPathPoints < MAX_HELP_POINTS ? info.numPathPoints : MAX_HELP_POINTS;
+	cl->help_draw_index = 1;
+
+	// not the points close by, so as not to go back for them
+	for (i = 1 ; i < 1 + cl->help_draw_count ; i++)
+	{
+		VectorSubtract (cl->help_points[i], ent->s.origin, d);
+		if (VectorLength (d) > 192)
+			break;
+		cl->help_draw_index = i;
+	}
+
+	// one in front first if the path starts behind
+	AngleVectors (cl->v_angle, forward, NULL, NULL);
+	VectorSubtract (cl->help_points[cl->help_draw_index], ent->s.origin, d);
+	VectorNormalize (d);
+	if (DotProduct (d, forward) < 0.3)
+	{
+		VectorCopy (ent->s.origin, eye);
+		eye[2] += ent->viewheight;
+		VectorMA (ent->s.origin, 64, forward, ahead);
+		tr = gi.trace (eye, NULL, NULL, ahead, NULL, MASK_SOLID);
+		if (tr.fraction < 1)
+			VectorMA (tr.endpos, 8, tr.plane.normal, tr.endpos);
+		cl->help_draw_index--;
+		cl->help_draw_count++;
+		VectorCopy (tr.endpos, cl->help_points[cl->help_draw_index]);
+	}
+
+	cl->help_draw_time = 0;
+	Compass_Update (ent, true);
+}
+
 void Use_IR (edict_t *ent, gitem_t *item)
 {
 	ent->client->pers.inventory[ITEM_INDEX(item)]--;
@@ -3087,6 +3259,31 @@ The Reckoning's DualFire Damage
 		NULL,
 		0,
 /* precache */ "items/quadfire1.wav items/quadfire2.wav items/quadfire3.wav"
+	},
+
+/*
+The re-release's compass, every player's in single player on its maps
+(PutClientInServer): used, it shows the way to the point of interest.
+*/
+	{
+		"item_compass",
+		NULL,
+		Use_Compass,
+		NULL,
+		NULL,
+		NULL,
+		NULL, 0,
+		NULL,
+/* icon */		"p_compass",
+/* pickup */	"Compass",
+/* width */		2,
+		0,
+		NULL,
+		IT_STAY_COOP,
+		0,
+		NULL,
+		0,
+/* precache */ "misc/help_marker.wav models/objects/pointer/tris.md2"
 	},
 
 	// end of list marker

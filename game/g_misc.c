@@ -2106,12 +2106,52 @@ The 2023 re-release's for its Quake 64 maps
 */
 
 /*QUAKED misc_flare (1.0 1.0 0.0) (-32 -32 -32) (32 32 32) RED GREEN BLUE LOCK_ANGLE
-A lens flare, which the re-release's renderer draws at a lamp. This one
-has none, and the lamp is there in the map.
+The re-release's lens flare at a lamp: a glow drawn where it can be seen
+(cl_ents.c, R_DrawFlares), of colour "rgba" (or of its RED, GREEN, BLUE),
+"radius" times 25 units, its picture "image", fading in between
+"fade_start_dist" and "fade_end_dist" away. Used, it goes out or comes on.
 */
+#define SPAWNFLAG_FLARE_RED			1
+#define SPAWNFLAG_FLARE_GREEN		2
+#define SPAWNFLAG_FLARE_BLUE		4
+#define SPAWNFLAG_FLARE_LOCK_ANGLE	8	// it faces the view's way, not the eye: the same, drawn here
+
+static void misc_flare_use (edict_t *ent, edict_t *other, edict_t *activator)
+{
+	ent->svflags ^= SVF_NOCLIENT;
+	gi.linkentity (ent);
+}
+
 void SP_misc_flare (edict_t *ent)
 {
-	G_FreeEdict (ent);
+	ent->s.modelindex = 1;		// sent, though no model of it is drawn
+	ent->s.renderfx = RF_FLARE;
+	ent->solid = SOLID_NOT;
+	G_SetScale (ent, st.radius);
+
+	if (ent->spawnflags & SPAWNFLAG_FLARE_RED)
+		ent->s.renderfx |= RF_SHELL_RED;
+	if (ent->spawnflags & SPAWNFLAG_FLARE_GREEN)
+		ent->s.renderfx |= RF_SHELL_GREEN;
+	if (ent->spawnflags & SPAWNFLAG_FLARE_BLUE)
+		ent->s.renderfx |= RF_SHELL_BLUE;
+
+	if (st.image && *st.image)
+	{
+		ent->s.renderfx |= RF_CUSTOMSKIN;
+		ent->s.frame = gi.imageindex (st.image);
+	}
+
+	VectorSet (ent->mins, -32, -32, -32);
+	VectorSet (ent->maxs, 32, 32, 32);
+
+	ent->s.modelindex2 = (int)st.fade_start_dist;
+	ent->s.modelindex3 = (int)st.fade_end_dist;
+
+	if (ent->targetname)
+		ent->use = misc_flare_use;
+
+	gi.linkentity (ent);
 }
 
 /*QUAKED misc_hologram (1.0 1.0 0.0) (-16 -16 0) (16 16 32)

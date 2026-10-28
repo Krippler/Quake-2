@@ -152,10 +152,15 @@ void Use_Target_Help (edict_t *ent, edict_t *other, edict_t *activator)
 		strncpy (game.helpmessage2, ent->message, sizeof(game.helpmessage1)-1);
 
 	game.helpchanged++;
+
+	// the re-release's: it is a point of interest too
+	if (ent->spawnflags & 2)
+		target_poi_use (ent, other, activator);
 }
 
-/*QUAKED target_help (1 0 1) (-16 -16 -24) (16 16 24) help1
+/*QUAKED target_help (1 0 1) (-16 -16 -24) (16 16 24) help1 setpoi
 When fired, the "message" key becomes the current personal computer string, and the message light will be set on all clients status bars.
+setpoi: it becomes the point of interest too, as a target_poi (the re-release's).
 */
 void SP_target_help(edict_t *ent)
 {
@@ -1176,13 +1181,169 @@ void SP_target_light (edict_t *self)
 	gi.linkentity (self);
 }
 
-/*QUAKED target_poi (1 0 0) (-4 -4 -4) (4 4 4)
-The re-release's point of interest, which its compass points the player to.
-There is no compass here.
+/*QUAKED target_poi (1 0 0) (-4 -4 -4) (4 4 4) NEAREST DUMMY DYNAMIC DISABLED
+The re-release's point of interest, which its compass shows the way to
+(Use_Compass, g_items.c): when used, it is the level's.
+"count": its stage; used, it is taken up only if the level's stage is no
+later, and makes the level's stage its own.
+"team": a team of them is as one; using any picks of them the first, or
+the lowest "style", or with NEAREST the nearest by the navigation nodes,
+of those of the stage and not DISABLED. DUMMY: one to use, not to pick
+(unless DYNAMIC, when the compass picks again each time it is used).
+DISABLED: not picked till it is used.
 */
+#define SPAWNFLAG_POI_NEAREST	1
+#define SPAWNFLAG_POI_DUMMY		2
+#define SPAWNFLAG_POI_DYNAMIC	4
+#define SPAWNFLAG_POI_DISABLED	8
+
+// how far along the navigation nodes, squared; straight if there are none
+static float distance_to_poi (vec3_t start, vec3_t end)
+{
+	nav_request_t	request;
+	nav_info_t		info;
+	vec3_t			v;
+
+	memset (&request, 0, sizeof(request));
+	VectorCopy (start, request.start);
+	VectorCopy (end, request.goal);
+	request.moveDist = 64;
+	request.pathFlags = PathFlags_All;
+	request.ignoreNodeFlags = true;
+	request.minHeight = 128;
+	request.maxHeight = 128;
+	request.radius = 1024;
+
+	if (Nav_GetPathToGoal (&request, &info))
+		return info.pathDistSqr;
+	if (info.returnCode == PathReturnCode_NoNavAvailable)
+	{
+		VectorSubtract (end, start, v);
+		return DotProduct (v, v);
+	}
+	return 1e30f;
+}
+
+void target_poi_use (edict_t *ent, edict_t *other, edict_t *activator)
+{
+	if (ent->spawnflags & SPAWNFLAG_POI_DISABLED)
+		ent->spawnflags &= ~SPAWNFLAG_POI_DISABLED;
+
+	if (ent->count && level.current_poi_stage > ent->count)
+		return;
+
+	if (ent->team && ent->teammaster)
+	{
+		edict_t	*master = ent->teammaster, *poi, *dummy = NULL;
+		float	best_distance = 1e30f, dist;
+		int		best_style = 0x7fffffff;
+		qboolean	nearest = (master->spawnflags & SPAWNFLAG_POI_NEAREST) != 0;
+
+		ent = NULL;
+		for (poi = master ; poi ; poi = poi->teamchain)
+		{
+			if (poi->spawnflags & SPAWNFLAG_POI_DISABLED)
+				continue;
+			if (poi->spawnflags & SPAWNFLAG_POI_DUMMY)
+			{
+				dummy = poi;
+				continue;
+			}
+			if (poi->count && level.current_poi_stage > poi->count)
+				continue;
+			if (poi->style > best_style)
+				continue;
+
+			dist = activator ? distance_to_poi (activator->s.origin, poi->s.origin) : 0;
+
+			if (nearest && ent && dist > best_distance)
+				continue;
+
+			if (poi->style < best_style)
+			{
+				if (nearest && dist >= 1e30f)
+					continue;	// not to be got to
+				best_style = poi->style;
+				if (nearest)
+					best_distance = dist;
+				ent = poi;
+				continue;
+			}
+
+			if (nearest)
+			{
+				if (dist < best_distance)
+				{
+					best_distance = dist;
+					ent = poi;
+				}
+			}
+			else
+				ent = poi;
+		}
+
+		if (!ent)
+		{
+			if (dummy && (dummy->spawnflags & SPAWNFLAG_POI_DYNAMIC))
+				ent = dummy;
+			else
+				return;
+		}
+
+		if (ent->count && level.current_poi_stage <= ent->count)
+			level.current_poi_stage = ent->count;
+	}
+	else if (ent->count)
+	{
+		if (level.current_poi_stage <= ent->count)
+			level.current_poi_stage = ent->count;
+		else
+			return;
+	}
+
+	if (!strcmp (ent->classname, "target_poi") && (ent->spawnflags & SPAWNFLAG_POI_DUMMY)
+		&& !(ent->spawnflags & SPAWNFLAG_POI_DYNAMIC))
+		return;
+
+	level.valid_poi = true;
+	VectorCopy (ent->s.origin, level.current_poi);
+
+	level.current_dynamic_poi = NULL;
+	if (!strcmp (ent->classname, "target_poi") && (ent->spawnflags & SPAWNFLAG_POI_DYNAMIC))
+	{
+		edict_t	*m;
+
+		for (m = ent->teammaster ; m ; m = m->teamchain)
+			if (m->spawnflags & SPAWNFLAG_POI_DUMMY)
+			{
+				level.current_dynamic_poi = m;
+				break;
+			}
+	}
+}
+
+// a team's NEAREST or DYNAMIC goes for all of it, once the teams are made
+static void target_poi_setup (edict_t *self)
+{
+	edict_t	*m;
+
+	if (self->team && self->teammaster && (self->spawnflags & (SPAWNFLAG_POI_NEAREST | SPAWNFLAG_POI_DYNAMIC)))
+		for (m = self->teammaster ; m ; m = m->teamchain)
+			m->spawnflags |= self->spawnflags & (SPAWNFLAG_POI_NEAREST | SPAWNFLAG_POI_DYNAMIC);
+}
+
 void SP_target_poi (edict_t *self)
 {
-	G_FreeEdict (self);
+	if (deathmatch->value)
+	{
+		G_FreeEdict (self);
+		return;
+	}
+
+	self->use = target_poi_use;
+	self->svflags |= SVF_NOCLIENT;
+	self->think = target_poi_setup;
+	self->nextthink = level.time + FRAMETIME;
 }
 
 /*QUAKED target_killplayers (1 0 0) (-8 -8 -8) (8 8 8)

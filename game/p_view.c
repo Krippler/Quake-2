@@ -1069,6 +1069,8 @@ static void G_SendFog (edict_t *ent)
 {
 	gclient_t	*client = ent->client;
 
+	if (!client->pers.connected)
+		return;		// not yet there: sent as they begin
 	if (!client->fog_unsent && !memcmp (client->fog, client->pers.wanted_fog, sizeof(client->fog)))
 		return;
 
@@ -1084,6 +1086,7 @@ void ClientEndServerFrame (edict_t *ent)
 	int		i;
 
 	G_SendFog (ent);
+	Compass_Update (ent, false);
 
 	current_player = ent;
 	current_client = ent->client;

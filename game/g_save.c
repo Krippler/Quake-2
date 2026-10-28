@@ -215,6 +215,8 @@ field_t fields[] = {
 	{"healthtarget", FOFS(healthtarget), F_LSTRING},
 	{"goals", STOFS(goals), F_LSTRING, FFL_SPAWNTEMP},
 	{"image", STOFS(image), F_LSTRING, FFL_SPAWNTEMP},
+	{"fade_start_dist", STOFS(fade_start_dist), F_FLOAT, FFL_SPAWNTEMP},
+	{"fade_end_dist", STOFS(fade_end_dist), F_FLOAT, FFL_SPAWNTEMP},
 	{"music", STOFS(music), F_LSTRING, FFL_SPAWNTEMP},
 	{"rgba", FOFS(s.skinnum), F_INT},
 
@@ -248,6 +250,7 @@ field_t		levelfields[] =
 	{"sound2_entity", LLOFS(sound2_entity), F_EDICT},
 	{"health_bar_entities[0]", LLOFS(health_bar_entities[0]), F_EDICT},
 	{"health_bar_entities[1]", LLOFS(health_bar_entities[1]), F_EDICT},
+	{"current_dynamic_poi", LLOFS(current_dynamic_poi), F_EDICT},
 
 	{NULL, 0, F_INT}
 };

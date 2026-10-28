@@ -19,6 +19,11 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   through their textures while waiting to be pressed and blink once
   pressed, and the animated walls and screens of its maps run and switch
   when used, rather than standing still.
+- **The compass.** On the re-release's maps you have its compass (in the
+  inventory, or `use compass`): used, it shows the way to where you are
+  to go next, a glowing arrow at a time, as there.
+- **Lens flares.** The glows Call of the Machine and the Quake 64 levels
+  put at their lamps are drawn.
 - **Fog.** The re-release's maps' fog -- the haze of the base game's
   levels and the coloured height fog of Call of the Machine's, which
   changes as you go from place to place -- is drawn, in the software

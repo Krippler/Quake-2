@@ -984,6 +984,49 @@ void CL_AddPacketEntities (frame_t *frame)
 			V_AddSpotLight (eye, forward, 640, 26, 14);
 		}
 
+		// the re-release's misc_flare: a glow, faded out between the
+		// distances in modelindex2 and 3, its picture frame's
+		if (renderfx & RF_FLARE)
+		{
+			unsigned	rgb = (unsigned)s1->skinnum;
+			float		color[3], alpha = 1, d, scale;
+			float		fade_start = s1->modelindex2, fade_end = s1->modelindex3;
+			struct image_s	*image = NULL;
+			vec3_t		v;
+
+			if (!rgb)
+			{
+				// no colour: its shell colours, or white
+				color[0] = (renderfx & RF_SHELL_RED) ? 1 : 0;
+				color[1] = (renderfx & RF_SHELL_GREEN) ? 1 : 0;
+				color[2] = (renderfx & RF_SHELL_BLUE) ? 1 : 0;
+				if (!(renderfx & (RF_SHELL_RED|RF_SHELL_GREEN|RF_SHELL_BLUE)))
+					VectorSet (color, 1, 1, 1);
+			}
+			else
+			{
+				color[0] = ((rgb >> 24) & 255) / 255.0f;
+				color[1] = ((rgb >> 16) & 255) / 255.0f;
+				color[2] = ((rgb >> 8) & 255) / 255.0f;
+			}
+			if (fade_start > 0 && fade_end > fade_start)
+			{
+				VectorSubtract (ent.origin, cl.refdef.vieworg, v);
+				d = (VectorLength (v) - fade_start) / (fade_end - fade_start);
+				if (d <= 0)
+					continue;
+				if (d < 1)
+					alpha = d * d * (3 - 2 * d);
+			}
+			if ((renderfx & RF_CUSTOMSKIN) && s1->frame > 0 && s1->frame < MAX_IMAGES)
+				image = cl.image_precache[s1->frame];
+			if (!image)
+				image = cl.flare_image;
+			scale = cl_parse_scales[s1 - cl_parse_entities];
+			V_AddFlare (ent.origin, color, alpha, 25 * (scale ? scale : 1), image);
+			continue;
+		}
+
 		// the re-release's target_light: a light of radius frame, its
 		// colour in skinnum, and nothing to draw
 		if (renderfx & RF_CUSTOMLIGHT)

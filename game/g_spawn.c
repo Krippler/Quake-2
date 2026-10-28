@@ -520,6 +520,26 @@ void ED_ParseField (char *key, char *value, edict_t *ent)
 	float	v;
 	vec3_t	vec;
 
+	// the re-release's colour: 0xRRGGBBAA as a number, or four values,
+	// 0 to 1 or 0 to 255, its ED_LoadColor
+	if (!Q_stricmp (key, "rgba") && strchr (value, ' '))
+	{
+		float		c[4] = {0, 0, 0, 1};
+		qboolean	is_float = true;
+		int			i;
+
+		sscanf (value, "%f %f %f %f", &c[0], &c[1], &c[2], &c[3]);
+		for (i = 0 ; i < 4 ; i++)
+			if (c[i] > 1)
+				is_float = false;
+		if (is_float)
+			for (i = 0 ; i < 4 ; i++)
+				c[i] *= 255;
+		ent->s.skinnum = ((int)c[3] & 255) | (((int)c[2] & 255) << 8)
+			| (((int)c[1] & 255) << 16) | ((int)c[0] << 24);
+		return;
+	}
+
 	for (f=fields ; f->name ; f++)
 	{
 		if (!(f->flags & FFL_NOSPAWN) && !Q_stricmp(f->name, key))

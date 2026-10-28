@@ -1065,6 +1065,7 @@ void R_RenderFrame (refdef_t *fd)
 	R_DrawAlphaSurfaces();
 
 	R_ApplyFog ();
+	R_DrawFlares ();
 
 	R_SetLightLevel ();
 

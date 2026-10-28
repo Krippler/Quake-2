@@ -164,6 +164,7 @@ typedef struct
 
 	struct sfx_s	*sound_precache[MAX_SOUNDS];
 	struct image_s	*image_precache[MAX_IMAGES];
+	struct image_s	*flare_image;	// the re-release's flares' own (misc/flare.tga)
 
 	clientinfo_t	clientinfo[MAX_CLIENTS];
 	clientinfo_t	baseclientinfo;
@@ -520,6 +521,8 @@ void CL_ParseServerMessage (void);
 // cl_loc.c
 char *CL_Localize (char *s);
 void CL_CurrentFog (float *fog);
+struct image_s *CL_RegisterImage (char *name);
+void V_AddFlare (vec3_t org, float *color, float alpha, float radius, struct image_s *image);
 void CL_LoadClientinfo (clientinfo_t *ci, char *s);
 void SHOWNET(char *s);
 void CL_ParseClientinfo (int player);

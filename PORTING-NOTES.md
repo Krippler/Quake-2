@@ -258,8 +258,22 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     (id's quake2-rerelease-dll, GPL): `target_gravity`,
     `target_killplayers`, `target_soundfx`, `target_light`,
     `misc_hologram`, `misc_lavaball`, `monster_tank_stand`,
-    `item_invisibility`; `target_poi` (its compass) and `misc_flare` (its
-    renderer's) are dropped. `target_light` is a light carried by an
+    `item_invisibility`, `misc_flare` and `target_poi`. A flare is sent
+    as `target_light` is, model 1 and nothing of it drawn, `RF_FLARE`,
+    its colour in `skinnum` (an "rgba" key of four numbers is taken as
+    the re-release takes it, in `ED_ParseField`), its size its scale, its
+    picture `frame`, its fading distances `modelindex2` and 3; the client
+    passes it to the renderer (`refdef_t.flares`), which adds its glow
+    where the z-buffer says its middle can be seen (`R_DrawFlares`,
+    `r_fog.c`), and now loads a `.tga` asked for by its own name, grey
+    ones too. `target_poi` is the re-release's, teams and stages, and
+    its compass an item every player has in single player on its maps
+    ("Compass", `Use_Compass`): it finds the way to the point along the
+    navigation nodes and shows it a point every 0.2 seconds, the
+    re-release's pointer model dropping into place there for ten seconds,
+    with its sound to that player alone (an `svc_sound` the game writes
+    itself). Its pointers are not the player's alone here, and the point's
+    picture on the screen is its HUD's, which this client has not got. `target_light` is a light carried by an
     entity, `RF_CUSTOMLIGHT` (`q_shared.h`), radius in `frame` and colour
     in `skinnum`, which the client adds as a dynamic light and does not
     draw (`cl_ents.c`); the game keeps the light styles, `g_lightstyles`,

@@ -1364,6 +1364,13 @@ void PutClientInServer (edict_t *ent)
 	for (i=0 ; i<3 ; i++)
 		client->ps.pmove.delta_angles[i] = ANGLE2SHORT(spawn_angles[i] - client->resp.cmd_angles[i]);
 
+	// the re-release's: its compass, in single player on its maps
+	if (!deathmatch->value && RR_Map ())
+	{
+		PrecacheItem (FindItem ("Compass"));
+		client->pers.inventory[ITEM_INDEX (FindItem ("Compass"))] = 1;
+	}
+
 	// the re-release's: the level's own fog, at once
 	memcpy (client->pers.wanted_fog, g_edicts[0].fog, sizeof(client->pers.wanted_fog));
 	client->fog_unsent = true;
@@ -1461,8 +1468,10 @@ void ClientBegin (edict_t *ent)
 		for (i=0 ; i<3 ; i++)
 			ent->client->ps.pmove.delta_angles[i] = ANGLE2SHORT(ent->client->ps.viewangles[i]);
 
-		// and the fog it had, sent again
+		// and the fog it had, sent again; but no more of the way the
+		// compass was showing
 		ent->client->fog_unsent = true;
+		ent->client->help_draw_points = false;
 	}
 	else
 	{

@@ -351,6 +351,7 @@ typedef struct
 
 
 #define	MAX_HEALTH_BARS		2
+#define	MAX_HELP_POINTS		128		// the compass's path, at most
 
 //
 // this structure is cleared as each map is entered
@@ -394,6 +395,14 @@ typedef struct
 	// the sky's CS_SKYROTATE, which target_sky changes a part of
 	float		skyrotate;
 	int			skyautorotate;
+
+	// the re-release's point of interest, where the compass points
+	// (target_poi): whether there is one, where, the stage it is at, and
+	// the teamed one to pick from again each time (DYNAMIC)
+	qboolean	valid_poi;
+	vec3_t		current_poi;
+	int			current_poi_stage;
+	edict_t		*current_dynamic_poi;
 
 	int			pic_health;
 
@@ -451,7 +460,8 @@ typedef struct
 	char		*sl_styletarget;
 	float		radius;			// the re-release's target_light
 	char		*goals;			// and worldspawn's Quake 64 objectives
-	char		*image;			// the re-release's mannequin's skin
+	char		*image;			// the re-release's mannequin's skin, a flare's picture
+	float		fade_start_dist, fade_end_dist;	// and a flare's distances
 	char		*music;			// and worldspawn's music, by its file's name
 	float		health_multiplier;	// a monster's health, scaled
 	char		*reinforcements;	// the re-release's summoners': "classname strength;..."
@@ -899,6 +909,9 @@ edict_t *G_PickTarget (char *targetname);
 void G_SetHealthBars (edict_t *ent);
 void G_HealthBarHandOff (edict_t *from, edict_t *to);
 void P_ToggleFlashlight (edict_t *ent, qboolean on);
+void target_poi_use (edict_t *ent, edict_t *other, edict_t *activator);
+void Compass_Update (edict_t *ent, qboolean first);
+void Use_Compass (edict_t *ent, gitem_t *item);
 void G_SetGoal (void);
 
 // g_xatrix.c
@@ -1355,6 +1368,14 @@ struct gclient_s
 	// (a new level, a loaded game), at once
 	float		fog[FOG_VALUES];
 	qboolean	fog_unsent;
+
+	// the re-release's compass: the path to the point of interest, the
+	// next of its points to show and when
+	vec3_t		help_points[MAX_HELP_POINTS + 1];
+	vec3_t		help_poi_location;
+	qboolean	help_draw_points;
+	int			help_draw_index, help_draw_count;
+	float		help_draw_time;
 	float		quadfire_framenum;			// The Reckoning's DualFire
 	float		invincible_framenum;
 	float		breather_framenum;

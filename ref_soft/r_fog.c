@@ -322,3 +322,126 @@ void R_ApplyFog (void)
 	}
 }
 
+
+
+/*
+================
+R_DrawFlares
+
+The re-release's flares (misc_flare): each a glow of its colour over the
+view where its middle can be seen, by the z-buffer at five points about it
+(the re-release's renderer asks the card how much of it is drawn), half as
+strong as it is bright, as there. Its picture's brightness is the glow's,
+or with none, a plain one fading from the middle out. Added to what is
+there and taken back to the palette, after the fog.
+================
+*/
+void R_DrawFlares (void)
+{
+	flare_t	*f;
+	int		i, n, x, y, x0, y0, x1, y1, seen, zb;
+	vec3_t	local, t;
+	float	zi, u, v, rad, a, add[3], intensity, dx, dy, r2, zs;
+	image_t	*image;
+	byte	*pal, texel;
+	pixel_t	*pix;
+	int		out[3], k, sx, sy;
+	static const float	probe[5][2] = { {0, 0}, {-0.25f, 0}, {0.25f, 0}, {0, -0.25f}, {0, 0.25f} };
+
+	if (r_newrefdef.rdflags & RDF_NOWORLDMODEL)
+		return;
+
+	for (n = 0, f = r_newrefdef.flares ; n < r_newrefdef.num_flares ; n++, f++)
+	{
+		VectorSubtract (f->origin, r_origin, local);
+		TransformVector (local, t);
+		if (t[2] < 4)
+			continue;
+		zi = 1.0f / t[2];
+		u = xcenter + xscale * t[0] * zi;
+		v = ycenter - yscale * t[1] * zi;
+		rad = xscale * f->radius * zi;
+		if (rad < 1)
+			continue;
+		if (rad > r_refdef.vrect.height)
+			rad = r_refdef.vrect.height;
+
+		// how much of it can be seen: whatever is drawn at each point
+		// no nearer than it, less a little, for the lamp it is in
+		seen = 0;
+		for (i = 0 ; i < 5 ; i++)
+		{
+			sx = (int)(u + probe[i][0] * rad);
+			sy = (int)(v + probe[i][1] * rad);
+			if (sx < r_refdef.vrect.x || sx >= r_refdef.vrect.x + r_refdef.vrect.width
+				|| sy < r_refdef.vrect.y || sy >= r_refdef.vrect.y + r_refdef.vrect.height)
+				continue;
+			zb = d_pzbuffer[sy * d_zwidth + sx];
+			zs = zb > 0 ? 32768.0f / zb : 1e30f;
+			if (zs >= t[2] - 24)
+				seen++;
+		}
+		if (!seen)
+			continue;
+
+		a = f->alpha * seen / 5.0f * 0.5f;
+		for (i = 0 ; i < 3 ; i++)
+			add[i] = f->color[i] * 255 * a;
+
+		image = (image_t *)f->image;
+		x0 = (int)(u - rad);
+		x1 = (int)(u + rad) + 1;
+		y0 = (int)(v - rad);
+		y1 = (int)(v + rad) + 1;
+		if (x0 < r_refdef.vrect.x)
+			x0 = r_refdef.vrect.x;
+		if (y0 < r_refdef.vrect.y)
+			y0 = r_refdef.vrect.y;
+		if (x1 > r_refdef.vrect.x + r_refdef.vrect.width)
+			x1 = r_refdef.vrect.x + r_refdef.vrect.width;
+		if (y1 > r_refdef.vrect.y + r_refdef.vrect.height)
+			y1 = r_refdef.vrect.y + r_refdef.vrect.height;
+
+		for (y = y0 ; y < y1 ; y++)
+		{
+			dy = (y + 0.5f - v) / rad;
+			pix = d_viewbuffer + y * r_screenwidth + x0;
+			for (x = x0 ; x < x1 ; x++, pix++)
+			{
+				dx = (x + 0.5f - u) / rad;
+				if (image && image->pixels[0])
+				{
+					sx = (int)((dx * 0.5f + 0.5f) * image->width);
+					sy = (int)((dy * 0.5f + 0.5f) * image->height);
+					if (sx < 0 || sx >= image->width || sy < 0 || sy >= image->height)
+						continue;
+					texel = image->pixels[0][sy * image->width + sx];
+					if (texel == 255)
+						continue;
+					pal = (byte *)&d_8to24table[texel];
+					intensity = (pal[0] * 0.3f + pal[1] * 0.59f + pal[2] * 0.11f) / 255;
+				}
+				else
+				{
+					r2 = dx * dx + dy * dy;
+					if (r2 >= 1)
+						continue;
+					intensity = (1 - r2) * (1 - r2);
+				}
+				if (intensity * a < 1 / 64.0f)
+					continue;
+
+				pal = (byte *)&d_8to24table[*pix];
+				for (k = 0 ; k < 3 ; k++)
+				{
+					out[k] = (int)(pal[k] + add[k] * intensity + (fog_dither[y & 3][x & 3] - 7.5f) * 0.25f);
+					if (out[k] < 0)
+						out[k] = 0;
+					else if (out[k] > 255)
+						out[k] = 255;
+				}
+				*pix = R_RGBToPalette (out[0], out[1], out[2]);
+			}
+		}
+	}
+}

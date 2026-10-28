@@ -42,6 +42,9 @@ cvar_t		*cl_stats;
 int			r_numdlights;
 dlight_t	r_dlights[MAX_DLIGHTS];
 
+int			r_numflares;
+flare_t		r_flares[MAX_FLARES];
+
 int				r_numshadowlights;
 shadowlight_t	r_shadowlights[MAX_SHADOWLIGHTS];
 
@@ -58,6 +61,27 @@ int num_cl_weaponmodels;
 
 /*
 ====================
+CL_RegisterImage
+
+A configstring image: a picture of pics/, as in 1997, or, named with its
+extension, a whole path (the re-release's flares, "sprites/flare_02.tga",
+or with no directory, of sprites/)
+====================
+*/
+struct image_s *CL_RegisterImage (char *name)
+{
+	struct image_s	*image;
+	char			*dot = strrchr (name, '.');
+
+	if (!dot || strchr (dot, '/'))
+		return re.RegisterPic (name);
+	if ((image = re.RegisterSkin (name)) != NULL || strchr (name, '/'))
+		return image;
+	return re.RegisterSkin (va ("sprites/%s", name));
+}
+
+/*
+====================
 V_ClearScene
 
 Specifies the model that will be used as the world
@@ -66,6 +90,7 @@ Specifies the model that will be used as the world
 void V_ClearScene (void)
 {
 	r_numdlights = 0;
+	r_numflares = 0;
 	r_numshadowlights = 0;
 	r_numentities = 0;
 	r_numparticles = 0;
@@ -133,6 +158,20 @@ A light shining along dir, in a cone of outer degrees, full within inner:
 the re-release's flashlight.
 =====================
 */
+void V_AddFlare (vec3_t org, float *color, float alpha, float radius, struct image_s *image)
+{
+	flare_t	*f;
+
+	if (r_numflares >= MAX_FLARES)
+		return;
+	f = &r_flares[r_numflares++];
+	VectorCopy (org, f->origin);
+	VectorCopy (color, f->color);
+	f->alpha = alpha;
+	f->radius = radius;
+	f->image = image;
+}
+
 void V_AddSpotLight (vec3_t org, vec3_t dir, float intensity, float outer, float inner)
 {
 	dlight_t	*dl;
@@ -347,9 +386,10 @@ void CL_PrepRefresh (void)
 
 	Com_Printf ("images\r", i); 
 	SCR_UpdateScreen ();
+	cl.flare_image = re.RegisterSkin ("misc/flare.tga");
 	for (i=1 ; i<MAX_IMAGES && cl.configstrings[CS_IMAGES+i][0] ; i++)
 	{
-		cl.image_precache[i] = re.RegisterPic (cl.configstrings[CS_IMAGES+i]);
+		cl.image_precache[i] = CL_RegisterImage (cl.configstrings[CS_IMAGES+i]);
 		Sys_SendKeyEvents ();	// pump message loop
 	}
 	
@@ -582,6 +622,8 @@ void V_RenderView( float stereo_separation )
 		cl.refdef.particles = r_particles;
 		cl.refdef.num_dlights = r_numdlights;
 		cl.refdef.dlights = r_dlights;
+		cl.refdef.num_flares = r_numflares;
+		cl.refdef.flares = r_flares;
 		cl.refdef.num_shadowlights = r_numshadowlights;
 		cl.refdef.shadowlights = r_shadowlights;
 		cl.refdef.lightstyles = r_lightstyles;

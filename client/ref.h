@@ -121,6 +121,17 @@ typedef struct
 	float		white;			// highest of rgb
 } lightstyle_t;
 
+// the re-release's flare: a glow drawn over the view where it can be seen
+#define	MAX_FLARES	256
+typedef struct flare_s
+{
+	vec3_t		origin;
+	float		color[3];		// 0 to 1
+	float		alpha;			// how much of it, by distance
+	float		radius;			// world units
+	struct image_s	*image;		// its picture, or NULL for the plain one
+} flare_t;
+
 typedef struct
 {
 	int			x, y, width, height;// in virtual screen coordinates
@@ -154,6 +165,10 @@ typedef struct
 
 	// the re-release's fog, FOG_VALUES as q_shared.h has them
 	float		fog[FOG_VALUES];
+
+	// and its flares (misc_flare)
+	int			num_flares;
+	struct flare_s	*flares;
 } refdef_t;
 
 

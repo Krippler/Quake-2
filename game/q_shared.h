@@ -616,6 +616,10 @@ typedef struct
 // colour skinnum (0xRRGGBBxx); RF_CUSTOM_LIGHT in its engine
 #define RF_CUSTOMLIGHT		0x00080000
 #define RF_FLASHLIGHT		0x00100000		// the re-release's flashlight, which this client draws (cl_ents.c)
+// the re-release's misc_flare: a glow, no model, colour skinnum (0xRRGGBBAA),
+// size its scale, picture frame with RF_CUSTOMSKIN, gone between distances
+// modelindex2 and 3 (cl_ents.c, r_fog.c)
+#define RF_FLARE			0x00200000
 //ROGUE
 
 // player_state_t->refdef flags
