@@ -1528,6 +1528,20 @@ struct edict_s
 	// the re-release's: the scale its model is drawn at (G_SetScale); 0 is 1
 	float		scale;
 
+	// the re-release's: a brush model's texture animation, run by
+	// G_RunBmodelAnimation (g_phys.c) through its frames from start to end
+	// a frame each speed milliseconds; style 0 forwards, 1 backwards, 2 at
+	// random; nowrap stops at the end. The alt_ set is run instead while
+	// alternate is (a button pressed, a func_animation used). enabled if
+	// it was given a start or an end.
+	struct
+	{
+		int		start, end, style, speed, nowrap;
+		int		alt_start, alt_end, alt_style, alt_speed, alt_nowrap;
+		qboolean	enabled, alternate, currently_alternate;
+		float	next_tick;
+	} bmodel_anim;
+
 	// Ground Zero's hint_path: the next on its chain, which chain, and its
 	// links as monsterlost_checkhint sorts them
 	edict_t		*hint_chain;

@@ -947,10 +947,75 @@ G_RunEntity
 
 ================
 */
+/*
+The re-release's brush model texture animation (edict_t bmodel_anim):
+s.frame stepped, a frame each speed milliseconds, between start and end,
+or the alt_ ones while alternate.
+*/
+static void G_RunBmodelAnimation (edict_t *ent)
+{
+	int		start, end, style, nowrap, speed;
+	int		alt = ent->bmodel_anim.alternate;
+
+	if (ent->bmodel_anim.currently_alternate != alt)
+	{
+		ent->bmodel_anim.currently_alternate = alt;
+		ent->bmodel_anim.next_tick = 0;
+	}
+
+	if (level.time < ent->bmodel_anim.next_tick)
+		return;
+
+	speed = alt ? ent->bmodel_anim.alt_speed : ent->bmodel_anim.speed;
+	style = alt ? ent->bmodel_anim.alt_style : ent->bmodel_anim.style;
+	start = alt ? ent->bmodel_anim.alt_start : ent->bmodel_anim.start;
+	end = alt ? ent->bmodel_anim.alt_end : ent->bmodel_anim.end;
+	nowrap = alt ? ent->bmodel_anim.alt_nowrap : ent->bmodel_anim.nowrap;
+
+	// less than a frame (0.1 seconds) less a little, so a speed of 100
+	// is every frame
+	ent->bmodel_anim.next_tick = level.time + speed * 0.001 - 0.001;
+
+	switch (style)
+	{
+	case 0:		// forwards
+		ent->s.frame += (end >= start) ? 1 : -1;
+		break;
+	case 1:		// backwards
+		ent->s.frame += (end >= start) ? -1 : 1;
+		break;
+	case 2:		// at random, start to end
+		if (end >= start)
+			ent->s.frame = start + rand () % (end - start + 1);
+		else
+			ent->s.frame = end + rand () % (start - end + 1);
+		break;
+	}
+
+	if (nowrap)
+	{
+		int	lo = end >= start ? start : end, hi = end >= start ? end : start;
+
+		if (ent->s.frame < lo)
+			ent->s.frame = lo;
+		else if (ent->s.frame > hi)
+			ent->s.frame = hi;
+	}
+	else if (ent->s.frame < start)
+		ent->s.frame = end;
+	else if (ent->s.frame > end)
+		ent->s.frame = start;
+}
+
 void G_RunEntity (edict_t *ent)
 {
 	if (ent->prethink)
 		ent->prethink (ent);
+
+	// the re-release's texture animation, before the physics, so that
+	// an entity's own can override it
+	if (ent->bmodel_anim.enabled)
+		G_RunBmodelAnimation (ent);
 
 	switch ( (int)ent->movetype)
 	{

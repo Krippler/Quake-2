@@ -15,6 +15,10 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
 - **Autosaves.** Call of the Machine's levels save the game as you reach
   their checkpoints, to the slot the game saves to on entering a level
   (no more than once a minute).
+- **Animated buttons and screens.** The re-release's buttons flash
+  through their textures while waiting to be pressed and blink once
+  pressed, and the animated walls and screens of its maps run and switch
+  when used, rather than standing still.
 - **Flashlight zones.** Call of the Machine's dark places switch your
   flashlight on as you go in and off as you come out.
 

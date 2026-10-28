@@ -278,8 +278,13 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     `target_sky` (the client takes up a sky changed mid-level,
     `cl_parse.c`), `target_story` (centre-printed), `target_steam`,
     `func_eye`, The Reckoning's `misc_nuke`, and `monster_makron` in the
-    spawn table; `trigger_fog` is dropped, `func_animation` is a still
-    brush. `target_healthbar` puts a boss's health in `STAT_HEALTH_BARS`
+    spawn table; `trigger_fog` is dropped. A brush model's
+    `bmodel_anim_` keys are the re-release's texture animation
+    (`edict_t.bmodel_anim`, run first in `G_RunEntity` by
+    `G_RunBmodelAnimation`): its frame stepped through a range at a
+    speed, and through its `alt_` range instead while a button is pressed
+    (`button_wait`/`button_done`, no `EF_ANIM01`/`23` then) or after a
+    `func_animation` is used. `target_healthbar` puts a boss's health in `STAT_HEALTH_BARS`
     (18; a byte for each of two bars, 0x80 shown and 0 to 127 of it) and
     its name in `CS_HEALTH_BAR_NAME` (the general configstring after the
     shadow lights'), which the single-player status bar draws with the

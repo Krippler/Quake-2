@@ -554,6 +554,10 @@ void ED_ParseField (char *key, char *value, edict_t *ent)
 			case F_IGNORE:
 				break;
 			}
+			// the re-release's: a texture animation is had by giving
+			// its start or its end
+			if (!Q_stricmp (key, "bmodel_anim_start") || !Q_stricmp (key, "bmodel_anim_end"))
+				ent->bmodel_anim.enabled = true;
 			return;
 		}
 	}

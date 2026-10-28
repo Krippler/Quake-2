@@ -1017,6 +1017,11 @@ When a button is touched, it moves some distance in the direction of it's angle,
 void button_done (edict_t *self)
 {
 	self->moveinfo.state = STATE_BOTTOM;
+	if (self->bmodel_anim.enabled)
+	{
+		self->bmodel_anim.alternate = false;	// the re-release's animation
+		return;
+	}
 	self->s.effects &= ~EF_ANIM23;
 	self->s.effects |= EF_ANIM01;
 }
@@ -1027,7 +1032,8 @@ void button_return (edict_t *self)
 
 	Move_Calc (self, self->moveinfo.start_origin, button_done);
 
-	self->s.frame = 0;
+	if (!self->bmodel_anim.enabled)
+		self->s.frame = 0;
 
 	if (self->health)
 		self->takedamage = DAMAGE_YES;
@@ -1036,11 +1042,17 @@ void button_return (edict_t *self)
 void button_wait (edict_t *self)
 {
 	self->moveinfo.state = STATE_TOP;
-	self->s.effects &= ~EF_ANIM01;
-	self->s.effects |= EF_ANIM23;
+	if (self->bmodel_anim.enabled)
+		self->bmodel_anim.alternate = true;	// the re-release's animation
+	else
+	{
+		self->s.effects &= ~EF_ANIM01;
+		self->s.effects |= EF_ANIM23;
+	}
 
 	G_UseTargets (self, self->activator);
-	self->s.frame = 1;
+	if (!self->bmodel_anim.enabled)
+		self->s.frame = 1;
 	if (self->moveinfo.wait >= 0)
 	{
 		self->nextthink = level.time + self->moveinfo.wait;
@@ -1118,7 +1130,8 @@ void SP_func_button (edict_t *ent)
 	VectorMA (ent->pos1, dist, ent->movedir, ent->pos2);
 
 	ent->use = button_use;
-	ent->s.effects |= EF_ANIM01;
+	if (!ent->bmodel_anim.enabled)
+		ent->s.effects |= EF_ANIM01;
 
 	if (ent->health)
 	{

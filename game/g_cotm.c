@@ -489,17 +489,37 @@ void SP_func_eye (edict_t *ent)
 
 func_animation
 
-A solid brush model whose using switches its textures' animation. Its
-animation is the re-release's; here it stays as it is.
+A solid brush model whose using switches its textures' animation, from
+its bmodel_anim_ keys to its bmodel_anim_alt_ ones and back
+(G_RunBmodelAnimation, g_phys.c). START_ON starts on the alt_ ones.
 
 ==============================================================================
 */
 
+#define SPAWNFLAG_ANIMATION_START_ON	1
+
+static void func_animation_use (edict_t *self, edict_t *other, edict_t *activator)
+{
+	self->bmodel_anim.alternate = !self->bmodel_anim.alternate;
+}
+
 void SP_func_animation (edict_t *self)
 {
+	if (!self->bmodel_anim.enabled)
+	{
+		gi.dprintf ("%s at %s has no animation\n", self->classname, vtos (self->s.origin));
+		G_FreeEdict (self);
+		return;
+	}
+
 	self->movetype = MOVETYPE_PUSH;
 	gi.setmodel (self, self->model);
 	self->solid = SOLID_BSP;
+
+	self->use = func_animation_use;
+	self->bmodel_anim.alternate = (self->spawnflags & SPAWNFLAG_ANIMATION_START_ON) != 0;
+	self->s.frame = self->bmodel_anim.alternate ? self->bmodel_anim.alt_start : self->bmodel_anim.start;
+
 	gi.linkentity (self);
 }
 
