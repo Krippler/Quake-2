@@ -64,6 +64,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static cvar_t	*cd_nocd;
 static cvar_t	*cd_volume;
 static cvar_t	*cd_musicdir;
+// As the Windows CD player had them: a looping track is played
+// cd_loopcount times, then cd_looptrack instead -- unless the map says
+// otherwise (the re-release's CS_CD_LOOP_COUNT, music_loopcount, -1 if it
+// does not; 0 for good)
+static cvar_t	*cd_loopcount;
+static cvar_t	*cd_looptrack;
+static int		music_loopcount = -1;
+static int		music_loops;			// times round, of this track
+static qboolean	music_to_looptrack;		// it has been round enough: CDAudio_Update
 
 static qboolean	music_enabled = false;		// built with a decoder, and not -nocdaudio
 static qboolean	music_paused = false;
@@ -416,8 +425,19 @@ static qboolean CDAudio_NextSourceFrame (float *out)
 	got = sf_readf_float (music_sf, raw, 1);
 	if (got < 1)
 	{
+		int		loops = music_loopcount >= 0 ? music_loopcount : (int)cd_loopcount->value;
+
 		if (!music_looping)
 			return false;
+
+		// round enough: the loop track, which CDAudio_Update starts, as
+		// opening a file here, in the middle of mixing, would be heard
+		if (loops > 0 && ++music_loops >= loops
+			&& CDAudio_TrackNumber (music_track) != (int)cd_looptrack->value)
+		{
+			music_to_looptrack = true;
+			return false;
+		}
 
 	// sf_seek back to the start rather than reopening: reopening an Ogg
 	// costs a decoder reset and a file open in the middle of a frame, and
@@ -536,9 +556,21 @@ A track by its number ("4") or the re-release's by its file's name.
 void CDAudio_PlayName (char *name, qboolean looping)
 {
 	int		number;
+	char	first[MAX_QPATH], *space;
 
 	if (!music_enabled)
 		return;
+
+	// "file number": the re-release's music by its name, and failing that
+	// the map's track number (ndctf0's D_DDTBLU.ogg is in no release)
+	if ((space = strchr (name, ' ')) != NULL)
+	{
+		Com_sprintf (first, sizeof(first), "%.*s", (int)(space - name), name);
+		CDAudio_PlayName (first, looping);
+		if (!music_track[0] && !cd_nocd->value)
+			CDAudio_PlayName (space + 1, looping);
+		return;
+	}
 
 	// A map with no "sounds" key on its worldspawn asks for track 0, which
 	// is silence; so does the cinematic code, on its way out.
@@ -565,6 +597,8 @@ void CDAudio_PlayName (char *name, qboolean looping)
 		return;						// already playing it
 
 	music_paused = false;
+	music_loops = 0;
+	music_to_looptrack = false;
 
 	if (!CDAudio_OpenTrack (music_wanted))
 		Com_DPrintf ("CDAudio: no file for track %s in %s\n", music_wanted,
@@ -615,10 +649,32 @@ itself, so what is left is the menu's "CD music" switch, which sets cd_nocd:
 turned off, the music stops; turned back on, the map's track starts again.
 ==================
 */
+void CDAudio_SetLoopCount (char *count)
+{
+	music_loopcount = (count && count[0]) ? atoi (count) : -1;
+}
+
 void CDAudio_Update (void)
 {
 	if (!music_enabled)
 		return;
+
+	// played round enough: the loop track, for good
+	if (music_to_looptrack)
+	{
+		char	was[MAX_QPATH];
+
+		music_to_looptrack = false;
+		strncpy (was, music_wanted, sizeof(was) - 1);
+		was[sizeof(was) - 1] = 0;
+		CDAudio_PlayName (va ("%d", (int)cd_looptrack->value), true);
+		// no loop track to be had: round again, as it was, for good
+		if (!music_track[0] && !cd_nocd->value)
+		{
+			CDAudio_PlayName (was, true);
+			music_loops = -0x7fffffff;
+		}
+	}
 
 	if (cd_nocd->modified)
 	{
@@ -750,6 +806,8 @@ int CDAudio_Init (void)
 	cd_nocd = Cvar_Get ("cd_nocd", "0", CVAR_ARCHIVE);
 	cd_nocd->modified = false;
 	cd_volume = Cvar_Get ("cd_volume", "1", CVAR_ARCHIVE);
+	cd_loopcount = Cvar_Get ("cd_loopcount", "4", 0);
+	cd_looptrack = Cvar_Get ("cd_looptrack", "11", 0);
 	cd_musicdir = Cvar_Get ("cd_musicdir", "", CVAR_NOSET);
 
 	Cmd_AddCommand ("cd", CD_f);

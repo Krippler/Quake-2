@@ -1055,11 +1055,23 @@ void SP_worldspawn (edict_t *ent)
 	gi.configstring (CS_SKYAXIS, va("%f %f %f",
 		st.skyaxis[0], st.skyaxis[1], st.skyaxis[2]) );
 
-	// the re-release's: a music file by its name, over the track number
-	if (st.music && st.music[0])
+	// the re-release's: a music file by its name, over the track number,
+	// which our client falls back on if it has not the file ("name number";
+	// another client takes it for 0, as it did the name)
+	if (st.music && st.music[0] && ent->sounds)
+		gi.configstring (CS_CDTRACK, va("%s %i", st.music, ent->sounds));
+	else if (st.music && st.music[0])
 		gi.configstring (CS_CDTRACK, st.music);
 	else
 		gi.configstring (CS_CDTRACK, va("%i", ent->sounds) );
+
+	// and how many times round before cd_looptrack: Quake 64's for good
+	if (level.is_n64)
+		gi.configstring (CS_CD_LOOP_COUNT, "0");
+	else if (st.loop_count)
+		gi.configstring (CS_CD_LOOP_COUNT, va("%i", atoi (st.loop_count)));
+	else
+		gi.configstring (CS_CD_LOOP_COUNT, "");
 
 	gi.configstring (CS_MAXCLIENTS, va("%i", (int)(maxclients->value) ) );
 

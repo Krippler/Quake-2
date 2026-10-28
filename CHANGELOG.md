@@ -19,6 +19,10 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   through their textures while waiting to be pressed and blink once
   pressed, and the animated walls and screens of its maps run and switch
   when used, rather than standing still.
+- **Music plays round four times, then track 11**, as the original game's
+  CD music did on PC (`cd_loopcount`, `cd_looptrack`); Quake 64's and Call
+  of the Machine's maps play theirs for good, as they ask. A map whose
+  named music file is missing (ndctf0's) plays its numbered track.
 - **Capture the Flag.** With `ctf 1` in a deathmatch, Threewave CTF is
   played in the base game, as in the re-release: on its CTF maps
   (q2ctf1-5, q2kctf1-2, ndctf0) and its Quake 64 deathmatch maps, with

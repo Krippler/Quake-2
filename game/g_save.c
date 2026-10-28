@@ -218,6 +218,7 @@ field_t fields[] = {
 	{"fade_start_dist", STOFS(fade_start_dist), F_FLOAT, FFL_SPAWNTEMP},
 	{"fade_end_dist", STOFS(fade_end_dist), F_FLOAT, FFL_SPAWNTEMP},
 	{"music", STOFS(music), F_LSTRING, FFL_SPAWNTEMP},
+	{"loop_count", STOFS(loop_count), F_LSTRING, FFL_SPAWNTEMP},
 	{"rgba", FOFS(s.skinnum), F_INT},
 
 //need for item field in edict struct, FFL_SPAWNTEMP item will be skipped on saves

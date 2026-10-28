@@ -1237,6 +1237,10 @@ ROGUE - VERSIONS
 
 // the re-release's health bar's name, after them (g_cotm.c, cl_scrn.c)
 #define	CS_HEALTH_BAR_NAME	(CS_SHADOWLIGHTS+MAX_SHADOWLIGHT_CS)
+// and how many times the music plays before cd_looptrack ("" the client's
+// cd_loopcount, 0 for good): the re-release's CS_CD_LOOP_COUNT; after
+// CTF's match configstring (g_ctf.h)
+#define	CS_CD_LOOP_COUNT	(CS_HEALTH_BAR_NAME+2)
 
 
 //==============================================

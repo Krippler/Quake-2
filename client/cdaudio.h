@@ -22,6 +22,7 @@ int		CDAudio_Init(void);
 void	CDAudio_Shutdown(void);
 void	CDAudio_Play(int track, qboolean looping);
 void	CDAudio_PlayName(char *name, qboolean looping);	// a number, or the re-release's file name
+void	CDAudio_SetLoopCount (char *count);		// CS_CD_LOOP_COUNT: "" cd_loopcount, 0 for good
 void	CDAudio_Stop(void);
 void	CDAudio_Update(void);
 void	CDAudio_Activate (qboolean active);

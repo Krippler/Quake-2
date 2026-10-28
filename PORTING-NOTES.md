@@ -132,10 +132,15 @@ built for Yamagi Quake II, whose game API is id's, drops in.
   extension; `cd play` and `cd loop` take either. A number is also looked
   for as a bare `NN.<ext>`, as Yamagi's and Quake II RTX's rips are named.
   The re-release's numbering (its mission packs' 12 to 21, Quake 64's 64
-  to 79) is played as it is. Its `CS_CD_LOOP_COUNT` is not: a track loops
-  for good here, as on the CD. Every map that sets it (Call of the
-  Machine's, and Quake 64's by the game) sets 0, taken to mean the same;
-  what its engine does without it is not known here. The game sends `target_goal`'s "sounds" when the last goal is
+  to 79) is played as it is. A looping track plays `cd_loopcount` times (4)
+  and then `cd_looptrack` (11) for good, as id's Windows CD player had it
+  (`cd_win.c`), the switch made in `CDAudio_Update`, not in the middle of
+  mixing; or, if there is no loop track, the same for good. The
+  re-release's `CS_CD_LOOP_COUNT` (here `CS_HEALTH_BAR_NAME+2`, a map's
+  `loop_count`, 0 on Quake 64's) overrides the count, 0 for good; that
+  its empty default is the 1997 player's is taken, not known. Worldspawn's
+  "music" goes with its "sounds" ("file number"), and the client plays the
+  number if it has not the file: ndctf0's `D_DDTBLU.ogg` is in no release. The game sends `target_goal`'s "sounds" when the last goal is
   done (unless KEEP_MUSIC) and `target_camera`'s when it starts, as the
   re-release does. `cd_linux.c`'s drive has numbers only.
 - **`client/menu.c`**: Options has a music volume slider, for `cd_volume`,

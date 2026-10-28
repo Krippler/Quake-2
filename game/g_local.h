@@ -469,6 +469,7 @@ typedef struct
 	char		*image;			// the re-release's mannequin's skin, a flare's picture
 	float		fade_start_dist, fade_end_dist;	// and a flare's distances
 	char		*music;			// and worldspawn's music, by its file's name
+	char		*loop_count;	// and how often it plays round (CS_CD_LOOP_COUNT)
 	float		health_multiplier;	// a monster's health, scaled
 	char		*reinforcements;	// the re-release's summoners': "classname strength;..."
 	int			monster_slots;		// and how much they may have summoned at once

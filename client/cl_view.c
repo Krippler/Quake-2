@@ -427,6 +427,7 @@ void CL_PrepRefresh (void)
 	cl.force_refdef = true;	// make sure we have a valid refdef
 
 	// start the cd track
+	CDAudio_SetLoopCount (cl.configstrings[CS_CD_LOOP_COUNT]);
 	CDAudio_PlayName (cl.configstrings[CS_CDTRACK], true);
 }
 
