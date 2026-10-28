@@ -507,6 +507,10 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	// CTF's strength tech
 	damage = CTFApplyStrength (attacker, damage);
 
+	// Ground Zero's deathmatch games' own
+	if (DMGame.ChangeDamage)
+		damage = DMGame.ChangeDamage (targ, attacker, damage, mod);
+
 	if (targ->flags & FL_NO_KNOCKBACK)
 		knockback = 0;
 

@@ -309,6 +309,7 @@ void InitGame (void)
 	fraglimit = gi.cvar ("fraglimit", "0", CVAR_SERVERINFO);
 	timelimit = gi.cvar ("timelimit", "0", CVAR_SERVERINFO);
 	capturelimit = gi.cvar ("capturelimit", "0", CVAR_SERVERINFO);	// CTF's
+	gamerules = gi.cvar ("gamerules", "0", CVAR_SERVERINFO|CVAR_LATCH);	// Ground Zero's
 	instantweap = gi.cvar ("instantweap", "0", CVAR_SERVERINFO);
 	password = gi.cvar ("password", "", CVAR_USERINFO);
 	spectator_password = gi.cvar ("spectator_password", "", CVAR_USERINFO);

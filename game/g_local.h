@@ -1632,5 +1632,29 @@ struct edict_s
 	int			hint_chain_id;
 };
 
+// Ground Zero's deathmatch games, gamerules (g_newdm.c): the hooks a game
+// sets, called where they are
+typedef struct
+{
+	void	(*GameInit) (void);
+	void	(*PostInitSetup) (void);
+	void	(*PlayerDeath) (edict_t *targ, edict_t *inflictor, edict_t *attacker);
+	void	(*Score) (edict_t *attacker, edict_t *victim, int scoreChange, int mod);
+	void	(*PlayerEffects) (edict_t *ent);
+	void	(*DogTag) (edict_t *ent, edict_t *killer, char **pic);
+	void	(*PlayerDisconnect) (edict_t *ent);
+	int		(*ChangeDamage) (edict_t *targ, edict_t *attacker, int damage, int mod);
+} dm_game_rt;
+
+extern dm_game_rt	DMGame;
+extern cvar_t	*gamerules;
+void InitGameRules (void);
+void G_Score (edict_t *scorer, edict_t *victim, int change);
+qboolean Tag_PickupToken (edict_t *ent, edict_t *other);
+void Tag_DropToken (edict_t *ent, gitem_t *item);
+void SP_dm_tag_token (edict_t *self);
+edict_t *SelectDeathmatchSpawnPoint (void);
+void SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles);
+
 // Threewave CTF, in the base game as the re-release has it
 #include "g_ctf.h"

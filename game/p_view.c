@@ -855,6 +855,8 @@ void G_SetClientEffects (edict_t *ent)
 	}
 
 	CTFEffects (ent);		// CTF's flags carried
+	if (DMGame.PlayerEffects)	// Ground Zero's deathmatch games'
+		DMGame.PlayerEffects (ent);
 
 	if (ent->client->quad_framenum > level.framenum)
 	{

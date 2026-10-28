@@ -102,7 +102,6 @@ void SP_misc_player_mannequin (edict_t *self);
 void SP_misc_ctf_banner (edict_t *ent);
 void SP_misc_ctf_small_banner (edict_t *ent);
 void SP_info_player_team (edict_t *self);
-void SP_game_mode_only (edict_t *self);
 void SP_info_player_coop_lava (edict_t *self);
 void SP_info_world_text (edict_t *self);
 void SP_monster_widow2 (edict_t *ent);
@@ -293,7 +292,7 @@ spawn_t	spawns[] = {
 	{"misc_ctf_small_banner", SP_misc_ctf_small_banner},
 	{"info_player_team1", SP_info_player_team},
 	{"info_player_team2", SP_info_player_team},
-	{"dm_tag_token", SP_game_mode_only},
+	{"dm_tag_token", SP_dm_tag_token},
 	{"info_player_coop_lava", SP_info_player_coop_lava},
 	{"info_world_text", SP_info_world_text},
 	{"monster_widow2", SP_monster_widow2},
@@ -705,6 +704,8 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	int			i;
 	float		skill_level;
 
+	InitGameRules ();	// Ground Zero's deathmatch games, each level anew
+
 	skill_level = floor (skill->value);
 	if (skill_level < 0)
 		skill_level = 0;
@@ -801,6 +802,8 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 
 	G_FindTeams ();
 	CTFSpawn ();		// CTF's
+	if (DMGame.PostInitSetup)	// Ground Zero's deathmatch games'
+		DMGame.PostInitSetup ();
 	G_SetupShadowLights ();
 	InitHintPaths ();
 	Nav_Load (level.mapname);

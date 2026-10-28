@@ -3478,6 +3478,29 @@ CTF's blue flag; only in CTF
 /* precache */ "ctf/tech4.wav"
 	},
 
+/* Ground Zero's tag token (dm_tag_token, g_newdm.c): not by this name in
+any map */
+	{
+		"item_tag_token",
+		Tag_PickupToken,
+		NULL,
+		NULL,
+		NULL,
+		"items/pkup.wav",
+		"models/items/tagtoken/tris.md2", EF_ROTATE | EF_TAGTRAIL,
+		NULL,
+/* icon */		"i_tagtoken",
+/* pickup */	"Tag Token",
+/* width */		2,
+		0,
+		NULL,
+		IT_POWERUP,
+		0,
+		NULL,
+		0,
+/* precache */ ""
+	},
+
 	// end of list marker
 	{NULL}
 };

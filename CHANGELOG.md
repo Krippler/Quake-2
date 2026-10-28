@@ -19,6 +19,16 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   through their textures while waiting to be pressed and blink once
   pressed, and the animated walls and screens of its maps run and switch
   when used, rather than standing still.
+- **Capture the Flag.** With `ctf 1` in a deathmatch, Threewave CTF is
+  played in the base game, as in the re-release: on its CTF maps
+  (q2ctf1-5, q2kctf1-2, ndctf0) and its Quake 64 deathmatch maps, with
+  the flags, techs, grapple, team menus, scoreboard and matches. Its
+  dmflags for forced joining, armour protection and no techs are the
+  re-release's settings `g_teamplay_force_join`,
+  `g_teamplay_armor_protect` and `g_allow_techs` instead.
+- **Tag.** Ground Zero's deathmatch tag game, `gamerules 1`: hold the
+  token for 3 a frag and a quad every fifth; frag its holder for 5 and
+  the token.
 - **The compass.** On the re-release's maps you have its compass (in the
   inventory, or `use compass`): used, it shows the way to where you are
   to go next, a glowing arrow at a time, as there.

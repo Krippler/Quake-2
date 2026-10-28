@@ -241,6 +241,8 @@ void DeathmatchScoreboardMessage (edict_t *ent, edict_t *killer)
 			tag = "tag2";
 		else
 			tag = NULL;
+		if (DMGame.DogTag)		// Ground Zero's deathmatch games' own
+			DMGame.DogTag (cl_ent, killer, &tag);
 		if (tag)
 		{
 			Com_sprintf (entry, sizeof(entry),

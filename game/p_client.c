@@ -318,7 +318,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 		{
 			gi.bprintf (PRINT_MEDIUM, "%s %s.\n", self->client->pers.netname, message);
 			if (deathmatch->value)
-				self->client->resp.score--;
+				G_Score (self, self, -1);
 			self->enemy = NULL;
 			return;
 		}
@@ -427,12 +427,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 			{
 				gi.bprintf (PRINT_MEDIUM,"%s %s %s%s\n", self->client->pers.netname, message, attacker->client->pers.netname, message2);
 				if (deathmatch->value)
-				{
-					if (ff)
-						attacker->client->resp.score--;
-					else
-						attacker->client->resp.score++;
-				}
+					G_Score (attacker, self, ff ? -1 : 1);
 				return;
 			}
 		}
@@ -440,7 +435,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 
 	gi.bprintf (PRINT_MEDIUM,"%s died.\n", self->client->pers.netname);
 	if (deathmatch->value)
-		self->client->resp.score--;
+		G_Score (self, self, -1);
 }
 
 
@@ -582,6 +577,9 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 		CTFPlayerResetGrapple (self);
 		CTFDeadDropFlag (self);
 		CTFDeadDropTech (self);
+
+		if (DMGame.PlayerDeath)		// Ground Zero's deathmatch games'
+			DMGame.PlayerDeath (self, inflictor, attacker);
 		if (deathmatch->value)
 			Cmd_Help_f (self);		// show scores
 
@@ -1716,6 +1714,8 @@ void ClientDisconnect (edict_t *ent)
 
 	CTFDeadDropFlag (ent);		// CTF's
 	CTFDeadDropTech (ent);
+	if (DMGame.PlayerDisconnect)	// Ground Zero's deathmatch games'
+		DMGame.PlayerDisconnect (ent);
 
 	// send effect
 	gi.WriteByte (svc_muzzleflash);

@@ -2429,20 +2429,11 @@ void SP_misc_ctf_small_banner (edict_t *ent)
 }
 
 /*QUAKED info_player_team1 (1 0 0) (-16 -16 -24) (16 16 32)
-The re-release's CTF team spawning positions, which do nothing outside
-its CTF (not here). info_player_team2 likewise.
+The re-release's CTF team spawning positions, which CTF picks from
+(SelectCTFSpawnPoint) and nothing else uses. info_player_team2 likewise.
 */
 void SP_info_player_team (edict_t *self)
 {
-}
-
-/*
- * The re-release's CTF flags and Ground Zero's tag token: those games'
- * (not here); in any other they are removed, as there.
- */
-void SP_game_mode_only (edict_t *self)
-{
-	G_FreeEdict (self);
 }
 
 /*QUAKED info_world_text (1.0 1.0 0.0) (-16 -16 0) (16 16 32)

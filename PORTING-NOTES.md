@@ -496,9 +496,32 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     `misc_player_mannequin`, a player model of a client slot from 253
     up, as its skin configstring, at its "radius" scale (boss2's three
     at .45). The CTF
-    banners wave; `info_player_team1`/`2` do nothing, and the CTF flags
-    and `dm_tag_token` are freed, as outside those games there. Its
-    CTF and Ground Zero's tag are not here.
+    banners wave.
+  - **CTF** (`game/g_ctf.c`, `g_ctf.h`, `p_menu.c`, `p_menu.h`, new), in
+    the base game, as the re-release has it: Threewave CTF from `ctf/`,
+    on with `ctf 1` in deathmatch (latched; forced off without
+    deathmatch), and its hooks from `ctf/`'s game where they are, each
+    kept to CTF -- the flags, techs and grapple (in the item list after
+    the rest, so that no item before them moves), its spawn points,
+    skins, scores and scoreboard, status bar, team chat (`CheckFlood`,
+    now `Cmd_Say_f`'s too), menus, elections, matches, the grapple's
+    pull in `ClientThink`, the techs in `T_Damage` and `Weapon_Generic`
+    (with The Reckoning's DualFire), `instantweap`. What clashed: its
+    stats 17 to 28 are 19 to 30 (after `STAT_SPECTATOR` and
+    `STAT_HEALTH_BARS`; its status bar and scoreboard layouts too), its
+    match configstring `CS_MAXCLIENTS-1` is `CS_AIRACCEL` and so is
+    after the health bar's name, and its dmflags 131072 to 524288 are
+    Ground Zero's, and are the re-release's cvars instead:
+    `g_teamplay_force_join`, `g_teamplay_armor_protect`, `g_allow_techs`
+    and `g_allow_grapple` ("auto": in CTF). Its own teleporters and
+    banners give way to the base game's. `ctf/`'s library is still built.
+  - **Tag** (`game/g_newdm.c`, new), Ground Zero's deathmatch game,
+    `gamerules 1`, as the re-release has it: `DMGame`, the hooks a game
+    sets (each level anew, `InitGameRules` in `SpawnEntities`), called in
+    `T_Damage`, `player_die`, `ClientDisconnect`, `G_SetClientEffects`,
+    the scoreboard's dogtags, and the obituary's scores (`G_Score`); the
+    token is `dm_tag_token` (put at a spawn point if the map has none),
+    the item "Tag Token". Its deathball, `gamerules 2`, is not here.
   - **Scale**, the re-release's (`entity_state_t.scale` there):
     `entity_state_t` begins the game's `edict_t`, so it cannot grow
     without breaking the mission packs' game libraries built from
