@@ -27,6 +27,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	GAME_INCLUDE
 #include "game.h"
 
+// Threewave CTF's menus, as the re-release has CTF in the base game
+#include "p_menu.h"
+
 // the "gameversion" client command will print this plus compile date
 #define	GAMEVERSION	"baseq2"
 
@@ -264,6 +267,7 @@ typedef struct
 #define IT_STAY_COOP	8
 #define IT_KEY			16
 #define IT_POWERUP		32
+#define IT_TECH			64		// CTF's
 
 // gitem_t->weapmodel for weapons indicates model index
 #define WEAP_BLASTER			1 
@@ -285,6 +289,7 @@ typedef struct
 #define WEAP_TRAP				17
 #define WEAP_ETFRIFLE			18
 #define WEAP_PROXLAUNCH			19
+#define WEAP_GRAPPLE			20		// CTF's
 
 typedef struct gitem_s
 {
@@ -365,6 +370,7 @@ typedef struct
 	char		level_name[MAX_QPATH];	// the descriptive name (Outer Base, etc)
 	char		mapname[MAX_QPATH];		// the server name (base1, etc)
 	char		nextmap[MAX_QPATH];		// go here when fraglimit is hit
+	char		forcemap[MAX_QPATH];	// CTF's: go here (an election)
 
 	// intermission state
 	float		intermissiontime;		// time the intermission was started
@@ -762,6 +768,7 @@ extern	int	body_armor_index;
 #define MOD_DOPPLE_EXPLODE	51
 #define MOD_DOPPLE_VENGEANCE	52
 #define MOD_DOPPLE_HUNTER	53
+#define MOD_GRAPPLE			54		// CTF's
 
 // Ground Zero's spheres (their spawnflags)
 #define SPHERE_DEFENDER		0x0001
@@ -1189,6 +1196,14 @@ void DeathmatchScoreboardMessage (edict_t *client, edict_t *killer);
 // g_pweapon.c
 //
 void PlayerNoise(edict_t *who, vec3_t where, int type);
+void P_ProjectSource (gclient_t *client, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result);
+void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int FRAME_DEACTIVATE_LAST, int *pause_frames, int *fire_frames, void (*fire)(edict_t *ent));
+extern qboolean	is_quad;
+qboolean CheckFlood (edict_t *ent);
+qboolean CheckTeamDamage (edict_t *targ, edict_t *attacker);
+void EndDMLevel (void);
+extern cvar_t	*capturelimit;
+extern cvar_t	*instantweap;
 
 //
 // m_move.c
@@ -1284,6 +1299,18 @@ typedef struct
 	client_persistant_t	coop_respawn;	// what to set client->pers to on a respawn
 	int			enterframe;			// level.framenum the client entered the game
 	int			score;				// frags, etc
+	// CTF's
+	int			ctf_team;			// CTF team
+	int			ctf_state;
+	float		ctf_lasthurtcarrier;
+	float		ctf_lastreturnedflag;
+	float		ctf_flagsince;
+	float		ctf_lastfraggedcarrier;
+	qboolean	id_state;
+	qboolean	voted; // for elections
+	qboolean	ready;
+	qboolean	admin;
+	struct ghost_s *ghost; // for ghost codes
 	vec3_t		cmd_angles;			// angles sent over in the last command
 
 	qboolean	spectator;			// client is a spectator
@@ -1303,6 +1330,8 @@ struct gclient_s
 	pmove_state_t		old_pmove;	// for detecting out-of-pmove changes
 
 	qboolean	showscores;			// set layout stat
+	qboolean	inmenu;				// CTF's: in a menu
+	pmenuhnd_t	*menu;				// and which
 	qboolean	showinventory;		// set layout stat
 	qboolean	showhelp;
 	qboolean	showhelpicon;
@@ -1398,6 +1427,16 @@ struct gclient_s
 
 	edict_t		*chase_target;		// player we are chasing
 	qboolean	update_chase;		// need to update chase info?
+
+	// CTF's
+	void		*ctf_grapple;		// entity of grapple
+	int			ctf_grapplestate;		// true if pulling
+	float		ctf_grapplereleasetime;	// time of grapple release
+	float		ctf_regentime;		// regen tech
+	float		ctf_techsndtime;
+	float		ctf_lasttechmsg;
+	float		menutime;			// time to update menu
+	qboolean	menudirty;
 };
 
 
@@ -1593,3 +1632,5 @@ struct edict_s
 	int			hint_chain_id;
 };
 
+// Threewave CTF, in the base game as the re-release has it
+#include "g_ctf.h"

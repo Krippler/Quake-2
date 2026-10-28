@@ -592,6 +592,12 @@ void P_FallingDamage (edict_t *ent)
 	}
 	delta = delta*delta * 0.0001;
 
+	// CTF's: never hurt just after letting go of the grapple, or on it
+	if (level.time - ent->client->ctf_grapplereleasetime <= FRAMETIME * 2 ||
+		(ent->client->ctf_grapple &&
+		ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY))
+		return;
+
 	// never take falling damage if completely underwater
 	if (ent->waterlevel == 3)
 		return;
@@ -848,6 +854,8 @@ void G_SetClientEffects (edict_t *ent)
 		}
 	}
 
+	CTFEffects (ent);		// CTF's flags carried
+
 	if (ent->client->quad_framenum > level.framenum)
 	{
 		remaining = ent->client->quad_framenum - level.framenum;
@@ -1016,7 +1024,13 @@ newanim:
 	client->anim_duck = duck;
 	client->anim_run = run;
 
-	if (!ent->groundentity)
+	if (!ent->groundentity && client->ctf_grapple)
+	{
+		// CTF's: on the grapple, standing, not jumping
+		ent->s.frame = FRAME_stand01;
+		client->anim_end = FRAME_stand40;
+	}
+	else if (!ent->groundentity)
 	{
 		client->anim_priority = ANIM_JUMP;
 		if (ent->s.frame != FRAME_jump2)
@@ -1219,7 +1233,14 @@ void ClientEndServerFrame (edict_t *ent)
 	// if the scoreboard is up, update it
 	if (ent->client->showscores && !(level.framenum & 31) )
 	{
-		DeathmatchScoreboardMessage (ent, ent->enemy);
+		if (ent->client->menu)		// CTF's menu, not the scores
+		{
+			PMenu_Do_Update (ent);
+			ent->client->menudirty = false;
+			ent->client->menutime = level.time;
+		}
+		else
+			DeathmatchScoreboardMessage (ent, ent->enemy);
 		gi.unicast (ent, false);
 	}
 }

@@ -261,7 +261,7 @@ static int CheckPowerArmor (edict_t *ent, vec3_t point, vec3_t normal, int damag
 	}
 	else
 	{
-		damagePerCell = 2;
+		damagePerCell = ctf->value ? 1 : 2;	// power armour is weaker in CTF
 		pa_te_type = TE_SHIELD_SPARKS;
 		damage = (2 * damage) / 3;
 	}
@@ -437,6 +437,12 @@ void M_ReactToDamage (edict_t *targ, edict_t *attacker, edict_t *inflictor)
 
 qboolean CheckTeamDamage (edict_t *targ, edict_t *attacker)
 {
+	// CTF's: not your own team
+	if (ctf->value && targ->client && attacker->client)
+		if (targ->client->resp.ctf_team == attacker->client->resp.ctf_team &&
+			targ != attacker)
+			return true;
+
 		//FIXME make the next line real and uncomment this block
 		// if ((ability to damage a teammate == OFF) && (targ's team == attacker's team))
 	return false;
@@ -498,6 +504,9 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	if (!(dflags & DAMAGE_RADIUS) && (targ->svflags & SVF_MONSTER) && (attacker->client) && (!targ->enemy) && (targ->health > 0))
 		damage *= 2;
 
+	// CTF's strength tech
+	damage = CTFApplyStrength (attacker, damage);
+
 	if (targ->flags & FL_NO_KNOCKBACK)
 		knockback = 0;
 
@@ -546,14 +555,25 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 		save = damage;
 	}
 
-	psave = CheckPowerArmor (targ, point, normal, take, dflags);
-	take -= psave;
+	// CTF's: a teammate's hurt leaves your armour be, if so set
+	if (ctf->value && targ->client && attacker->client &&
+		targ->client->resp.ctf_team == attacker->client->resp.ctf_team &&
+		targ != attacker && CTF_ARMOR_PROTECT)
+		psave = asave = 0;
+	else
+	{
+		psave = CheckPowerArmor (targ, point, normal, take, dflags);
+		take -= psave;
 
-	asave = CheckArmor (targ, point, normal, take, te_sparks, dflags);
-	take -= asave;
+		asave = CheckArmor (targ, point, normal, take, te_sparks, dflags);
+		take -= asave;
+	}
 
 	//treat cheat/powerup savings the same as armor
 	asave += save;
+
+	// CTF's resistance tech
+	take = CTFApplyResistance (targ, take);
 
 	// Ground Zero's: damage to the armour and the health both (its chainfist)
 	if ((dflags & DAMAGE_DESTROY_ARMOR) && !(targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION)
@@ -563,6 +583,8 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	// team damage avoidance
 	if (!(dflags & DAMAGE_NO_PROTECTION) && CheckTeamDamage (targ, attacker))
 		return;
+
+	CTFCheckHurtCarrier (targ, attacker);
 
 // do the damage
 	if (take)
@@ -574,8 +596,8 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 		else
 			SpawnDamage (te_sparks, point, normal, take);
 
-
-		targ->health = targ->health - take;
+		if (!CTFMatchSetup ())		// CTF's: none before a match
+			targ->health = targ->health - take;
 
 		// the re-release's: a monster's healthtarget, used as it is hurt
 		if (targ->healthtarget && (targ->svflags & SVF_MONSTER))
@@ -611,7 +633,7 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	}
 	else if (client)
 	{
-		if (!(targ->flags & FL_GODMODE) && (take))
+		if (!(targ->flags & FL_GODMODE) && (take) && !CTFMatchSetup ())
 			targ->pain (targ, attacker, knockback, take);
 	}
 	else if (take)

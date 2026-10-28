@@ -308,6 +308,8 @@ void InitGame (void)
 	dmflags = gi.cvar ("dmflags", "0", CVAR_SERVERINFO);
 	fraglimit = gi.cvar ("fraglimit", "0", CVAR_SERVERINFO);
 	timelimit = gi.cvar ("timelimit", "0", CVAR_SERVERINFO);
+	capturelimit = gi.cvar ("capturelimit", "0", CVAR_SERVERINFO);	// CTF's
+	instantweap = gi.cvar ("instantweap", "0", CVAR_SERVERINFO);
 	password = gi.cvar ("password", "", CVAR_USERINFO);
 	spectator_password = gi.cvar ("spectator_password", "", CVAR_USERINFO);
 	filterban = gi.cvar ("filterban", "1", 0);
@@ -345,6 +347,8 @@ void InitGame (void)
 	game.maxclients = maxclients->value;
 	game.clients = gi.TagMalloc (game.maxclients * sizeof(game.clients[0]), TAG_GAME);
 	globals.num_edicts = game.maxclients+1;
+
+	CTFInit ();
 }
 
 //=========================================================

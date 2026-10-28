@@ -133,13 +133,21 @@ void DoRespawn (edict_t *ent)
 
 		master = ent->teammaster;
 
-		for (count = 0, ent = master; ent; ent = ent->chain, count++)
-			;
+		// CTF's: with weapons staying, only a team of weapons' master
+		// is spawned
+		if (ctf->value && ((int)dmflags->value & DF_WEAPONS_STAY)
+			&& master->item && (master->item->flags & IT_WEAPON))
+			ent = master;
+		else
+		{
+			for (count = 0, ent = master; ent; ent = ent->chain, count++)
+				;
 
-		choice = rand() % count;
+			choice = rand() % count;
 
-		for (count = 0, ent = master; count < choice; ent = ent->chain, count++)
-			;
+			for (count = 0, ent = master; count < choice; ent = ent->chain, count++)
+				;
+		}
 	}
 
 	ent->svflags &= ~SVF_NOCLIENT;
@@ -984,7 +992,8 @@ void Drop_Ammo (edict_t *ent, gitem_t *item)
 
 void MegaHealth_think (edict_t *self)
 {
-	if (self->owner->health > self->owner->max_health)
+	if (self->owner->health > self->owner->max_health
+		&& !CTFHasRegeneration (self->owner))	// CTF's AutoDoc keeps it
 	{
 		self->nextthink = level.time + 1;
 		self->owner->health -= 1;
@@ -1003,7 +1012,14 @@ qboolean Pickup_Health (edict_t *ent, edict_t *other)
 		if (other->health >= other->max_health)
 			return false;
 
+	// CTF's: no more than 250 from the big ones
+	if (ctf->value && other->health >= 250 && ent->count > 25)
+		return false;
+
 	other->health += ent->count;
+
+	if (ctf->value && other->health > 250 && ent->count > 25)
+		other->health = 250;
 
 	if (!(ent->style & HEALTH_IGNORE_MAX))
 	{
@@ -1011,7 +1027,7 @@ qboolean Pickup_Health (edict_t *ent, edict_t *other)
 			other->health = other->max_health;
 	}
 
-	if (ent->style & HEALTH_TIMED)
+	if ((ent->style & HEALTH_TIMED) && !CTFHasRegeneration (other))
 	{
 		ent->think = MegaHealth_think;
 		ent->nextthink = level.time + 5;
@@ -1212,6 +1228,9 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 		return;		// dead people can't pickup
 	if (!ent->item->pickup)
 		return;		// not a grabbable item?
+
+	if (CTFMatchSetup ())
+		return;		// CTF's: can't pick stuff up right now
 
 	taken = ent->item->pickup(ent, other);
 
@@ -1570,6 +1589,15 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 		item->drop = NULL;
 	}
 
+	// CTF's flags only in CTF (in deathmatch, with "ctf" set), as the
+	// re-release has them
+	if ((!ctf->value || !deathmatch->value) && (!strcmp (ent->classname, "item_flag_team1")
+		|| !strcmp (ent->classname, "item_flag_team2")))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+
 	ent->item = item;
 	ent->nextthink = level.time + 2 * FRAMETIME;    // items start after other solids
 	ent->think = droptofloor;
@@ -1577,6 +1605,10 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 	ent->s.renderfx = RF_GLOW;
 	if (ent->model)
 		gi.modelindex (ent->model);
+
+	// flags are server animated and have special handling
+	if (!strcmp (ent->classname, "item_flag_team1") || !strcmp (ent->classname, "item_flag_team2"))
+		ent->think = CTFFlagSetup;
 }
 
 //======================================================================
@@ -3284,6 +3316,166 @@ The re-release's compass, every player's in single player on its maps
 		NULL,
 		0,
 /* precache */ "misc/help_marker.wav models/objects/pointer/tris.md2"
+	},
+
+/* weapon_grapple (.3 .3 1) (-16 -16 -16) (16 16 16)
+CTF's grapple: always owned in CTF (g_allow_grapple), never in the world
+*/
+	{
+		"weapon_grapple",
+		NULL,
+		Use_Weapon,
+		NULL,
+		CTFWeapon_Grapple,
+		"misc/w_pkup.wav",
+		NULL, 0,
+		"models/weapons/grapple/tris.md2",
+/* icon */		"w_grapple",
+/* pickup */	"Grapple",
+		0,
+		0,
+		NULL,
+		IT_WEAPON,
+		WEAP_GRAPPLE,
+		NULL,
+		0,
+/* precache */ "weapons/grapple/grfire.wav weapons/grapple/grpull.wav weapons/grapple/grhang.wav weapons/grapple/grreset.wav weapons/grapple/grhit.wav"
+	},
+
+/*QUAKED item_flag_team1 (1 0.2 0) (-16 -16 -24) (16 16 32)
+CTF's red flag; only in CTF
+*/
+	{
+		"item_flag_team1",
+		CTFPickup_Flag,
+		NULL,
+		CTFDrop_Flag,
+		NULL,
+		"ctf/flagtk.wav",
+		"players/male/flag1.md2", EF_FLAG1,
+		NULL,
+/* icon */		"i_ctf1",
+/* pickup */	"Red Flag",
+/* width */		2,
+		0,
+		NULL,
+		0,
+		0,
+		NULL,
+		0,
+/* precache */ "ctf/flagcap.wav"
+	},
+
+/*QUAKED item_flag_team2 (1 0.2 0) (-16 -16 -24) (16 16 32)
+CTF's blue flag; only in CTF
+*/
+	{
+		"item_flag_team2",
+		CTFPickup_Flag,
+		NULL,
+		CTFDrop_Flag,
+		NULL,
+		"ctf/flagtk.wav",
+		"players/male/flag2.md2", EF_FLAG2,
+		NULL,
+/* icon */		"i_ctf2",
+/* pickup */	"Blue Flag",
+/* width */		2,
+		0,
+		NULL,
+		0,
+		0,
+		NULL,
+		0,
+/* precache */ "ctf/flagcap.wav"
+	},
+
+/* CTF's Resistance Tech */
+	{
+		"item_tech1",
+		CTFPickup_Tech,
+		NULL,
+		CTFDrop_Tech,
+		NULL,
+		"items/pkup.wav",
+		"models/ctf/resistance/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"tech1",
+/* pickup */	"Disruptor Shield",
+/* width */		2,
+		0,
+		NULL,
+		IT_TECH,
+		0,
+		NULL,
+		0,
+/* precache */ "ctf/tech1.wav"
+	},
+
+/* CTF's Strength Tech */
+	{
+		"item_tech2",
+		CTFPickup_Tech,
+		NULL,
+		CTFDrop_Tech,
+		NULL,
+		"items/pkup.wav",
+		"models/ctf/strength/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"tech2",
+/* pickup */	"Power Amplifier",
+/* width */		2,
+		0,
+		NULL,
+		IT_TECH,
+		0,
+		NULL,
+		0,
+/* precache */ "ctf/tech2.wav ctf/tech2x.wav"
+	},
+
+/* CTF's Haste Tech */
+	{
+		"item_tech3",
+		CTFPickup_Tech,
+		NULL,
+		CTFDrop_Tech,
+		NULL,
+		"items/pkup.wav",
+		"models/ctf/haste/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"tech3",
+/* pickup */	"Time Accel",
+/* width */		2,
+		0,
+		NULL,
+		IT_TECH,
+		0,
+		NULL,
+		0,
+/* precache */ "ctf/tech3.wav"
+	},
+
+/* CTF's Regeneration Tech */
+	{
+		"item_tech4",
+		CTFPickup_Tech,
+		NULL,
+		CTFDrop_Tech,
+		NULL,
+		"items/pkup.wav",
+		"models/ctf/regeneration/tris.md2", EF_ROTATE,
+		NULL,
+/* icon */		"tech4",
+/* pickup */	"AutoDoc",
+/* width */		2,
+		0,
+		NULL,
+		IT_TECH,
+		0,
+		NULL,
+		0,
+/* precache */ "ctf/tech4.wav"
 	},
 
 	// end of list marker

@@ -293,8 +293,6 @@ spawn_t	spawns[] = {
 	{"misc_ctf_small_banner", SP_misc_ctf_small_banner},
 	{"info_player_team1", SP_info_player_team},
 	{"info_player_team2", SP_info_player_team},
-	{"item_flag_team1", SP_game_mode_only},
-	{"item_flag_team2", SP_game_mode_only},
 	{"dm_tag_token", SP_game_mode_only},
 	{"info_player_coop_lava", SP_info_player_coop_lava},
 	{"info_world_text", SP_info_world_text},
@@ -802,6 +800,7 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 #endif
 
 	G_FindTeams ();
+	CTFSpawn ();		// CTF's
 	G_SetupShadowLights ();
 	InitHintPaths ();
 	Nav_Load (level.mapname);
@@ -1062,7 +1061,19 @@ void SP_worldspawn (edict_t *ent)
 	gi.configstring (CS_MAXCLIENTS, va("%i", (int)(maxclients->value) ) );
 
 	// status bar program
-	if (deathmatch->value)
+	if (deathmatch->value && ctf->value)
+	{
+		// CTF's, and its pictures
+		gi.configstring (CS_STATUSBAR, ctf_statusbar);
+		gi.imageindex ("i_ctf1");
+		gi.imageindex ("i_ctf2");
+		gi.imageindex ("i_ctf1d");
+		gi.imageindex ("i_ctf2d");
+		gi.imageindex ("i_ctf1t");
+		gi.imageindex ("i_ctf2t");
+		gi.imageindex ("i_ctfj");
+	}
+	else if (deathmatch->value)
 		gi.configstring (CS_STATUSBAR, dm_statusbar);
 	else
 		gi.configstring (CS_STATUSBAR, single_statusbar);
@@ -1145,6 +1156,7 @@ void SP_worldspawn (edict_t *ent)
 	gi.modelindex ("#a_trap.md2");
 	gi.modelindex ("#w_etfrifle.md2");
 	gi.modelindex ("#w_plauncher.md2");
+	gi.modelindex ("#w_grapple.md2");		// CTF's grapple, WEAP_GRAPPLE
 
 	//-------------------
 

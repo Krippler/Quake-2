@@ -418,6 +418,10 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				message = "tried to invade";
 				message2 = "'s personal space";
 				break;
+			case MOD_GRAPPLE:			// CTF's
+				message = "was caught by";
+				message2 = "'s grapple";
+				break;
 			}
 			if (message)
 			{
@@ -543,6 +547,7 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 	self->movetype = MOVETYPE_TOSS;
 
 	self->s.modelindex2 = 0;	// remove linked weapon model
+	self->s.modelindex3 = 0;	// and CTF's flag
 
 	self->s.angles[0] = 0;
 	self->s.angles[2] = 0;
@@ -561,7 +566,22 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 		LookAtKiller (self, inflictor, attacker);
 		self->client->ps.pmove.pm_type = PM_DEAD;
 		ClientObituary (self, inflictor, attacker);
+
+		// CTF's: telefragged by a teammate at the start, it was no frag
+		if (ctf->value && meansOfDeath == MOD_TELEFRAG && attacker->client &&
+			self->client->resp.ctf_state < 2 &&
+			self->client->resp.ctf_team == attacker->client->resp.ctf_team)
+		{
+			attacker->client->resp.score--;
+			self->client->resp.ctf_state = 0;
+		}
+		CTFFragBonuses (self, inflictor, attacker);
+
 		TossClientWeapon (self);
+
+		CTFPlayerResetGrapple (self);
+		CTFDeadDropFlag (self);
+		CTFDeadDropTech (self);
 		if (deathmatch->value)
 			Cmd_Help_f (self);		// show scores
 
@@ -652,6 +672,11 @@ void InitClientPersistant (gclient_t *client)
 	client->pers.inventory[client->pers.selected_item] = 1;
 
 	client->pers.weapon = item;
+	client->pers.lastweapon = item;
+
+	// CTF's grapple: in CTF, or as g_allow_grapple says
+	if (deathmatch->value && (!Q_stricmp (g_allow_grapple->string, "auto") ? ctf->value : g_allow_grapple->value))
+		client->pers.inventory[ITEM_INDEX (FindItem ("Grapple"))] = 1;
 
 	client->pers.health			= 100;
 	client->pers.max_health		= 100;
@@ -675,9 +700,18 @@ void InitClientPersistant (gclient_t *client)
 
 void InitClientResp (gclient_t *client)
 {
+	// CTF's team and id view are kept
+	int			ctf_team = client->resp.ctf_team;
+	qboolean	id_state = client->resp.id_state;
+
 	memset (&client->resp, 0, sizeof(client->resp));
+	client->resp.ctf_team = ctf_team;
+	client->resp.id_state = id_state;
 	client->resp.enterframe = level.framenum;
 	client->resp.coop_respawn = client->pers;
+
+	if (ctf->value && client->resp.ctf_team < CTF_TEAM1)
+		CTFAssignTeam (client);
 }
 
 /*
@@ -984,7 +1018,9 @@ void	SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles)
 {
 	edict_t	*spot = NULL;
 
-	if (deathmatch->value)
+	if (deathmatch->value && ctf->value)
+		spot = SelectCTFSpawnPoint (ent);	// CTF's: its team's
+	else if (deathmatch->value)
 		spot = SelectDeathmatchSpawnPoint ();
 	else if (coop->value)
 		spot = SelectCoopSpawnPoint (ent);
@@ -1331,6 +1367,7 @@ void PutClientInServer (edict_t *ent)
 	client->ps.pmove.origin[0] = spawn_origin[0]*8;
 	client->ps.pmove.origin[1] = spawn_origin[1]*8;
 	client->ps.pmove.origin[2] = spawn_origin[2]*8;
+	client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;	// CTF's: as an observer it was not
 
 	if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV))
 	{
@@ -1396,6 +1433,10 @@ void PutClientInServer (edict_t *ent)
 	} else
 		client->resp.spectator = false;
 
+	// CTF's: not on a team yet, an observer, to its menu
+	if (CTFStartClient (ent))
+		return;
+
 	if (!KillBox (ent))
 	{	// could't spawn in?
 	}
@@ -1419,6 +1460,9 @@ void ClientBeginDeathmatch (edict_t *ent)
 {
 	G_InitEdict (ent);
 
+	// CTF's: a team to be joined, afresh
+	ent->client->resp.ctf_team = ctf->value ? -1 : CTF_NOTEAM;
+	ent->client->resp.id_state = false;
 	InitClientResp (ent->client);
 
 	// locate ent at a spawn point
@@ -1544,8 +1588,11 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 
 	playernum = ent-g_edicts-1;
 
-	// combine name and skin into a configstring
-	gi.configstring (CS_PLAYERSKINS+playernum, va("%s\\%s", ent->client->pers.netname, s) );
+	// combine name and skin into a configstring; in CTF, its team's
+	if (ctf->value)
+		CTFAssignSkin (ent, s);
+	else
+		gi.configstring (CS_PLAYERSKINS+playernum, va("%s\\%s", ent->client->pers.netname, s) );
 
 	// fov
 	if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV))
@@ -1666,6 +1713,9 @@ void ClientDisconnect (edict_t *ent)
 		return;
 
 	gi.bprintf (PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
+
+	CTFDeadDropFlag (ent);		// CTF's
+	CTFDeadDropTech (ent);
 
 	// send effect
 	gi.WriteByte (svc_muzzleflash);
@@ -1853,6 +1903,9 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 			VectorCopy (pm.viewangles, client->ps.viewangles);
 		}
 
+		if (client->ctf_grapple)		// CTF's grapple pulls
+			CTFGrapplePull (client->ctf_grapple);
+
 		gi.linkentity (ent);
 
 		if (ent->movetype != MOVETYPE_NOCLIP)
@@ -1895,11 +1948,13 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 			} else
 				GetChaseTarget(ent);
 
-		} else if (!client->weapon_thunk) {
+		} else if (!client->weapon_thunk && !(ctf->value && ent->movetype == MOVETYPE_NOCLIP)) {	// (CTF's observers)
 			client->weapon_thunk = true;
 			Think_Weapon (ent);
 		}
 	}
+
+	CTFApplyRegeneration (ent);		// CTF's regeneration tech
 
 	if (client->resp.spectator) {
 		if (ucmd->upmove >= 10) {
@@ -1919,6 +1974,15 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		other = g_edicts + i;
 		if (other->inuse && other->client->chase_target == ent)
 			UpdateChaseCam(other);
+	}
+
+	// CTF's menus
+	if (client->menudirty && client->menutime <= level.time)
+	{
+		PMenu_Do_Update (ent);
+		gi.unicast (ent, true);
+		client->menutime = level.time;
+		client->menudirty = false;
 	}
 }
 
@@ -1949,7 +2013,7 @@ void ClientBeginServerFrame (edict_t *ent)
 	}
 
 	// run weapon animations if it hasn't been done by a ucmd_t
-	if (!client->weapon_thunk && !client->resp.spectator)
+	if (!client->weapon_thunk && !client->resp.spectator && !(ctf->value && ent->movetype == MOVETYPE_NOCLIP))
 		Think_Weapon (ent);
 	else
 		client->weapon_thunk = false;

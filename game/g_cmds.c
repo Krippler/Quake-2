@@ -71,6 +71,10 @@ void SelectNextItem (edict_t *ent, int itflags)
 
 	cl = ent->client;
 
+	if (cl->menu) {			// CTF's menus
+		PMenu_Next(ent);
+		return;
+	}
 	if (cl->chase_target) {
 		ChaseNext(ent);
 		return;
@@ -103,6 +107,10 @@ void SelectPrevItem (edict_t *ent, int itflags)
 
 	cl = ent->client;
 
+	if (cl->menu) {			// CTF's menus
+		PMenu_Prev(ent);
+		return;
+	}
 	if (cl->chase_target) {
 		ChasePrev(ent);
 		return;
@@ -435,6 +443,13 @@ void Cmd_Drop_f (edict_t *ent)
 	gitem_t		*it;
 	char		*s;
 
+	// CTF's: "drop tech", whichever it is
+	if (Q_stricmp (gi.args (), "tech") == 0 && (it = CTFWhat_Tech (ent)) != NULL)
+	{
+		it->drop (ent, it);
+		return;
+	}
+
 	s = gi.args();
 	it = FindItem (s);
 	if (!it)
@@ -473,9 +488,22 @@ void Cmd_Inven_f (edict_t *ent)
 	cl->showscores = false;
 	cl->showhelp = false;
 
+	if (ent->client->menu)		// CTF's menu closed
+	{
+		PMenu_Close (ent);
+		ent->client->update_chase = true;
+		return;
+	}
+
 	if (cl->showinventory)
 	{
 		cl->showinventory = false;
+		return;
+	}
+
+	if (ctf->value && cl->resp.ctf_team == CTF_NOTEAM)	// and opened to join
+	{
+		CTFOpenJoinMenu (ent);
 		return;
 	}
 
@@ -497,6 +525,12 @@ Cmd_InvUse_f
 void Cmd_InvUse_f (edict_t *ent)
 {
 	gitem_t		*it;
+
+	if (ent->client->menu)		// CTF's menu chosen from
+	{
+		PMenu_Select (ent);
+		return;
+	}
 
 	ValidateSelectedItem (ent);
 
@@ -647,6 +681,8 @@ Cmd_Kill_f
 */
 void Cmd_Kill_f (edict_t *ent)
 {
+	if (ent->solid == SOLID_NOT && !ent->deadflag)
+		return;		// an observer, as CTF's are, a spectator
 	if((level.time - ent->client->respawn_time) < 5)
 		return;
 	ent->flags &= ~FL_GODMODE;
@@ -665,6 +701,9 @@ void Cmd_PutAway_f (edict_t *ent)
 	ent->client->showscores = false;
 	ent->client->showhelp = false;
 	ent->client->showinventory = false;
+	if (ent->client->menu)		// CTF's
+		PMenu_Close (ent);
+	ent->client->update_chase = true;
 }
 
 
@@ -781,6 +820,44 @@ void Cmd_Wave_f (edict_t *ent)
 
 /*
 ==================
+CheckFlood
+
+Whether a player is talking too much to be let (flood_msgs a
+flood_persecond, then flood_waitdelay quiet); CTF's team chat too
+==================
+*/
+qboolean CheckFlood (edict_t *ent)
+{
+	int			i;
+	gclient_t	*cl;
+
+	if (flood_msgs->value) {
+		cl = ent->client;
+
+        if (level.time < cl->flood_locktill) {
+			gi.cprintf(ent, PRINT_HIGH, "You can't talk for %d more seconds\n",
+				(int)(cl->flood_locktill - level.time));
+            return true;
+        }
+        i = cl->flood_whenhead - flood_msgs->value + 1;
+        if (i < 0)
+            i = (sizeof(cl->flood_when)/sizeof(cl->flood_when[0])) + i;
+		if (cl->flood_when[i] && 
+			level.time - cl->flood_when[i] < flood_persecond->value) {
+			cl->flood_locktill = level.time + flood_waitdelay->value;
+			gi.cprintf(ent, PRINT_CHAT, "Flood protection:  You can't talk for %d seconds.\n",
+				(int)flood_waitdelay->value);
+            return true;
+        }
+		cl->flood_whenhead = (cl->flood_whenhead + 1) %
+			(sizeof(cl->flood_when)/sizeof(cl->flood_when[0]));
+		cl->flood_when[cl->flood_whenhead] = level.time;
+	}
+	return false;
+}
+
+/*
+==================
 Cmd_Say_f
 ==================
 */
@@ -827,28 +904,8 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 
 	strcat(text, "\n");
 
-	if (flood_msgs->value) {
-		cl = ent->client;
-
-        if (level.time < cl->flood_locktill) {
-			gi.cprintf(ent, PRINT_HIGH, "You can't talk for %d more seconds\n",
-				(int)(cl->flood_locktill - level.time));
-            return;
-        }
-        i = cl->flood_whenhead - flood_msgs->value + 1;
-        if (i < 0)
-            i = (sizeof(cl->flood_when)/sizeof(cl->flood_when[0])) + i;
-		if (cl->flood_when[i] && 
-			level.time - cl->flood_when[i] < flood_persecond->value) {
-			cl->flood_locktill = level.time + flood_waitdelay->value;
-			gi.cprintf(ent, PRINT_CHAT, "Flood protection:  You can't talk for %d seconds.\n",
-				(int)flood_waitdelay->value);
-            return;
-        }
-		cl->flood_whenhead = (cl->flood_whenhead + 1) %
-			(sizeof(cl->flood_when)/sizeof(cl->flood_when[0]));
-		cl->flood_when[cl->flood_whenhead] = level.time;
-	}
+	if (CheckFlood (ent))
+		return;
 
 	if (dedicated->value)
 		gi.cprintf(NULL, PRINT_CHAT, "%s", text);
@@ -924,9 +981,12 @@ void ClientCommand (edict_t *ent)
 		Cmd_Say_f (ent, false, false);
 		return;
 	}
-	if (Q_stricmp (cmd, "say_team") == 0)
+	if (Q_stricmp (cmd, "say_team") == 0 || Q_stricmp (cmd, "steam") == 0)
 	{
-		Cmd_Say_f (ent, true, false);
+		if (ctf->value)		// CTF's, with its %-codes
+			CTFSay_Team (ent, gi.args ());
+		else
+			Cmd_Say_f (ent, true, false);
 		return;
 	}
 	if (Q_stricmp (cmd, "score") == 0)
@@ -986,7 +1046,37 @@ void ClientCommand (edict_t *ent)
 	else if (Q_stricmp (cmd, "wave") == 0)
 		Cmd_Wave_f (ent);
 	else if (Q_stricmp(cmd, "playerlist") == 0)
-		Cmd_PlayerList_f(ent);
+	{
+		if (ctf->value)
+			CTFPlayerList (ent);
+		else
+			Cmd_PlayerList_f(ent);
+	}
+	// CTF's
+	else if (Q_stricmp (cmd, "team") == 0)
+		CTFTeam_f (ent);
+	else if (Q_stricmp (cmd, "id") == 0)
+		CTFID_f (ent);
+	else if (Q_stricmp (cmd, "yes") == 0)
+		CTFVoteYes (ent);
+	else if (Q_stricmp (cmd, "no") == 0)
+		CTFVoteNo (ent);
+	else if (Q_stricmp (cmd, "ready") == 0)
+		CTFReady (ent);
+	else if (Q_stricmp (cmd, "notready") == 0)
+		CTFNotReady (ent);
+	else if (Q_stricmp (cmd, "ghost") == 0)
+		CTFGhost (ent);
+	else if (Q_stricmp (cmd, "admin") == 0)
+		CTFAdmin (ent);
+	else if (Q_stricmp (cmd, "stats") == 0)
+		CTFStats (ent);
+	else if (Q_stricmp (cmd, "warp") == 0)
+		CTFWarp (ent);
+	else if (Q_stricmp (cmd, "boot") == 0)
+		CTFBoot (ent);
+	else if (Q_stricmp (cmd, "observer") == 0)
+		CTFObserver (ent);
 	else	// anything that doesn't match a command will be a chat
 		Cmd_Say_f (ent, false, true);
 }
