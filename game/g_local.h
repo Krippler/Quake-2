@@ -1258,6 +1258,11 @@ typedef struct
 	int			helpchanged;
 
 	qboolean	spectator;			// client is a spectator
+
+	// the re-release's: the fog this player is to have (FOG_VALUES), and
+	// how long, in seconds, to go over to it (trigger_fog)
+	float		wanted_fog[FOG_VALUES];
+	float		fog_transition_time;
 } client_persistant_t;
 
 // client data that stays across deathmatch respawns
@@ -1345,6 +1350,11 @@ struct gclient_s
 	float		nuke_framenum;				// and the A-M bomb's flash, till then
 	float		ir_framenum;				// and the IR goggles
 	edict_t		*owned_sphere;				// and the sphere about them
+
+	// the fog last sent them (gi.SetFog), and whether it has to be again
+	// (a new level, a loaded game), at once
+	float		fog[FOG_VALUES];
+	qboolean	fog_unsent;
 	float		quadfire_framenum;			// The Reckoning's DualFire
 	float		invincible_framenum;
 	float		breather_framenum;
@@ -1547,6 +1557,12 @@ struct edict_s
 		qboolean	enabled, alternate, currently_alternate;
 		float	next_tick;
 	} bmodel_anim;
+
+	// the re-release's fog keys (FOG_VALUES, q_shared.h): the world's own,
+	// and a trigger_fog's (or the info_notnull it targets) going one way
+	// and, _off, the other
+	float		fog[FOG_VALUES];
+	float		fog_off[FOG_VALUES];
 
 	// Ground Zero's hint_path: the next on its chain, which chain, and its
 	// links as monsterlost_checkhint sorts them

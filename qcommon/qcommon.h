@@ -228,7 +228,8 @@ enum svc_ops_e
 	svc_packetentities,			// [...]
 	svc_deltapacketentities,	// [...]
 	svc_frame,
-	svc_muzzleflash3			// the re-release's: svc_muzzleflash2, its flash a short
+	svc_muzzleflash3,			// the re-release's: svc_muzzleflash2, its flash a short
+	svc_fog						// this engine's, to q2ext clients: [short] msec, FOG_VALUES floats
 };
 
 //==============================================

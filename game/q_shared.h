@@ -1216,6 +1216,21 @@ ROGUE - VERSIONS
 #define	CS_SHADOWLIGHTS		CS_GENERAL
 #define	MAX_SHADOWLIGHT_CS	256
 
+// the re-release's fog, as the game sets a player's (gi.SetFog), svc_fog
+// carries it and refdef_t has it: its distance fog's density, colour and
+// how much of it the sky takes, then its height fog's colour and height
+// where it starts and ends, its falloff and its density; colours 0 to 1
+#define	FOG_DENSITY			0
+#define	FOG_COLOR			1		// 3
+#define	FOG_SKY_FACTOR		4
+#define	FOG_HF_START_COLOR	5		// 3
+#define	FOG_HF_START_DIST	8
+#define	FOG_HF_END_COLOR	9		// 3
+#define	FOG_HF_END_DIST		12
+#define	FOG_HF_FALLOFF		13
+#define	FOG_HF_DENSITY		14
+#define	FOG_VALUES			15
+
 // the re-release's health bar's name, after them (g_cotm.c, cl_scrn.c)
 #define	CS_HEALTH_BAR_NAME	(CS_SHADOWLIGHTS+MAX_SHADOWLIGHT_CS)
 

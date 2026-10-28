@@ -1364,6 +1364,10 @@ void PutClientInServer (edict_t *ent)
 	for (i=0 ; i<3 ; i++)
 		client->ps.pmove.delta_angles[i] = ANGLE2SHORT(spawn_angles[i] - client->resp.cmd_angles[i]);
 
+	// the re-release's: the level's own fog, at once
+	memcpy (client->pers.wanted_fog, g_edicts[0].fog, sizeof(client->pers.wanted_fog));
+	client->fog_unsent = true;
+
 	ent->s.angles[PITCH] = 0;
 	ent->s.angles[YAW] = spawn_angles[YAW];
 	ent->s.angles[ROLL] = 0;
@@ -1456,6 +1460,9 @@ void ClientBegin (edict_t *ent)
 		// with deltaangles
 		for (i=0 ; i<3 ; i++)
 			ent->client->ps.pmove.delta_angles[i] = ANGLE2SHORT(ent->client->ps.viewangles[i]);
+
+		// and the fog it had, sent again
+		ent->client->fog_unsent = true;
 	}
 	else
 	{

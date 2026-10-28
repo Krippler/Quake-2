@@ -820,6 +820,8 @@ void	R_CinematicSetPalette( const unsigned char *palette );
 
 extern unsigned d_8to24table[256]; // base
 extern cvar_t	*sw_colorlight;
+extern cvar_t	*sw_fog;		// the re-release's fog (r_fog.c)
+void R_ApplyFog (void);
 void	R_InitColorLight (void);
 byte	R_RGBToPalette (int r, int g, int b);
 void	LoadPNG (char *name, byte **pic, int *width, int *height);

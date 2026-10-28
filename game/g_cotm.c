@@ -538,8 +538,8 @@ void SP_func_animation (edict_t *self)
 /*
 ==============================================================================
 
-What has no part here: its health bars, autosaves, fog and flashlight
-triggers are the re-release's engine's. Taken out quietly.
+Its health bars and autosaves; and, for whatever has no part here, a
+spawn function that takes it out quietly.
 
 ==============================================================================
 */

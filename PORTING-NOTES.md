@@ -278,7 +278,9 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     `target_sky` (the client takes up a sky changed mid-level,
     `cl_parse.c`; with the re-release's `skyautorotate`), `target_story` (centre-printed), `target_steam`,
     `func_eye`, The Reckoning's `misc_nuke`, and `monster_makron` in the
-    spawn table; `trigger_fog` is dropped. A brush model's
+    spawn table. `trigger_fog` (`g_trigger.c`) changes a player's fog,
+    going in one way or the other, or blended by how far in they are,
+    over its `delay`. A brush model's
     `bmodel_anim_` keys are the re-release's texture animation
     (`edict_t.bmodel_anim`, run first in `G_RunEntity` by
     `G_RunBmodelAnimation`): its frame stepped through a range at a
@@ -938,6 +940,23 @@ by `CS_SKYROTATE`'s speed, or, the re-release's second number 0 --
 maps turn theirs so that their suns are where their light comes from),
 and `R_EmitSkyBox` turns the box's corners, planes and texture axes about
 `skyaxis` by it.
+
+**`ref_soft/r_fog.c`** (new), **`client/cl_parse.c`**, **`server/sv_game.c`**:
+the re-release's fog, its distance fog and its height fog, which 102 of its
+maps have and trigger_fog changes as you go. The game works out the fog each
+player is to have (the world's fog keys, then `trigger_fog`'s) and says it
+by `gi.SetFog` (appended to `game_import_t`) when it changes, with how long
+to take over it; the server sends it, reliably, as `svc_fog` (after
+`svc_muzzleflash3`), to clients that say `q2ext`; the client goes over to
+it in that time and gives it the renderer in `refdef_t.fog`. The renderer
+goes over the view once drawn, before the underwater warp, by the depths
+the z-buffer kept (0x8000/z; the sky's are negative), with the formulas of
+the re-release's shaders as q2pro-ng has them: distance fog by depth, the
+sky by its sky factor, height fog by where each pixel is in the world. The
+colours are mixed and taken back to the palette through sw_colorlight's
+nearest colours; distance fog alone through tables of 64 levels for each
+colour, dithered, height fog for each pixel (its extinction and colour for
+each 2x2 block). `sw_fog 0` turns it off.
 
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,

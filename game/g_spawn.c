@@ -135,6 +135,7 @@ void SP_cotm_none (edict_t *ent);
 void SP_target_healthbar (edict_t *ent);
 void SP_target_autosave (edict_t *ent);
 void SP_trigger_flashlight (edict_t *ent);
+void SP_trigger_fog (edict_t *ent);
 void SP_target_secret (edict_t *ent);
 void SP_target_goal (edict_t *ent);
 void SP_target_splash (edict_t *ent);
@@ -325,7 +326,7 @@ spawn_t	spawns[] = {
 	{"monster_makron", SP_monster_makron},
 	{"target_healthbar", SP_target_healthbar},
 	{"target_autosave", SP_target_autosave},
-	{"trigger_fog", SP_cotm_none},
+	{"trigger_fog", SP_trigger_fog},
 	{"trigger_flashlight", SP_trigger_flashlight},
 	{"target_secret", SP_target_secret},
 	{"target_goal", SP_target_goal},

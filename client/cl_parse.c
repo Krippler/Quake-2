@@ -46,7 +46,8 @@ char *svc_strings[256] =
 	"svc_packetentities",
 	"svc_deltapacketentities",
 	"svc_frame",
-	"svc_muzzleflash3"
+	"svc_muzzleflash3",
+	"svc_fog"
 };
 
 //=============================================================================
@@ -661,6 +662,38 @@ void SHOWNET(char *s)
 
 /*
 =====================
+CL_ParseFog
+
+svc_fog: the fog to go over to, from as it is now, in so many
+milliseconds (the re-release's trigger_fog, a level's own at once)
+=====================
+*/
+void CL_ParseFog (void)
+{
+	int		i, msec = MSG_ReadShort (&net_message) & 0xffff;
+
+	CL_CurrentFog (cl.fog_from);
+	for (i = 0 ; i < FOG_VALUES ; i++)
+		cl.fog_to[i] = MSG_ReadFloat (&net_message);
+	cl.fog_start = cl.time;
+	cl.fog_msec = msec;
+}
+
+void CL_CurrentFog (float *fog)
+{
+	int		i;
+	float	f = 1;
+
+	if (cl.fog_msec > 0 && cl.time < cl.fog_start + cl.fog_msec)
+		f = (cl.time - cl.fog_start) / (float)cl.fog_msec;
+	if (f < 0)
+		f = 0;
+	for (i = 0 ; i < FOG_VALUES ; i++)
+		fog[i] = cl.fog_from[i] + (cl.fog_to[i] - cl.fog_from[i]) * f;
+}
+
+/*
+=====================
 CL_ParseServerMessage
 =====================
 */
@@ -784,6 +817,10 @@ void CL_ParseServerMessage (void)
 
 		case svc_muzzleflash3:
 			CL_ParseMuzzleFlash2 (true);
+			break;
+
+		case svc_fog:
+			CL_ParseFog ();
 			break;
 
 		case svc_download:

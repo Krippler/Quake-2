@@ -879,3 +879,118 @@ void SP_trigger_flashlight (edict_t *self)
 	self->movedir[2] = (float) st.height;
 	gi.linkentity (self);
 }
+
+
+/*QUAKED trigger_fog (.5 .5 .5) ? AFFECT_FOG AFFECT_HEIGHTFOG INSTANTANEOUS FORCE BLEND
+The re-release's: a player moving through it has their fog changed, to
+its fog_ and heightfog_ keys going the way of "angle", to its _off ones
+going against it. AFFECT_FOG and AFFECT_HEIGHTFOG say which it changes.
+INSTANTANEOUS: at once, not over "delay" seconds (0.5 if not given).
+FORCE: always to the first, whichever way they go. BLEND: between the two
+by how far through it they are, the way of "angle".
+"target": an info_notnull to take the keys from instead.
+"wait": seconds before it changes anyone's fog again.
+*/
+#define SPAWNFLAG_FOG_AFFECT_FOG		1
+#define SPAWNFLAG_FOG_AFFECT_HEIGHTFOG	2
+#define SPAWNFLAG_FOG_INSTANTANEOUS		4
+#define SPAWNFLAG_FOG_FORCE				8
+#define SPAWNFLAG_FOG_BLEND				16
+
+static void trigger_fog_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+	edict_t	*from = self->movetarget ? self->movetarget : self;
+	float	*wanted, on[FOG_VALUES];
+	float	dist, len;
+	vec3_t	center, half, start, end, pd, v;
+	int		i;
+
+	if (!other->client)
+		return;
+
+	if (self->timestamp > level.time)
+		return;
+	self->timestamp = level.time + self->wait;
+
+	if (self->spawnflags & SPAWNFLAG_FOG_INSTANTANEOUS)
+		other->client->pers.fog_transition_time = 0;
+	else
+		other->client->pers.fog_transition_time = from->delay;
+
+	if (self->spawnflags & SPAWNFLAG_FOG_BLEND)
+	{
+		// how far through it they are, the way it points: 0 at its back,
+		// 1 at its front
+		for (i = 0 ; i < 3 ; i++)
+		{
+			center[i] = (self->absmin[i] + self->absmax[i]) * 0.5;
+			half[i] = self->size[i] * 0.5 + other->size[i] * 0.5;
+			start[i] = -self->movedir[i] * half[i];
+			end[i] = self->movedir[i] * half[i];
+			pd[i] = (other->s.origin[i] - center[i]) * fabs (self->movedir[i]);
+		}
+		VectorSubtract (pd, start, v);
+		dist = VectorLength (v);
+		VectorSubtract (start, end, v);
+		len = VectorLength (v);
+		dist = len > 0 ? dist / len : 1;
+		if (dist < 0)
+			dist = 0;
+		else if (dist > 1)
+			dist = 1;
+		for (i = 0 ; i < FOG_VALUES ; i++)
+			on[i] = from->fog_off[i] + (from->fog[i] - from->fog_off[i]) * dist;
+		wanted = on;
+	}
+	else
+	{
+		qboolean	use_on = true;
+
+		if (!(self->spawnflags & SPAWNFLAG_FOG_FORCE))
+		{
+			VectorCopy (other->velocity, v);
+			// not moving enough to say which way, as on a lift
+			if (VectorNormalize (v) <= 0.0001)
+				return;
+			use_on = DotProduct (v, self->movedir) > 0;
+		}
+		wanted = use_on ? from->fog : from->fog_off;
+	}
+
+	if (self->spawnflags & SPAWNFLAG_FOG_AFFECT_FOG)
+		for (i = FOG_DENSITY ; i <= FOG_SKY_FACTOR ; i++)
+			other->client->pers.wanted_fog[i] = wanted[i];
+	if (self->spawnflags & SPAWNFLAG_FOG_AFFECT_HEIGHTFOG)
+		for (i = FOG_HF_START_COLOR ; i <= FOG_HF_DENSITY ; i++)
+			other->client->pers.wanted_fog[i] = wanted[i];
+}
+
+// the info_notnull to take the keys from is found once all are spawned
+static void trigger_fog_find (edict_t *self)
+{
+	self->movetarget = G_PickTarget (self->target);
+	if (self->movetarget && !self->movetarget->delay)
+		self->movetarget->delay = 0.5;
+}
+
+void SP_trigger_fog (edict_t *self)
+{
+	if (self->s.angles[YAW] == 0)
+		self->s.angles[YAW] = 360;
+	InitTrigger (self);
+
+	if (!(self->spawnflags & (SPAWNFLAG_FOG_AFFECT_FOG | SPAWNFLAG_FOG_AFFECT_HEIGHTFOG)))
+		gi.dprintf ("%s at %s with no fog spawnflags\n", self->classname, vtos (self->absmin));
+
+	if (self->target)
+	{
+		self->think = trigger_fog_find;
+		self->nextthink = level.time + FRAMETIME;
+	}
+
+	if (!self->delay)
+		self->delay = 0.5;
+
+	self->touch = trigger_fog_touch;
+	gi.linkentity (self);
+}

@@ -205,6 +205,11 @@ typedef struct
 	// this engine's: a box's move against one entity alone, its brushes if
 	// it has an inline model (the re-release's gi.clip)
 	trace_t	(*Clip) (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int contentmask);
+
+	// this engine's: a player's fog (the re-release's), FOG_VALUES of
+	// them as q_shared.h has them, gone over to in msec milliseconds, for
+	// clients that draw it
+	void	(*SetFog) (edict_t *ent, float *fog, int msec);
 } game_import_t;
 
 //

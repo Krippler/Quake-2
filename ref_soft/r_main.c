@@ -252,6 +252,7 @@ void R_Register (void)
 	// the coloured light of the maps' lightmaps and of the dynamic lights,
 	// in the palette's colours (r_light.c, r_surf.c); 0 for 1997's white
 	sw_colorlight = ri.Cvar_Get ("sw_colorlight", "1", CVAR_ARCHIVE);
+	sw_fog = ri.Cvar_Get ("sw_fog", "1", CVAR_ARCHIVE);
 	sw_drawflat = ri.Cvar_Get ("sw_drawflat", "0", 0);
 	sw_draworder = ri.Cvar_Get ("sw_draworder", "0", 0);
 	// How many edges and surfaces a frame may hold. Run out and faces are
@@ -1062,6 +1063,8 @@ void R_RenderFrame (refdef_t *fd)
 		dp_time2 = Sys_Milliseconds ();
 
 	R_DrawAlphaSurfaces();
+
+	R_ApplyFog ();
 
 	R_SetLightLevel ();
 

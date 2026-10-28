@@ -167,6 +167,11 @@ typedef struct
 
 	clientinfo_t	clientinfo[MAX_CLIENTS];
 	clientinfo_t	baseclientinfo;
+
+	// the re-release's fog (svc_fog): gone over to from fog_from to
+	// fog_to in fog_msec from fog_start (cl.time), CL_CurrentFog
+	float		fog_from[FOG_VALUES], fog_to[FOG_VALUES];
+	int			fog_start, fog_msec;
 } client_state_t;
 
 extern	client_state_t	cl;
@@ -514,6 +519,7 @@ void CL_ParseServerMessage (void);
 
 // cl_loc.c
 char *CL_Localize (char *s);
+void CL_CurrentFog (float *fog);
 void CL_LoadClientinfo (clientinfo_t *ci, char *s);
 void SHOWNET(char *s);
 void CL_ParseClientinfo (int player);

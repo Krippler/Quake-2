@@ -151,6 +151,9 @@ typedef struct
 	// CS_SKYROTATE's speed, or, the re-release's second number 0, that
 	// many degrees and no more
 	float		skyangle;
+
+	// the re-release's fog, FOG_VALUES as q_shared.h has them
+	float		fog[FOG_VALUES];
 } refdef_t;
 
 

@@ -1060,10 +1060,30 @@ Called for each player at the end of the server frame
 and right after spawning
 =================
 */
+/*
+The re-release's P_ForceFogTransition: the fog the player is to have sent
+them if it has changed, gone over to in their fog_transition_time, or at
+once on a new level or a loaded game.
+*/
+static void G_SendFog (edict_t *ent)
+{
+	gclient_t	*client = ent->client;
+
+	if (!client->fog_unsent && !memcmp (client->fog, client->pers.wanted_fog, sizeof(client->fog)))
+		return;
+
+	gi.SetFog (ent, client->pers.wanted_fog,
+		client->fog_unsent ? 0 : (int)(client->pers.fog_transition_time * 1000));
+	memcpy (client->fog, client->pers.wanted_fog, sizeof(client->fog));
+	client->fog_unsent = false;
+}
+
 void ClientEndServerFrame (edict_t *ent)
 {
 	float	bobtime;
 	int		i;
+
+	G_SendFog (ent);
 
 	current_player = ent;
 	current_client = ent->client;

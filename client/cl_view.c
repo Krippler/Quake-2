@@ -561,6 +561,8 @@ void V_RenderView( float stereo_separation )
 			cl.refdef.skyangle = autorotate ? cl.refdef.time * rotate : rotate;
 		}
 
+		CL_CurrentFog (cl.refdef.fog);
+
 		cl.refdef.areabits = cl.frame.areabits;
 
 		if (!cl_add_entities->value)

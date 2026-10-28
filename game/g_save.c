@@ -185,19 +185,26 @@ field_t fields[] = {
 	{"shadowlightstyletarget", STOFS(sl_styletarget), F_LSTRING, FFL_SPAWNTEMP},
 	// what the renderer has no use for: it is a shadow map's size
 	{"shadowlightresolution", 0, F_IGNORE, FFL_SPAWNTEMP},
-	// the re-release's, that this renderer has no use for: it draws no fog;
-	// its sky does not turn, so not whether it turns by itself; the frames
-	// a brush model's texture animates through are its texture's own chain
-	// here, as in 1997; and an achievement is the re-release's platform's
-	{"fog_color", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"fog_density", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"fog_sky_factor", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"heightfog_density", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"heightfog_falloff", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"heightfog_start_color", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"heightfog_end_color", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"heightfog_start_dist", 0, F_IGNORE, FFL_SPAWNTEMP},
-	{"heightfog_end_dist", 0, F_IGNORE, FFL_SPAWNTEMP},
+	// the re-release's fog (g_trigger.c, p_client.c)
+	{"fog_density", FOFS(fog[FOG_DENSITY]), F_FLOAT},
+	{"fog_color", FOFS(fog[FOG_COLOR]), F_VECTOR},
+	{"fog_sky_factor", FOFS(fog[FOG_SKY_FACTOR]), F_FLOAT},
+	{"heightfog_start_color", FOFS(fog[FOG_HF_START_COLOR]), F_VECTOR},
+	{"heightfog_start_dist", FOFS(fog[FOG_HF_START_DIST]), F_FLOAT},
+	{"heightfog_end_color", FOFS(fog[FOG_HF_END_COLOR]), F_VECTOR},
+	{"heightfog_end_dist", FOFS(fog[FOG_HF_END_DIST]), F_FLOAT},
+	{"heightfog_falloff", FOFS(fog[FOG_HF_FALLOFF]), F_FLOAT},
+	{"heightfog_density", FOFS(fog[FOG_HF_DENSITY]), F_FLOAT},
+	{"fog_density_off", FOFS(fog_off[FOG_DENSITY]), F_FLOAT},
+	{"fog_color_off", FOFS(fog_off[FOG_COLOR]), F_VECTOR},
+	{"fog_sky_factor_off", FOFS(fog_off[FOG_SKY_FACTOR]), F_FLOAT},
+	{"heightfog_start_color_off", FOFS(fog_off[FOG_HF_START_COLOR]), F_VECTOR},
+	{"heightfog_start_dist_off", FOFS(fog_off[FOG_HF_START_DIST]), F_FLOAT},
+	{"heightfog_end_color_off", FOFS(fog_off[FOG_HF_END_COLOR]), F_VECTOR},
+	{"heightfog_end_dist_off", FOFS(fog_off[FOG_HF_END_DIST]), F_FLOAT},
+	{"heightfog_falloff_off", FOFS(fog_off[FOG_HF_FALLOFF]), F_FLOAT},
+	{"heightfog_density_off", FOFS(fog_off[FOG_HF_DENSITY]), F_FLOAT},
+	// an achievement is the re-release's platform's
 	{"achievement", 0, F_IGNORE, FFL_SPAWNTEMP},
 	{"shadowlight", FOFS(shadowlight), F_LSTRING, FFL_NOSPAWN},
 	{"item", STOFS(item), F_LSTRING, FFL_SPAWNTEMP},
