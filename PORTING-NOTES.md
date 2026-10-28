@@ -1056,10 +1056,13 @@ screen (`d_texkernel`: a quarter, a half or three quarters, centred), so
 that where a texel covers several pixels its neighbours come into it in a
 fine dither, which the eye takes for a blend. Only where the texture is
 magnified (a step under a texel a pixel, for each 8 pixels of a span), so
-the distance does not shimmer. The world's spans (`D_DrawSpans16Filtered`,
-clamped to the surface cache block), water (which wraps), and models'
-opaque spans (`R_PolysetDrawSpans8_OpaqueFiltered`, kept inside the skin).
-About 15% slower in timedemo at 640x480; off by default.
+the distance does not shimmer. The world's spans and the sky's
+(`D_DrawSpans16Filtered`, clamped to the surface cache block), water (which
+wraps), models' spans, opaque and see-through (`R_PolysetFilterTexel`, kept
+inside the skin), and `r_poly.c`'s spanlets, which draw see-through surfaces,
+see-through water and sprites (`R_SpanletTexel`, `SPANLET_K`). Up to about
+15% slower in timedemo at 640x480; off by default. The 2D pictures (the
+HUD, menus, console) are left sharp.
 
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,

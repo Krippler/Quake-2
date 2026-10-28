@@ -817,6 +817,53 @@ void R_PolysetDrawThreshSpans8 (spanpackage_t *pspanpackage)
 R_PolysetDrawSpans8
 ================
 */
+/*
+================
+R_PolysetFilterTexel
+
+sw_texfilter for models' spans (D_DrawSpans16Filtered): the texel the
+screen's 2x2 kernel moves this pixel's to, kept inside the skin
+================
+*/
+static qboolean	alias_filter;
+static byte		*alias_prow;		// the span's row of the screen
+static const int	(*alias_k)[2];	// and its row of the kernel
+
+static qboolean R_PolysetFilterOn (void)
+{
+	return sw_texfilter->value && r_sstepx < 0x10000 && r_sstepx > -0x10000
+		&& r_tstepx < 0x10000 && r_tstepx > -0x10000;
+}
+
+static void R_PolysetFilterRow (byte *lpdest)
+{
+	int		row = (lpdest - (byte *)d_viewbuffer) / r_screenwidth;
+
+	alias_prow = (byte *)d_viewbuffer + row * r_screenwidth;
+	alias_k = d_texkernel[row & 1];
+}
+
+static byte *R_PolysetFilterTexel (byte *lptex, int lsfrac, int ltfrac, byte *lpdest)
+{
+	byte	*p = lptex;
+	int		x = (lpdest - alias_prow) & 1;
+	int		s = lsfrac + alias_k[x][0];
+	int		t = ltfrac + alias_k[x][1];
+
+	if (s >= 0x10000)
+		p++;
+	else if (s < 0)
+		p--;
+	if (t >= 0x10000)
+		p += r_affinetridesc.skinwidth;
+	else if (t < 0)
+		p -= r_affinetridesc.skinwidth;
+	if (p < (byte *)r_affinetridesc.pskin
+		|| p >= (byte *)r_affinetridesc.pskin + r_affinetridesc.skinwidth * r_affinetridesc.skinheight)
+		return lptex;
+	return p;
+}
+
 void R_PolysetDrawSpans8_33( spanpackage_t *pspanpackage)
 {
 	int		lcount;
@@ -826,6 +873,8 @@ void R_PolysetDrawSpans8_33( spanpackage_t *pspanpackage)
 	int		llight;
 	int		lzi;
 	short	*lpz;
+
+	alias_filter = R_PolysetFilterOn ();
 
 	do
 	{
@@ -851,12 +900,15 @@ void R_PolysetDrawSpans8_33( spanpackage_t *pspanpackage)
 			ltfrac = pspanpackage->tfrac;
 			llight = pspanpackage->light;
 			lzi = pspanpackage->zi;
+			if (alias_filter)
+				R_PolysetFilterRow (lpdest);
 
 			do
 			{
 				if ((lzi >> 16) >= *lpz)
 				{
-					int temp = vid.colormap[*lptex + ( llight & 0xFF00 )];
+					byte	*ptex = alias_filter ? R_PolysetFilterTexel (lptex, lsfrac, ltfrac, lpdest) : lptex;
+					int temp = vid.colormap[*ptex + ( llight & 0xFF00 )];
 
 					*lpdest = vid.alphamap[temp+ *lpdest*256];
 				}
@@ -935,6 +987,8 @@ void R_PolysetDrawSpans8_66(spanpackage_t *pspanpackage)
 	int		lzi;
 	short	*lpz;
 
+	alias_filter = R_PolysetFilterOn ();
+
 	do
 	{
 		lcount = d_aspancount - pspanpackage->count;
@@ -959,12 +1013,15 @@ void R_PolysetDrawSpans8_66(spanpackage_t *pspanpackage)
 			ltfrac = pspanpackage->tfrac;
 			llight = pspanpackage->light;
 			lzi = pspanpackage->zi;
+			if (alias_filter)
+				R_PolysetFilterRow (lpdest);
 
 			do
 			{
 				if ((lzi >> 16) >= *lpz)
 				{
-					int temp = vid.colormap[*lptex + ( llight & 0xFF00 )];
+					byte	*ptex = alias_filter ? R_PolysetFilterTexel (lptex, lsfrac, ltfrac, lpdest) : lptex;
+					int temp = vid.colormap[*ptex + ( llight & 0xFF00 )];
 
 					*lpdest = vid.alphamap[temp*256 + *lpdest];
 					*lpz = lzi >> 16;
@@ -1045,12 +1102,8 @@ by the screen's 2x2 kernel, kept inside the skin
 */
 static void R_PolysetDrawSpans8_OpaqueFiltered (spanpackage_t *pspanpackage)
 {
-	int		lcount, s, t, x;
-	byte	*skin, *skinend, *p;
-	const int	(*k)[2];
-
-	skin = r_affinetridesc.pskin;
-	skinend = skin + r_affinetridesc.skinwidth * r_affinetridesc.skinheight;
+	int		lcount;
+	byte	*p;
 
 	do
 	{
@@ -1084,26 +1137,13 @@ static void R_PolysetDrawSpans8_OpaqueFiltered (spanpackage_t *pspanpackage)
 			llight = pspanpackage->light;
 			lzi = pspanpackage->zi;
 
-			x = (lpdest - (byte *)d_viewbuffer) % r_screenwidth;
-			k = d_texkernel[((lpdest - (byte *)d_viewbuffer) / r_screenwidth) & 1];
+			R_PolysetFilterRow (lpdest);
 
 			do
 			{
 				if ((lzi >> 16) >= *lpz)
 				{
-					p = lptex;
-					s = lsfrac + k[x & 1][0];
-					t = ltfrac + k[x & 1][1];
-					if (s >= 0x10000)
-						p++;
-					else if (s < 0)
-						p--;
-					if (t >= 0x10000)
-						p += r_affinetridesc.skinwidth;
-					else if (t < 0)
-						p -= r_affinetridesc.skinwidth;
-					if (p < skin || p >= skinend)
-						p = lptex;
+					p = R_PolysetFilterTexel (lptex, lsfrac, ltfrac, lpdest);
 //PGM
 					if(r_newrefdef.rdflags & RDF_IRGOGGLES && currententity->flags & RF_IR_VISIBLE)
 						*lpdest = ((byte *)vid.colormap)[irtable[*p]];
@@ -1113,7 +1153,6 @@ static void R_PolysetDrawSpans8_OpaqueFiltered (spanpackage_t *pspanpackage)
 					*lpz = lzi >> 16;
 				}
 				lpdest++;
-				x++;
 				lzi += r_zistepx;
 				lpz++;
 				llight += r_lstepx;
@@ -1138,8 +1177,7 @@ void R_PolysetDrawSpans8_Opaque (spanpackage_t *pspanpackage)
 {
 	int		lcount;
 
-	if (sw_texfilter->value && r_sstepx < 0x10000 && r_sstepx > -0x10000
-		&& r_tstepx < 0x10000 && r_tstepx > -0x10000)
+	if (R_PolysetFilterOn ())
 	{
 		R_PolysetDrawSpans8_OpaqueFiltered (pspanpackage);
 		return;

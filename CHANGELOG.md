@@ -10,9 +10,11 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
 ### Added
 
 - **Texture filtering in software.** With "texture filter" on in the video
-  menu (`sw_texfilter 1`), walls, floors, water, models and the gun are
-  smoothed close up rather than drawn as blocks of texels, much as OpenGL's
-  filtering smooths them, for about a sixth of the frame rate.
+  menu (`sw_texfilter 1`), everything in the 3D view is smoothed close up
+  rather than drawn as blocks of texels, much as OpenGL's filtering
+  smooths it: walls, floors, the sky, water, windows, models (see-through
+  ones too), the gun and sprites. It costs up to about a sixth of the frame
+  rate.
 
 ## [1.3.26] — 2026-10-28
 
