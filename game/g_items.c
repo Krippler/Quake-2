@@ -674,10 +674,19 @@ qboolean Pickup_Flashlight (edict_t *ent, edict_t *other)
 	return true;
 }
 
-void Use_Flashlight (edict_t *ent, gitem_t *item)
+// the re-release's: on or off, with its click (trigger_flashlight too)
+void P_ToggleFlashlight (edict_t *ent, qboolean on)
 {
+	if (!!(ent->flags & FL_FLASHLIGHT) == !!on)
+		return;
+
 	ent->flags ^= FL_FLASHLIGHT;
 	gi.sound (ent, CHAN_AUTO, gi.soundindex ((ent->flags & FL_FLASHLIGHT) ? "items/flashlight_on.wav" : "items/flashlight_off.wav"), 1, ATTN_STATIC, 0);
+}
+
+void Use_Flashlight (edict_t *ent, gitem_t *item)
+{
+	P_ToggleFlashlight (ent, !(ent->flags & FL_FLASHLIGHT));
 }
 
 void Use_IR (edict_t *ent, gitem_t *item)

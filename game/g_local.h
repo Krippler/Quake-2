@@ -350,6 +350,8 @@ typedef struct
 } game_locals_t;
 
 
+#define	MAX_HEALTH_BARS		2
+
 //
 // this structure is cleared as each map is entered
 // it is read/written to the level.sav file for savegames
@@ -383,6 +385,11 @@ typedef struct
 	int			sound_entity_framenum;
 	edict_t		*sound2_entity;
 	int			sound2_entity_framenum;
+
+	// the re-release's: the target_healthbars shown, and when it last
+	// autosaved (g_cotm.c)
+	edict_t		*health_bar_entities[MAX_HEALTH_BARS];
+	float		last_auto_save;
 
 	int			pic_health;
 
@@ -883,6 +890,9 @@ void	G_ProjectSource (vec3_t point, vec3_t distance, vec3_t forward, vec3_t righ
 edict_t *G_Find (edict_t *from, int fieldofs, char *match);
 edict_t *findradius (edict_t *from, vec3_t org, float rad);
 edict_t *G_PickTarget (char *targetname);
+void G_SetHealthBars (edict_t *ent);
+void G_HealthBarHandOff (edict_t *from, edict_t *to);
+void P_ToggleFlashlight (edict_t *ent, qboolean on);
 void G_SetGoal (void);
 
 // g_xatrix.c

@@ -663,6 +663,27 @@ void SV_Loadgame_f (void)
 
 /*
 ==============
+SV_Autosave_f
+
+The re-release's target_autosave: the game saved, quietly, to the slot a
+level is saved to on being entered, when it may be.
+==============
+*/
+void SV_Autosave_f (void)
+{
+	if (sv.state != ss_game || Cvar_VariableValue("deathmatch"))
+		return;
+	if (maxclients->value == 1 && svs.clients[0].edict->client->ps.stats[STAT_HEALTH] <= 0)
+		return;
+
+	Com_DPrintf ("Autosaving...\n");
+	SV_WriteLevelFile ();
+	SV_WriteServerFile (false);
+	SV_CopySaveGame ("current", "save0");
+}
+
+/*
+==============
 SV_Savegame_f
 
 ==============
@@ -1070,6 +1091,7 @@ void SV_InitOperatorCommands (void)
 	Cmd_AddCommand ("serverstop", SV_ServerStop_f);
 
 	Cmd_AddCommand ("save", SV_Savegame_f);
+	Cmd_AddCommand ("autosave", SV_Autosave_f);
 	Cmd_AddCommand ("load", SV_Loadgame_f);
 
 	Cmd_AddCommand ("killserver", SV_KillServer_f);

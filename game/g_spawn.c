@@ -132,6 +132,9 @@ void SP_func_animation (edict_t *ent);
 void SP_misc_nuke (edict_t *ent);
 void SP_monster_makron (edict_t *ent);
 void SP_cotm_none (edict_t *ent);
+void SP_target_healthbar (edict_t *ent);
+void SP_target_autosave (edict_t *ent);
+void SP_trigger_flashlight (edict_t *ent);
 void SP_target_secret (edict_t *ent);
 void SP_target_goal (edict_t *ent);
 void SP_target_splash (edict_t *ent);
@@ -320,10 +323,10 @@ spawn_t	spawns[] = {
 	{"func_animation", SP_func_animation},
 	{"misc_nuke", SP_misc_nuke},
 	{"monster_makron", SP_monster_makron},
-	{"target_healthbar", SP_cotm_none},
-	{"target_autosave", SP_cotm_none},
+	{"target_healthbar", SP_target_healthbar},
+	{"target_autosave", SP_target_autosave},
 	{"trigger_fog", SP_cotm_none},
-	{"trigger_flashlight", SP_cotm_none},
+	{"trigger_flashlight", SP_trigger_flashlight},
 	{"target_secret", SP_target_secret},
 	{"target_goal", SP_target_goal},
 	{"target_splash", SP_target_splash},
@@ -862,6 +865,12 @@ char *single_statusbar =
 "if 11 "
 "	xv	148 "
 "	pic	11 "
+"endif "
+
+// the re-release's bosses' health bars
+"if 18 "
+"	yt	24 "
+"	health_bars "
 "endif "
 ;
 

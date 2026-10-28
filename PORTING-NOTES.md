@@ -278,8 +278,20 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     `target_sky` (the client takes up a sky changed mid-level,
     `cl_parse.c`), `target_story` (centre-printed), `target_steam`,
     `func_eye`, The Reckoning's `misc_nuke`, and `monster_makron` in the
-    spawn table; `target_healthbar`, `target_autosave`, `trigger_fog` and
-    `trigger_flashlight` are dropped, `func_animation` is a still brush.
+    spawn table; `trigger_fog` is dropped, `func_animation` is a still
+    brush. `target_healthbar` puts a boss's health in `STAT_HEALTH_BARS`
+    (18; a byte for each of two bars, 0x80 shown and 0 to 127 of it) and
+    its name in `CS_HEALTH_BAR_NAME` (the general configstring after the
+    shadow lights'), which the single-player status bar draws with the
+    client's new `health_bars` layout command (`cl_scrn.c`), as the
+    re-release's HUD does; Jorg's goes over to the Makron he throws out
+    (`G_HealthBarHandOff`). `target_autosave` runs the engine's new
+    `autosave` command (`sv_ccmds.c`): a quiet save to `save0`, the slot
+    a level is saved to on being entered, no more than once a minute
+    (`g_athena_auto_save_min_time`, as the re-release names it).
+    `trigger_flashlight` (in `g_trigger.c`) turns a player's flashlight
+    on, off, or by which way they go through it (`P_ToggleFlashlight`,
+    `g_items.c`).
     A class with no spawn function that `G_StandIn` has a stand-in for is
     spawned as that, from `ED_CallSpawn`.
   - `game/g_xatrix.c` (new): The Reckoning's weapons its monsters fire,

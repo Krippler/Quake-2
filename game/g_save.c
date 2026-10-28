@@ -235,6 +235,8 @@ field_t		levelfields[] =
 	{"disguise_violator", LLOFS(disguise_violator), F_EDICT},
 	{"sound_entity", LLOFS(sound_entity), F_EDICT},
 	{"sound2_entity", LLOFS(sound2_entity), F_EDICT},
+	{"health_bar_entities[0]", LLOFS(health_bar_entities[0]), F_EDICT},
+	{"health_bar_entities[1]", LLOFS(health_bar_entities[1]), F_EDICT},
 
 	{NULL, 0, F_INT}
 };

@@ -1102,6 +1102,7 @@ typedef enum
 #define	STAT_FLASHES			15		// cleared each frame, 1 = health, 2 = armor
 #define STAT_CHASE				16
 #define STAT_SPECTATOR			17
+#define STAT_HEALTH_BARS		18		// the re-release's: two bosses' health, a byte each, 0x80 shown and 0..127 of it
 
 #define	MAX_STATS				32
 
@@ -1214,6 +1215,9 @@ ROGUE - VERSIONS
 // configstrings, which it uses for nothing else (g_misc.c, cl_fx.c)
 #define	CS_SHADOWLIGHTS		CS_GENERAL
 #define	MAX_SHADOWLIGHT_CS	256
+
+// the re-release's health bar's name, after them (g_cotm.c, cl_scrn.c)
+#define	CS_HEALTH_BAR_NAME	(CS_SHADOWLIGHTS+MAX_SHADOWLIGHT_CS)
 
 
 //==============================================

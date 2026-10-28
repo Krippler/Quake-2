@@ -5,6 +5,19 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Added
+
+- **Bosses' health bars.** Call of the Machine's bosses have their name
+  and a bar of their health across the top of the screen while you fight
+  them, as in the re-release.
+- **Autosaves.** Call of the Machine's levels save the game as you reach
+  their checkpoints, to the slot the game saves to on entering a level
+  (no more than once a minute).
+- **Flashlight zones.** Call of the Machine's dark places switch your
+  flashlight on as you go in and off as you come out.
+
 ## [1.3.25] — 2026-10-27
 
 ### Added

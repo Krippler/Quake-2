@@ -1207,6 +1207,34 @@ void SCR_ExecuteLayoutString (char *s)
 			continue;
 		}
 
+		// the re-release's bosses' health bars, STAT_HEALTH_BARS a byte
+		// each, under their name: half the screen wide, red for what is
+		// left, grey for what is gone
+		if (!strcmp(token, "health_bars"))
+		{
+			int		stat = cl.frame.playerstate.stats[STAT_HEALTH_BARS] & 0xffff;
+			int		i, bar, w, left, bx;
+
+			DrawHUDString (CL_Localize (cl.configstrings[CS_HEALTH_BAR_NAME]), viddef.width/2 - 160, y, 320, 0);
+			y += 10;
+			w = viddef.width / 2;
+			bx = (viddef.width - w) / 2;
+			for (i = 0; i < 2; i++)
+			{
+				bar = (stat >> (i * 8)) & 0xff;
+				if (!(bar & 0x80))
+					continue;
+				left = w * (bar & 0x7f) / 127;
+				re.DrawFill (bx, y, w + 1, 5, 0);			// black edge
+				if (left > 0)
+					re.DrawFill (bx, y, left, 4, 242);		// red
+				if (left < w)
+					re.DrawFill (bx + left, y, w - left, 4, 36);	// grey
+				y += 12;
+			}
+			continue;
+		}
+
 		if (!strcmp(token, "if"))
 		{	// draw a number
 			token = COM_Parse (&s);

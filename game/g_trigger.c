@@ -837,3 +837,45 @@ void SP_trigger_monsterjump (edict_t *self)
 	self->movedir[2] = st.height;
 }
 
+
+
+/*QUAKED trigger_flashlight (.5 .5 .5) ? CLIPPED
+The re-release's: a player moving through it has their flashlight turned
+on or off. "style" 1 always turns it on, 2 always off; otherwise it is on
+going the way of "angle" (and "height", its rise), off going against it.
+CLIPPED: only by its brush's shape, not its bounds.
+*/
+#define SPAWNFLAG_FLASHLIGHT_CLIPPED	1
+
+static void trigger_flashlight_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+	vec3_t	forward;
+
+	if (!other->client)
+		return;
+
+	if ((self->spawnflags & SPAWNFLAG_FLASHLIGHT_CLIPPED) && !G_TouchesHull (self, other))
+		return;
+
+	if (self->style == 1)
+		P_ToggleFlashlight (other, true);
+	else if (self->style == 2)
+		P_ToggleFlashlight (other, false);
+	else if (DotProduct (other->velocity, other->velocity) > 32)
+	{
+		VectorCopy (other->velocity, forward);
+		VectorNormalize (forward);
+		P_ToggleFlashlight (other, DotProduct (forward, self->movedir) > 0);
+	}
+}
+
+void SP_trigger_flashlight (edict_t *self)
+{
+	// so that an angle of 0 is a direction, not none
+	if (self->s.angles[YAW] == 0)
+		self->s.angles[YAW] = 360;
+	InitTrigger (self);
+	self->touch = trigger_flashlight_touch;
+	self->movedir[2] = (float) st.height;
+	gi.linkentity (self);
+}

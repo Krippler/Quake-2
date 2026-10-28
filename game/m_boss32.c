@@ -918,4 +918,7 @@ void MakronToss (edict_t *self)
 	ent->think = MakronSpawn;
 	ent->target = self->target;
 	VectorCopy (self->s.origin, ent->s.origin);
+
+	// the re-release's: its health bar goes over to him
+	G_HealthBarHandOff (self, ent);
 }
