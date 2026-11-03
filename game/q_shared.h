@@ -1110,6 +1110,12 @@ typedef enum
 #define	STAT_FLASHES			15		// cleared each frame, 1 = health, 2 = armor
 #define STAT_CHASE				16
 #define STAT_SPECTATOR			17
+// the re-release's, outside deathmatch (CTF's are there in it): the keys
+// held, and the name of the item just selected
+#define STAT_KEY_A				19
+#define STAT_KEY_B				20
+#define STAT_KEY_C				21
+#define STAT_SELECTED_ITEM_NAME	22
 #define STAT_HEALTH_BARS		18		// the re-release's: two bosses' health, a byte each, 0x80 shown and 0..127 of it
 // the re-release's co-op (game/g_coop.c, the status bar's "coop"): lives and
 // one more in the low byte (0, none counted), why a dead player cannot

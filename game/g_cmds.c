@@ -72,6 +72,22 @@ qboolean OnSameTeam (edict_t *ent1, edict_t *ent2)
 }
 
 
+/*
+=================
+G_ShowSelectedItem
+
+The re-release's: the item just selected, named over the status bar's
+right for a while, outside deathmatch
+=================
+*/
+void G_ShowSelectedItem (edict_t *ent)
+{
+	if (deathmatch->value || ent->client->pers.selected_item <= 0)
+		return;
+	ent->client->selected_item_time = level.time + 3.0;
+	ent->client->ps.stats[STAT_SELECTED_ITEM_NAME] = CS_ITEMS + ent->client->pers.selected_item;
+}
+
 void SelectNextItem (edict_t *ent, int itflags)
 {
 	gclient_t	*cl;
@@ -102,6 +118,7 @@ void SelectNextItem (edict_t *ent, int itflags)
 			continue;
 
 		cl->pers.selected_item = index;
+		G_ShowSelectedItem (ent);
 		return;
 	}
 
@@ -138,6 +155,7 @@ void SelectPrevItem (edict_t *ent, int itflags)
 			continue;
 
 		cl->pers.selected_item = index;
+		G_ShowSelectedItem (ent);
 		return;
 	}
 

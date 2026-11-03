@@ -904,6 +904,14 @@ char *single_statusbar =
 "	yb	-50 "
 "endif "
 
+// the re-release's: the item just selected's name, the timer over it
+"if 22 "
+"	yb	-34 "
+"	xv	319 "
+"	stat_rstring 22 "
+"	yb	-58 "
+"endif "
+
 // timer
 "if 9 "
 "	xv	262 "
@@ -912,10 +920,35 @@ char *single_statusbar =
 "	pic	9 "
 "endif "
 
+"yb	-50 "
+
 //  help / weapon icon 
 "if 11 "
 "	xv	148 "
 "	pic	11 "
+"endif "
+
+// the re-release's keys held, over the timer and the name if they are there
+"if 9 "
+"	yb	-76 "
+"endif "
+"if 22 "
+"	yb	-58 "
+"	if 9 "
+"		yb	-84 "
+"	endif "
+"endif "
+"if 19 "
+"	xv	296 "
+"	pic	19 "
+"endif "
+"if 20 "
+"	xv	272 "
+"	pic	20 "
+"endif "
+"if 21 "
+"	xv	248 "
+"	pic	21 "
 "endif "
 
 // the re-release's bosses' health bars

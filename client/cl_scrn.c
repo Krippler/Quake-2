@@ -1179,6 +1179,23 @@ void SCR_ExecuteLayoutString (char *s)
 			continue;
 		}
 
+		// the re-release's: a stat's configstring, ending at x
+		if (!strcmp(token, "stat_rstring"))
+		{
+			char	*str;
+
+			token = COM_Parse (&s);
+			index = atoi(token);
+			if (index < 0 || index >= MAX_STATS)
+				Com_Error (ERR_DROP, "Bad stat_rstring index");
+			index = cl.frame.playerstate.stats[index];
+			if (index < 0 || index >= MAX_CONFIGSTRINGS)
+				Com_Error (ERR_DROP, "Bad stat_rstring index");
+			str = CL_Localize (cl.configstrings[index]);
+			DrawString (x - strlen (str) * 8, y, str);
+			continue;
+		}
+
 		if (!strcmp(token, "cstring"))
 		{
 			token = CL_Localize (COM_Parse (&s));
@@ -1281,13 +1298,21 @@ void SCR_ExecuteLayoutString (char *s)
 
 		if (!strcmp(token, "if"))
 		{	// draw a number
+			int		depth;
+
 			token = COM_Parse (&s);
-			value = cl.frame.playerstate.stats[atoi(token)];
+			index = atoi(token);
+			value = index >= 0 && index < MAX_STATS ? cl.frame.playerstate.stats[index] : 0;
 			if (!value)
-			{	// skip to endif
-				while (s && strcmp(token, "endif") )
+			{	// skip to its endif, past any within it (the re-release's
+				// layouts nest them)
+				for (depth = 1 ; s && depth ; )
 				{
 					token = COM_Parse (&s);
+					if (!strcmp(token, "if"))
+						depth++;
+					else if (!strcmp(token, "endif"))
+						depth--;
 				}
 			}
 

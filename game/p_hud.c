@@ -399,6 +399,33 @@ void Cmd_Help_f (edict_t *ent)
 
 /*
 ===============
+G_SetKeyStats
+
+The re-release's: up to three of the keys held, shown over the status
+bar's right (taking turns, five seconds each, if there are more), and the
+name of the item just selected, till its time is up
+===============
+*/
+void G_SetKeyStats (edict_t *ent)
+{
+	int		i, n, held[MAX_ITEMS], offset;
+	gitem_t	*it;
+
+	for (i = n = 0, it = itemlist ; i < game.num_items ; i++, it++)
+		if ((it->flags & IT_KEY) && ent->client->pers.inventory[i])
+			held[n++] = i;
+
+	offset = n > 3 ? (int)(level.time / 5) : 0;
+	for (i = 0 ; i < 3 ; i++)
+		ent->client->ps.stats[STAT_KEY_A + i] = i < n
+			? gi.imageindex (itemlist[held[(i + offset) % n]].icon) : 0;
+
+	if (level.time > ent->client->selected_item_time || ent->client->pers.selected_item <= 0)
+		ent->client->ps.stats[STAT_SELECTED_ITEM_NAME] = 0;
+}
+
+/*
+===============
 G_SetStats
 ===============
 */
@@ -472,6 +499,13 @@ void G_SetStats (edict_t *ent)
 		ent->client->ps.stats[STAT_PICKUP_ICON] = 0;
 		ent->client->ps.stats[STAT_PICKUP_STRING] = 0;
 	}
+
+	//
+	// the re-release's: the keys held, and the item just selected's name,
+	// outside deathmatch
+	//
+	if (!deathmatch->value)
+		G_SetKeyStats (ent);
 
 	//
 	// timers

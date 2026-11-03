@@ -1224,6 +1224,8 @@ void ClientEndServerFrame (edict_t *ent);
 //
 void MoveClientToIntermission (edict_t *client);
 void G_SetStats (edict_t *ent);
+void G_SetKeyStats (edict_t *ent);
+void G_ShowSelectedItem (edict_t *ent);
 void G_SetSpectatorStats (edict_t *ent);
 void G_CheckChaseStats (edict_t *ent);
 void ValidateSelectedItem (edict_t *ent);
@@ -1467,6 +1469,7 @@ struct gclient_s
 	int			weapon_sound;
 
 	float		pickup_msg_time;
+	float		selected_item_time;		// the re-release's: its name shown until
 
 	float		flood_locktill;		// locked from talking
 	float		flood_when[10];		// when messages were said

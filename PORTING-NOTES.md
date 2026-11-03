@@ -1251,6 +1251,15 @@ say `q2ext`. The client draws an arc for each round the crosshair, toward
 where it came from, for a second, and `pics/marker.png` for a quarter of
 a second, playing `weapons/marker.wav`, when you hit something.
 
+**`game/g_spawn.c`, `game/p_hud.c`, `client/cl_scrn.c`**: the re-release's
+status bar outside deathmatch: up to three keys held (`STAT_KEY_A`..`C`,
+taking turns every five seconds when there are more) and the item just
+selected's name for three seconds (`STAT_SELECTED_ITEM_NAME`, by
+`G_ShowSelectedItem`), right-aligned by the re-release's `stat_rstring`.
+No stats being free, they are 19 to 22, which are CTF's in deathmatch.
+The layout's `if`s nest, as the re-release's do; an older client, which
+stops skipping at the first `endif`, still draws it right.
+
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,
 rather than the top and bottom cropped.

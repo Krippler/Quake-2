@@ -59,6 +59,10 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   power armour), longer the more it was. Hitting something shows the
   re-release's hit marker and plays its sound. `cl_damage_indicators 0`
   and `cl_hit_markers 0` (or 1, no sound) turn them off.
+- **The re-release's status bar.** Outside deathmatch, the keys you hold
+  show over its right (taking turns if more than three), and choosing an
+  item names it there for three seconds. Picking an item up selects it
+  only if you still have it.
 - **See-through foliage and grates.** Surfaces the re-release's maps mark as
   cut out (Call of the Machine's jungle canopies) show what is behind
   their holes rather than drawing them as solid colour.

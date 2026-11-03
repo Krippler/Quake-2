@@ -1263,9 +1263,14 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 		other->client->ps.stats[STAT_PICKUP_STRING] = CS_ITEMS+ITEM_INDEX(ent->item);
 		other->client->pickup_msg_time = level.time + 3.0;
 
-		// change selected item
-		if (ent->item->use)
+		// change selected item, if it is still had (the re-release's;
+		// its name not shown, the pickup's being there)
+		if (ent->item->use && other->client->pers.inventory[ITEM_INDEX(ent->item)])
+		{
 			other->client->pers.selected_item = other->client->ps.stats[STAT_SELECTED_ITEM] = ITEM_INDEX(ent->item);
+			if (!deathmatch->value)
+				other->client->ps.stats[STAT_SELECTED_ITEM_NAME] = 0;
+		}
 
 		if (ent->item->pickup == Pickup_Health)
 		{
