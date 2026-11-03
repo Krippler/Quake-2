@@ -553,7 +553,12 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     the screen's edge it can land outside the skin, which ASan caught
     with the gekk's.
   - `client/cl_loc.c`: the re-release's key hints, `%bind:cmd:text%`
-    before a message's words, are left out.
+    before a message's words, are kept in the loaded text and made, as
+    the message is shown (`Loc_KeyHint`), into lines under it: the first
+    key bound to the command, as the key menu names it, and the text,
+    `[SPACE] Hold jump to move up ladders.` The re-release draws a picture
+    of the key; the 1997 font has none. A centre print's lines go to the
+    screen's width rather than 40 characters, which the hints pass.
   - `server/sv_ccmds.c`: a level's files in `save/current` are named by
     `SV_LevelFileName`, with `#` for the `/` of `q64/outpost`: the save
     slots are flat directories, copied and wiped by `*.sav`.
@@ -1064,6 +1069,146 @@ see-through water and sprites (`R_SpanletTexel`, `SPANLET_K`). Up to about
 15% slower in timedemo at 640x480; off by default. The 2D pictures (the
 HUD, menus, console) are left sharp.
 
+**`game/g_coop.c`** (new) and the game's hooks into it, **`server/`**,
+**`client/cl_pred.c`**, **`client/cl_scrn.c`**: the re-release's co-op, from
+its game code (`p_client.cpp`, `g_items.cpp`, `g_monster.cpp`, `g_main.cpp`),
+with its settings and their defaults:
+- `g_coop_instanced_items` (1): an item taken by one player stays for the
+  rest. It carries a bit for each player who has had it
+  (`edict_t.item_picked_up_by`), and is `SVF_INSTANCED`: the server asks the
+  game, for each player, whether to send it (`EntityVisibleToClient`, after
+  `max_edicts` in `game_export_t`). The ask is made only of a game whose
+  `apiversion` is `GAME_API_VERSION_EXT` (4), as this one's is; the mission
+  packs' and mods' games, 3, go on as they were. A player who dies keeps
+  their inventory and comes back with their full health. What a player
+  drops is not instanced, and goes when taken.
+- `g_coop_squad_respawn` (1), which makes items instanced too: three seconds
+  after dying, a player comes back beside a living one (`G_FindRespawnSpot`:
+  five boxes thrown back from them onto firm, dry, visible world). That one
+  must not have been hurt in two seconds, nor be hunted by a monster, nor
+  have fired in two and a half while any monster hunts anyone. Meanwhile
+  they watch, chasing, and the HUD says why they wait, in the re-release's
+  words.
+- `g_coop_enable_lives` (0), `g_coop_num_lives` (2): that many lives and one
+  more, back at a unit's end. Out of them a player watches. When every
+  player is dead with none left, everyone goes back to how they entered the
+  level, lives restored, and the server's `restart_level` loads the level
+  again as `gamemap` does but without saving it, so it is as it was entered.
+- `g_coop_player_collision` (0): players pass through each other, and
+  through each other's shots unless `dmflags` has friendly fire on. Traces
+  carry a mask bit, `CONTENTS_NOCLIENTS`, which `SV_ClipMoveToEntities` takes
+  to mean pass players by; `CS_NO_PLAYER_COLLISION` tells the client to
+  predict the same. `g_disable_player_collision` does it in deathmatch too.
+- `g_coop_health_scaling` (0): a monster has that much of its health more
+  for each player who has joined the level past the first, raised as they
+  join.
+
+Lives and the respawn state go in `STAT_COOP` (31), drawn by the status
+bar's new `coop`.
+
+**`game/g_rropts.c`** (new): the re-release's game settings, from its
+`g_main.cpp`, `g_items.cpp`, `p_client.cpp`, `p_weapon.cpp`, `g_combat.cpp`
+and `rogue/g_rogue_newdm.cpp`, with its defaults. Most are `dmflags` bits
+under names, and `G_DMFlags`, which every check of them here now calls, is
+`dmflags` with them in, so either sets each:
+- `g_dm_weapons_stay`, `g_dm_no_fall_damage`, `g_dm_same_level`,
+  `g_dm_force_respawn`, `g_dm_allow_exit`, `g_no_armor`, `g_no_health`,
+  `g_no_items`, `g_no_mines`, `g_no_nukes`, `g_no_spheres`,
+  `g_dm_no_stack_double`, `g_infinite_ammo` (in single player too, as
+  there)
+- `g_dm_instant_items` and `g_dm_spawn_farthest`, both on by default
+- `g_dm_no_quad_drop` and `g_dm_no_quadfire_drop`, the other way to 1997's
+  drop flags
+- `g_friendly_fire`, off by default, the other way to `DF_NO_FRIENDLY_FIRE`
+
+Mines, nukes and spheres are now kept out of deathmatch as Ground Zero's
+flags said, which nothing here did. Co-op's players are a team, as are team
+deathmatch's and CTF's, so teammates' hits do nothing without friendly fire
+(the A-M bomb aside).
+
+The rest:
+- `g_instagib`: every hit between players kills; no pickups but keys and
+  flags; the railgun with 99 slugs and infinite ammo in place of the
+  blaster, kept on death.
+- `g_start_items` ("classname count;..."), and the worldspawn's
+  `start_items` (Call of the Machine's later maps): picked up as dropped
+  items when a player's game starts.
+- `g_map_list`, `g_map_list_shuffle`: the next map at a level's end,
+  before `sv_maplist`.
+- `g_dm_random_items`: Ground Zero's random items, another of the same kind
+  where each spawns and respawns. Health is one item here, sized by its
+  spawn function, so it and armour shards stay as they are.
+- `g_dm_force_respawn_time`, `g_weapon_respawn_time` (30),
+  `g_damage_scale`, `ai_damage_scale`.
+- `ai_allow_dm_spawn`: monsters in deathmatch; the forty places a monster
+  removed itself there ask it.
+- `g_instant_weapon_switch`: CTF's `instantweap`.
+- `needpass`: 3.20's `CheckNeedPass`.
+- `sv_stopspeed`: the game's physics' stop speed.
+- `sv_airaccelerate`: the engine sends it outside deathmatch too.
+- `g_quick_weapon_switch` (1): weapons raised and lowered twice as fast,
+  when the tick is 20 Hz or more, as the re-release has it (below).
+- `teamplay`: team deathmatch, CTF's teams without its flags, techs or
+  captures. `G_TeamplayEnabled` (CTF or it) stands where the hooks into
+  CTF's code are about teams: joining and its menu (titled Team
+  Deathmatch), team spawn points (deathmatch's where a map has none),
+  skins, team chat, the scoreboard and status bar, observers and team
+  damage. A frag adds to the team's score, kept where CTF keeps its
+  captures (`CTFAdjustTeamScore`), and `fraglimit` is a team's.
+
+**The re-release's 40 Hz tick** (`server/`, `client/cl_ents.c`, `game/`).
+`sv_tickrate` (40; 20 or 10) is how many frames a second the server runs a
+level at. It applies to a game whose `apiversion` is `GAME_API_VERSION_EXT`
+(this one), never to a demo or a cinematic, and it reads at each level's
+start.
+
+The server:
+- `SV_RunGameFrame` steps `sv.time` by `sv.frametime`; a level's settling
+  frames and the ten seconds run on returning to it are 1997's, in ticks.
+- The rate is told to clients as `CS_TICK_RATE`, and to the game by
+  `gi.TickRate`, appended to `game_import_t`.
+- A client whose userinfo says `q2ext 2` (this one's) gets a frame each
+  tick. Any other gets every tickratio'th, numbered as 1997's
+  (`SV_WriteFrameToClient`), its acknowledgements read back
+  (`SV_ExecuteClientMessage`).
+- `UPDATE_BACKUP` is 32 (and the client's `MAX_PARSE_ENTITIES` 4096), for
+  the frames delta compression keeps. `SV_RateDrop` adds up the last
+  second's frames.
+- `sv_airaccelerate` aside, nothing else of the protocol changes.
+
+The client:
+- Its frames' time is `CL_FrameTime` from `CS_TICK_RATE` (100 ms without
+  it, as for every demo), for its clamps and `lerpfrac`.
+- Models and the gun animate at 10 Hz still. Each entity, and the gun,
+  notes the frame before its current one and when that changed, and lerps
+  between them over 100 ms (`CL_AnimLerp`) rather than over a 25 ms frame.
+
+The game keeps 1997's frame, `FRAMETIME` 0.1, for everything it was used
+for: thinks, timers, animation. It adds the server's tick, `TICKTIME`, for
+what moves continuously:
+- `level.time` steps by a tick, and `level.framenum` counts 1997's frames
+  still (`level.tick / tickratio`), so every timer counted in frames lasts
+  as long as it did. `level.frame10` says a tick begins one.
+- Physics (`g_phys.c`'s gravity, velocities, friction, pushers) moves by a
+  tick. Doors and plats, which time their moves by think, end where and
+  when they did.
+- A player's weapon thinks no more than once a frame of 1997's
+  (`weapon_think_time`), so its frames and rate of fire are as they were.
+  The re-release's `g_quick_weapon_switch` raises and lowers it every half
+  frame at a tick of 20 or more, as there.
+- A player's model animates, and their world effects (drowning, lava,
+  powerup sounds) and scoreboard refreshes come, once a frame. Their view's
+  bob, gun lag and blend fades are scaled to the tick, and their movement
+  state is copied every tick for prediction.
+- A monster thinks every tick (`monster_think`). Its frame, decisions and
+  step run every tenth of a second as before; the step and turn it took are
+  then given back, and taken a share a tick, so that it moves and turns
+  smoothly and is hit where it is seen. The re-release, which moves its
+  monsters every tick too, runs their AI then as well; here only their
+  movement is spread, which leaves their decisions as 1997's.
+
+`sv_tickrate 10` runs everything as before.
+
 **`client/menu.c`, `qcommon/files.c`**: the choice of game. The game menu
 lists, in place of 1997's easy, medium and hard, the games whose first map
 is there, and the one chosen asks its difficulty and starts
@@ -1079,6 +1224,46 @@ passes over the re-release's pak (`pack_t.rerelease`, the pak with
 `maps/q64/` or `maps/mguhub.bsp` in it) for a `maps/` file another copy of
 which is further down the path. `CM_LoadMap` and `R_BeginRegistration`,
 which keep the last map by its name, load it again when it changes.
+
+**`ref_soft/r_surf.c`, `r_rast.c`, `r_bsp.c`, `r_poly.c`**: the
+re-release's `SURF_ALPHATEST` (0x2000000), Call of the Machine's foliage.
+Such a surface goes with the translucent ones to `R_DrawAlphaSurfaces`,
+which draws it opaque, writing the z-buffer, but passing over colour 255;
+`R_DrawSurface` puts 255 back in its lit surface-cache block wherever the
+texture has it, the lighting having changed it.
+
+**`server/sv_ents.c`, `server/sv_send.c`**: a frame too big for a packet.
+A client's first frame on a level has every entity it sees from its
+baseline; on mgu5m1 (189 of them) that was more than `MAX_MSGLEN`, so the
+datagram overflowed, was cleared and sent empty, the client never acked a
+frame and every later frame was a full one too: it never got in.
+`SV_EmitPacketEntities` now stops adding entities new to the client when
+there are 64 bytes left (fewer the multicasts waiting to go after) and
+leaves those out of the frame it keeps (`SV_KeepEntity`), so the next
+frame, deltaed from this one, sends them.
+
+**`client/cl_damage.c`** (new), **`game/g_combat.c`**, **`game/p_view.c`**:
+the re-release's damage indicators and hit markers. `T_Damage` keeps, as
+the re-release's does, up to four places a player was hurt from this tick
+(the attacker, or for splash what went off) with the health, armour and
+power armour it took, and what each player did to anything living;
+`P_SendDamageFeedback` gives them, encoded as the re-release's
+`svc_damage` encodes them, to `gi.DamageFeedback` (appended to
+`game_import_t`), which sends them unreliably as `svc_damage` (after
+`svc_fog`; this engine's, with the hit marker's damage in it in place of
+the re-release's `STAT_HIT_MARKER`, no stat being free) to clients that
+say `q2ext`. The client draws an arc for each round the crosshair, toward
+where it came from, for a second, and `pics/marker.png` for a quarter of
+a second, playing `weapons/marker.wav`, when you hit something.
+
+**`game/g_spawn.c`, `game/p_hud.c`, `client/cl_scrn.c`**: the re-release's
+status bar outside deathmatch: up to three keys held (`STAT_KEY_A`..`C`,
+taking turns every five seconds when there are more) and the item just
+selected's name for three seconds (`STAT_SELECTED_ITEM_NAME`, by
+`G_ShowSelectedItem`), right-aligned by the re-release's `stat_rstring`.
+No stats being free, they are 19 to 22, which are CTF's in deathmatch.
+The layout's `if`s nest, as the re-release's do; an older client, which
+stops skipping at the first `endif`, still draws it right.
 
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,

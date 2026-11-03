@@ -52,7 +52,7 @@ Just stands and cycles in one place until targeted, then teleports away.
 */
 void SP_monster_boss3_stand (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;

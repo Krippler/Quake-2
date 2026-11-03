@@ -1390,7 +1390,7 @@ void SP_monster_soldier_x (edict_t *self)
 */
 void SP_monster_soldier_light (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;
@@ -1419,7 +1419,7 @@ void SP_monster_soldier_light (edict_t *self)
 */
 void SP_monster_soldier (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;
@@ -1446,7 +1446,7 @@ void SP_monster_soldier (edict_t *self)
 */
 void SP_monster_soldier_ss (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;
@@ -1487,7 +1487,7 @@ void SP_monster_soldier_xatrix (edict_t *self, int skin, int health)
 */
 void SP_monster_soldier_ripper (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;
@@ -1509,7 +1509,7 @@ void SP_monster_soldier_ripper (edict_t *self)
 */
 void SP_monster_soldier_hypergun (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;
@@ -1533,7 +1533,7 @@ void SP_monster_soldier_hypergun (edict_t *self)
 */
 void SP_monster_soldier_lasergun (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;

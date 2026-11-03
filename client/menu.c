@@ -1842,7 +1842,7 @@ void M_Menu_Credits_f( void )
 	int		isdeveloper = 0;
 
 	creditsBuffer = NULL;
-	count = FS_LoadFile ("credits", &creditsBuffer);
+	count = FS_LoadFile ("credits", (void **)&creditsBuffer);
 	if (count != -1)
 	{
 		p = creditsBuffer;
@@ -1866,7 +1866,7 @@ void M_Menu_Credits_f( void )
 				break;
 		}
 		creditsIndex[++n] = 0;
-		credits = creditsIndex;
+		credits = (const char **)creditsIndex;
 	}
 	else
 	{
@@ -1975,6 +1975,7 @@ static menuseparator_s	s_skill_title;
 static menuaction_s		s_easy_game_action;
 static menuaction_s		s_medium_game_action;
 static menuaction_s		s_hard_game_action;
+static menuaction_s		s_nightmare_game_action;
 
 static void EasyGameFunc( void *data )
 {
@@ -1991,6 +1992,13 @@ static void MediumGameFunc( void *data )
 static void HardGameFunc( void *data )
 {
 	Cvar_ForceSet( "skill", "2" );
+	StartGame();
+}
+
+// skill 3, which 1997's menu left to the console; the re-release's has it
+static void NightmareGameFunc( void *data )
+{
+	Cvar_ForceSet( "skill", "3" );
 	StartGame();
 }
 
@@ -2026,10 +2034,18 @@ static void Skill_MenuInit( void )
 	s_hard_game_action.generic.name	= "hard";
 	s_hard_game_action.generic.callback = HardGameFunc;
 
+	s_nightmare_game_action.generic.type	= MTYPE_ACTION;
+	s_nightmare_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
+	s_nightmare_game_action.generic.x		= 0;
+	s_nightmare_game_action.generic.y		= 50;
+	s_nightmare_game_action.generic.name	= "nightmare";
+	s_nightmare_game_action.generic.callback = NightmareGameFunc;
+
 	Menu_AddItem( &s_skill_menu, ( void * ) &s_skill_title );
 	Menu_AddItem( &s_skill_menu, ( void * ) &s_easy_game_action );
 	Menu_AddItem( &s_skill_menu, ( void * ) &s_medium_game_action );
 	Menu_AddItem( &s_skill_menu, ( void * ) &s_hard_game_action );
+	Menu_AddItem( &s_skill_menu, ( void * ) &s_nightmare_game_action );
 
 	Menu_Center( &s_skill_menu );
 	s_skill_menu.cursor = 2;		// medium
@@ -2744,7 +2760,7 @@ void StartServer_MenuInit( void )
 	s_startmap_list.generic.x	= 0;
 	s_startmap_list.generic.y	= 0;
 	s_startmap_list.generic.name	= "initial map";
-	s_startmap_list.itemnames = mapnames;
+	s_startmap_list.itemnames = (const char **)mapnames;
 
 	s_rules_box.generic.type = MTYPE_SPINCONTROL;
 	s_rules_box.generic.x	= 0;
@@ -3536,7 +3552,7 @@ static void RateCallback( void *unused )
 
 static void ModelCallback( void *unused )
 {
-	s_player_skin_box.itemnames = s_pmi[s_player_model_box.curvalue].skindisplaynames;
+	s_player_skin_box.itemnames = (const char **)s_pmi[s_player_model_box.curvalue].skindisplaynames;
 	s_player_skin_box.curvalue = 0;
 }
 
@@ -3825,7 +3841,7 @@ qboolean PlayerConfig_MenuInit( void )
 	s_player_model_box.generic.callback = ModelCallback;
 	s_player_model_box.generic.cursor_offset = -48;
 	s_player_model_box.curvalue = currentdirectoryindex;
-	s_player_model_box.itemnames = s_pmnames;
+	s_player_model_box.itemnames = (const char **)s_pmnames;
 
 	s_player_skin_title.generic.type = MTYPE_SEPARATOR;
 	s_player_skin_title.generic.name = "skin";
@@ -3839,7 +3855,7 @@ qboolean PlayerConfig_MenuInit( void )
 	s_player_skin_box.generic.callback = 0;
 	s_player_skin_box.generic.cursor_offset = -48;
 	s_player_skin_box.curvalue = currentskinindex;
-	s_player_skin_box.itemnames = s_pmi[currentdirectoryindex].skindisplaynames;
+	s_player_skin_box.itemnames = (const char **)s_pmi[currentdirectoryindex].skindisplaynames;
 
 	s_player_hand_title.generic.type = MTYPE_SEPARATOR;
 	s_player_hand_title.generic.name = "handedness";

@@ -658,6 +658,9 @@ void SV_ExecuteClientMessage (client_t *cl)
 			checksumIndex = net_message.readcount;
 			checksum = MSG_ReadByte (&net_message);
 			lastframe = MSG_ReadLong (&net_message);
+			// a client of 1997's frame rate counts frames in tens a second
+			if (lastframe > 0 && !cl->ext_tick && sv.tickratio > 1)
+				lastframe *= sv.tickratio;
 			if (lastframe != cl->lastframe) {
 				cl->lastframe = lastframe;
 				if (cl->lastframe > 0) {

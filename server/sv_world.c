@@ -548,6 +548,11 @@ void SV_ClipMoveToEntities ( moveclip_t *clip )
 		&& (touch->svflags & SVF_DEADMONSTER) )
 				continue;
 
+		// players passed through (the re-release's co-op without player
+		// collision, which the game asks for)
+		if ((clip->contentmask & CONTENTS_NOCLIENTS) && touch->client)
+			continue;
+
 		// might intersect, so do an exact clip
 		headnode = SV_HullForEntity (touch);
 		angles = touch->s.angles;

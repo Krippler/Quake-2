@@ -165,6 +165,25 @@ void R_DrawSurface (void)
 
 		pcolumndest += horzblockstep;
 	}
+
+	// the re-release's see-through grates and leaves: their holes kept
+	// through the lighting, for the alpha surfaces' spanlets to leave out
+	if (r_drawsurf.surf->texinfo->flags & SURF_ALPHATEST)
+	{
+		int		v, s0, t0;
+		byte	*src, *dest;
+
+		s0 = ((r_drawsurf.surf->texturemins[0] >> r_drawsurf.surfmip) + (smax << 16)) % smax;
+		t0 = ((r_drawsurf.surf->texturemins[1] >> r_drawsurf.surfmip) + (tmax << 16)) % tmax;
+		for (v = 0 ; v < r_drawsurf.surfheight ; v++)
+		{
+			src = r_source + ((t0 + v) % tmax) * twidth;
+			dest = r_drawsurf.surfdat + v * r_drawsurf.rowbytes;
+			for (u = 0 ; u < r_drawsurf.surfwidth ; u++)
+				if (src[(s0 + u) % smax] == TRANSPARENT_COLOR)
+					dest[u] = TRANSPARENT_COLOR;
+		}
+	}
 }
 
 

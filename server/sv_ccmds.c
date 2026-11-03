@@ -580,6 +580,40 @@ void SV_GameMap_f (void)
 
 /*
 ==================
+SV_RestartLevel_f
+
+The 2023 re-release's restart_level, which its game asks for when every
+player in co-op is dead: the level again as it was entered, its file of an
+earlier visit (save/current) read as it was then, the other levels' left as
+they are, and the players' own as the game has them (resp.coop_respawn)
+==================
+*/
+void SV_RestartLevel_f (void)
+{
+	char	level[MAX_QPATH], *s;
+
+	if (sv.state != ss_game)
+	{
+		Com_Printf ("restart_level: no level is playing\n");
+		return;
+	}
+
+	// the level of the last map command, without the cinematic before it
+	// or the end of unit (which would wipe the others)
+	s = strrchr (svs.mapcmd, '+');
+	Com_sprintf (level, sizeof(level), "%s", s ? s + 1 : svs.mapcmd);
+	s = level[0] == '*' ? level + 1 : level;
+	if (!s[0])
+	{
+		Com_sprintf (level, sizeof(level), "%s", sv.name);
+		s = level;
+	}
+
+	SV_Map (false, s, false);
+}
+
+/*
+==================
 SV_Map_f
 
 Goes directly to a given map without any savegame archiving.
@@ -1085,6 +1119,7 @@ void SV_InitOperatorCommands (void)
 	Cmd_AddCommand ("map", SV_Map_f);
 	Cmd_AddCommand ("demomap", SV_DemoMap_f);
 	Cmd_AddCommand ("gamemap", SV_GameMap_f);
+	Cmd_AddCommand ("restart_level", SV_RestartLevel_f);
 	Cmd_AddCommand ("setmaster", SV_SetMaster_f);
 
 	if ( dedicated->value )

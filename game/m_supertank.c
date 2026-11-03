@@ -677,7 +677,7 @@ void SP_monster_supertank_rr (edict_t *self);
 
 void SP_monster_supertank (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;

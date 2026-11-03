@@ -115,6 +115,8 @@ extern cvar_t *g_allow_grapple;
 #define CTF_GRAPPLE_PULL_SPEED				650	// speed player is pulled at
 
 void CTFInit(void);
+void CTFAdjustTeamScore (int team, int delta);
+qboolean CTFTeamFragLimitHit (void);
 void CTFSpawn(void);
 
 void SP_info_player_team1(edict_t *self);

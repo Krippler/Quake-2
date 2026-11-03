@@ -565,11 +565,17 @@ of ent.  Ent should be unlinked before calling this!
 */
 qboolean KillBox (edict_t *ent)
 {
+	return KillBoxMask (ent, MASK_PLAYERSOLID);
+}
+
+// what of mask's is there
+qboolean KillBoxMask (edict_t *ent, int mask)
+{
 	trace_t		tr;
 
 	while (1)
 	{
-		tr = gi.trace (ent->s.origin, ent->mins, ent->maxs, ent->s.origin, NULL, MASK_PLAYERSOLID);
+		tr = gi.trace (ent->s.origin, ent->mins, ent->maxs, ent->s.origin, NULL, mask);
 		if (!tr.ent)
 			break;
 

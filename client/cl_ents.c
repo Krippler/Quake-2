@@ -384,6 +384,8 @@ void CL_DeltaEntity (frame_t *frame, int newnum, entity_state_t *old, int bits)
 	if (ent->serverframe != cl.frame.serverframe - 1)
 	{	// wasn't in last update, so initialize some things
 		ent->trailcount = 1024;		// for diminishing rocket / grenade trails
+		ent->anim_oldframe = state->frame;
+		ent->anim_start = cl.frame.servertime - 100;
 		// duplicate the current state so lerping doesn't hurt anything
 		ent->prev = *state;
 		if (state->event == EV_OTHER_TELEPORT)
@@ -400,10 +402,35 @@ void CL_DeltaEntity (frame_t *frame, int newnum, entity_state_t *old, int bits)
 	else
 	{	// shuffle the last state to previous
 		ent->prev = ent->current;
+		// a new frame of its 10 Hz animation, from the one before
+		if (state->frame != ent->current.frame)
+		{
+			ent->anim_oldframe = ent->current.frame;
+			ent->anim_start = cl.frame.servertime - CL_FrameTime ();
+		}
 	}
 
 	ent->serverframe = cl.frame.serverframe;
 	ent->current = *state;
+}
+
+/*
+==================
+CL_AnimLerp
+
+How far a model (or the gun) is from its last frame to this one: at 1997's
+10 Hz the frame's own lerp, at a faster tick (the re-release's 40) its 10 Hz
+animation's, the frame coming in over 100 ms from the frame before it
+==================
+*/
+float CL_AnimLerp (int start)
+{
+	float	f;
+
+	if (CL_FrameTime () >= 100)
+		return cl.lerpfrac;
+	f = (cl.time - start) / 100.0;
+	return f < 0 ? 0 : f > 1 ? 1 : f;
 }
 
 /*
@@ -710,7 +737,7 @@ void CL_ParseFrame (void)
 
 	cl.frame.serverframe = MSG_ReadLong (&net_message);
 	cl.frame.deltaframe = MSG_ReadLong (&net_message);
-	cl.frame.servertime = cl.frame.serverframe*100;
+	cl.frame.servertime = cl.frame.serverframe*CL_FrameTime ();
 
 	// BIG HACK to let old demos continue to work
 	if (cls.serverProtocol != 26)
@@ -753,8 +780,8 @@ void CL_ParseFrame (void)
 	// clamp time 
 	if (cl.time > cl.frame.servertime)
 		cl.time = cl.frame.servertime;
-	else if (cl.time < cl.frame.servertime - 100)
-		cl.time = cl.frame.servertime - 100;
+	else if (cl.time < cl.frame.servertime - CL_FrameTime ())
+		cl.time = cl.frame.servertime - CL_FrameTime ();
 
 	// read areabits
 	len = MSG_ReadByte (&net_message);
@@ -766,6 +793,14 @@ void CL_ParseFrame (void)
 	if (cmd != svc_playerinfo)
 		Com_Error (ERR_DROP, "CL_ParseFrame: not playerinfo");
 	CL_ParsePlayerstate (old, &cl.frame);
+
+	// the gun's 10 Hz animation at a faster tick (CL_AnimLerp)
+	if (cl.frame.playerstate.gunframe != cl.gun_frame)
+	{
+		cl.gun_oldframe = cl.gun_frame;
+		cl.gun_frame = cl.frame.playerstate.gunframe;
+		cl.gun_anim_start = cl.frame.servertime - CL_FrameTime ();
+	}
 
 	// read packet entities
 	cmd = MSG_ReadByte (&net_message);
@@ -944,6 +979,11 @@ void CL_AddPacketEntities (frame_t *frame)
 //======
 		ent.oldframe = cent->prev.frame;
 		ent.backlerp = 1.0 - cl.lerpfrac;
+		if (CL_FrameTime () < 100)
+		{	// the re-release's faster tick: its 10 Hz animation
+			ent.oldframe = cent->anim_oldframe;
+			ent.backlerp = 1.0 - CL_AnimLerp (cent->anim_start);
+		}
 
 		if (renderfx & (RF_FRAMELERP|RF_BEAM))
 		{	// step origin discretely, because the frames
@@ -1465,6 +1505,11 @@ void CL_AddViewWeapon (player_state_t *ps, player_state_t *ops)
 
 	gun.flags = RF_MINLIGHT | RF_DEPTHHACK | RF_WEAPONMODEL;
 	gun.backlerp = 1.0 - cl.lerpfrac;
+	if (CL_FrameTime () < 100 && !gun_frame)
+	{	// the re-release's faster tick: the gun's 10 Hz animation
+		gun.oldframe = gun.frame ? cl.gun_oldframe : 0;
+		gun.backlerp = 1.0 - CL_AnimLerp (cl.gun_anim_start);
+	}
 	VectorCopy (gun.origin, gun.oldorigin);	// don't lerp at all
 	V_AddEntity (&gun);
 }
@@ -1575,15 +1620,15 @@ void CL_AddEntities (void)
 		cl.time = cl.frame.servertime;
 		cl.lerpfrac = 1.0;
 	}
-	else if (cl.time < cl.frame.servertime - 100)
+	else if (cl.time < cl.frame.servertime - CL_FrameTime ())
 	{
 		if (cl_showclamp->value)
-			Com_Printf ("low clamp %i\n", cl.frame.servertime-100 - cl.time);
-		cl.time = cl.frame.servertime - 100;
+			Com_Printf ("low clamp %i\n", cl.frame.servertime-CL_FrameTime () - cl.time);
+		cl.time = cl.frame.servertime - CL_FrameTime ();
 		cl.lerpfrac = 0;
 	}
 	else
-		cl.lerpfrac = 1.0 - (cl.frame.servertime - cl.time) * 0.01;
+		cl.lerpfrac = 1.0 - (cl.frame.servertime - cl.time) / (float)CL_FrameTime ();
 
 	if (cl_timedemo->value)
 		cl.lerpfrac = 1.0;

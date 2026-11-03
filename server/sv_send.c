@@ -403,8 +403,11 @@ qboolean SV_SendClientDatagram (client_t *client)
 	msg.allowoverflow = true;
 
 	// send over all the relevant entity_state_t
-	// and the player_state_t
+	// and the player_state_t, leaving room for the multicasts after
+	if (!client->datagram.overflowed && client->datagram.cursize < sizeof(msg_buf) / 2)
+		msg.maxsize -= client->datagram.cursize;
 	SV_WriteFrameToClient (client, &msg);
+	msg.maxsize = sizeof(msg_buf);
 
 	// copy the accumulated multicast datagram
 	// for this client out to the message
@@ -468,9 +471,10 @@ qboolean SV_RateDrop (client_t *c)
 
 	total = 0;
 
-	for (i = 0 ; i < RATE_MESSAGES ; i++)
+	// the last second's (as many frames as the tick has in one)
+	for (i = 0 ; i < sv.tickrate && i < RATE_MESSAGES ; i++)
 	{
-		total += c->message_size[i];
+		total += c->message_size[(sv.framenum - i + RATE_MESSAGES) % RATE_MESSAGES];
 	}
 
 	if (total > c->rate)
@@ -561,6 +565,12 @@ void SV_SendClientMessages (void)
 			Netchan_Transmit (&c->netchan, msglen, msgbuf);
 		else if (c->state == cs_spawned)
 		{
+			c->message_size[sv.framenum % RATE_MESSAGES] = 0;
+
+			// a client of 1997's frame rate: a frame in tickratio
+			if (!c->ext_tick && sv.tickratio > 1 && (sv.framenum % sv.tickratio))
+				continue;
+
 			// don't overrun bandwidth
 			if (SV_RateDrop (c))
 				continue;

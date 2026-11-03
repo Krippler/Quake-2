@@ -251,7 +251,7 @@ void SCR_CenterPrint (char *str)
 void SCR_DrawCenterString (void)
 {
 	char	*start;
-	int		l;
+	int		l, max;
 	int		j;
 	int		x, y;
 	int		remaining;
@@ -269,8 +269,10 @@ void SCR_DrawCenterString (void)
 
 	do	
 	{
-	// scan the width of the line
-		for (l=0 ; l<40 ; l++)
+	// scan the width of the line: 40 characters, or as many as the
+	// screen has room for (the re-release's key hints are 41)
+		max = viddef.width/8 > 40 ? viddef.width/8 : 40;
+		for (l=0 ; l<max ; l++)
 			if (start[l] == '\n' || !start[l])
 				break;
 		x = (viddef.width - l*8)/2;
@@ -1179,6 +1181,23 @@ void SCR_ExecuteLayoutString (char *s)
 			continue;
 		}
 
+		// the re-release's: a stat's configstring, ending at x
+		if (!strcmp(token, "stat_rstring"))
+		{
+			char	*str;
+
+			token = COM_Parse (&s);
+			index = atoi(token);
+			if (index < 0 || index >= MAX_STATS)
+				Com_Error (ERR_DROP, "Bad stat_rstring index");
+			index = cl.frame.playerstate.stats[index];
+			if (index < 0 || index >= MAX_CONFIGSTRINGS)
+				Com_Error (ERR_DROP, "Bad stat_rstring index");
+			str = CL_Localize (cl.configstrings[index]);
+			DrawString (x - strlen (str) * 8, y, str);
+			continue;
+		}
+
 		if (!strcmp(token, "cstring"))
 		{
 			token = CL_Localize (COM_Parse (&s));
@@ -1210,6 +1229,50 @@ void SCR_ExecuteLayoutString (char *s)
 		// the re-release's bosses' health bars, STAT_HEALTH_BARS a byte
 		// each, under their name: half the screen wide, red for what is
 		// left, grey for what is gone
+		// the re-release's co-op (game/g_coop.c): lives over the status
+		// bar's left, and why a dead player waits, mid-screen, in its
+		// words (cl_loc.c)
+		if (!strcmp(token, "coop"))
+		{
+			static char	*respawn_keys[] = { NULL, "$g_coop_respawn_in_combat",
+				"$g_coop_respawn_bad_area", "$g_coop_respawn_blocked",
+				"$g_coop_respawn_waiting", "$g_coop_respawn_no_lives" };
+			int		stat = cl.frame.playerstate.stats[STAT_COOP] & 0xffff;
+			int		lives = stat & 0xff, state = stat >> 8;
+			char	buf[64], msg[256], *sp;
+			int		col, max;
+
+			if (lives)
+			{
+				Com_sprintf (buf, sizeof(buf), "%s: %i", CL_Localize ("$g_lives"), lives - 1);
+				DrawAltString (8, viddef.height - 40, buf);
+			}
+			if (state > 0 && state < 6)
+			{
+				// broken at its spaces to the screen's width
+				Com_sprintf (msg, sizeof(msg), "%s", CL_Localize (respawn_keys[state]));
+				max = viddef.width / 8 - 2;
+				for (sp = msg, col = 0 ; *sp ; sp++, col++)
+				{
+					if (*sp == '\n')
+						col = -1;
+					else if (col >= max)
+					{
+						char	*b = sp;
+						while (b > msg && *b != ' ' && *b != '\n')
+							b--;
+						if (*b == ' ')
+						{
+							*b = '\n';
+							col = sp - b - 1;
+						}
+					}
+				}
+				DrawHUDString (msg, 0, viddef.height/2 + 24, viddef.width, 0);
+			}
+			continue;
+		}
+
 		if (!strcmp(token, "health_bars"))
 		{
 			int		stat = cl.frame.playerstate.stats[STAT_HEALTH_BARS] & 0xffff;
@@ -1237,13 +1300,21 @@ void SCR_ExecuteLayoutString (char *s)
 
 		if (!strcmp(token, "if"))
 		{	// draw a number
+			int		depth;
+
 			token = COM_Parse (&s);
-			value = cl.frame.playerstate.stats[atoi(token)];
+			index = atoi(token);
+			value = index >= 0 && index < MAX_STATS ? cl.frame.playerstate.stats[index] : 0;
 			if (!value)
-			{	// skip to endif
-				while (s && strcmp(token, "endif") )
+			{	// skip to its endif, past any within it (the re-release's
+				// layouts nest them)
+				for (depth = 1 ; s && depth ; )
 				{
 					token = COM_Parse (&s);
+					if (!strcmp(token, "if"))
+						depth++;
+					else if (!strcmp(token, "endif"))
+						depth--;
 				}
 			}
 

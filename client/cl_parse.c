@@ -47,7 +47,8 @@ char *svc_strings[256] =
 	"svc_deltapacketentities",
 	"svc_frame",
 	"svc_muzzleflash3",
-	"svc_fog"
+	"svc_fog",
+	"svc_damage"
 };
 
 //=============================================================================
@@ -181,6 +182,7 @@ void CL_RegisterSounds (void)
 
 	S_BeginRegistration ();
 	CL_RegisterTEntSounds ();
+	CL_RegisterDamageSounds ();
 	for (i=1 ; i<MAX_SOUNDS ; i++)
 	{
 		if (!cl.configstrings[CS_SOUNDS+i][0])
@@ -535,6 +537,12 @@ void CL_ParseConfigString (void)
 		CL_SetLightstyle (i - CS_LIGHTS);
 	else if (i == CS_CD_LOOP_COUNT)
 		CDAudio_SetLoopCount (cl.configstrings[CS_CD_LOOP_COUNT]);
+	else if (i == CS_TICK_RATE)
+	{	// the re-release's faster tick: its frames' milliseconds
+		int		rate = atoi (cl.configstrings[CS_TICK_RATE]);
+
+		cl.frametime = rate > 10 && rate <= 1000 ? 1000 / rate : 100;
+	}
 	else if (i == CS_CDTRACK)
 	{
 		if (cl.refresh_prepped)
@@ -823,6 +831,10 @@ void CL_ParseServerMessage (void)
 
 		case svc_fog:
 			CL_ParseFog ();
+			break;
+
+		case svc_damage:
+			CL_ParseDamage ();
 			break;
 
 		case svc_download:

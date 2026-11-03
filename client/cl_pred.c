@@ -92,6 +92,10 @@ void CL_ClipMoveToEntities ( vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end,
 		if (ent->number == cl.playernum+1)
 			continue;
 
+		// players passed through, as the server has it
+		if (ent->number <= MAX_CLIENTS && cl.configstrings[CS_NO_PLAYER_COLLISION][0] == '1')
+			continue;
+
 		if (ent->solid == 31)
 		{	// special value for bmodel
 			cmodel = cl.model_clip[ent->modelindex];

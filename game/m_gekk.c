@@ -2019,7 +2019,7 @@ SP_monster_gekk(edict_t *self)
 		return;
 	}
 
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict(self);
 		return;

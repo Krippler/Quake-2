@@ -1231,8 +1231,10 @@ void R_DrawAlphaSurfaces( void )
 
 		if (s->texinfo->flags & SURF_TRANS66)
 			R_ClipAndDrawPoly( 0.60f, ( s->flags & SURF_DRAWTURB) != 0, true );
-		else
+		else if (s->texinfo->flags & SURF_TRANS33)
 			R_ClipAndDrawPoly( 0.30f, ( s->flags & SURF_DRAWTURB) != 0, true );
+		else	// the re-release's see-through grates: solid, with holes
+			R_ClipAndDrawPoly( 1.0f, ( s->flags & SURF_DRAWTURB) != 0, true );
 
 		s = s->nextalphasurface;
 	}

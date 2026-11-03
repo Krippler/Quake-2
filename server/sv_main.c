@@ -41,6 +41,7 @@ cvar_t *allow_download_sounds;
 cvar_t *allow_download_maps;
 
 cvar_t *sv_airaccelerate;
+cvar_t *sv_tickrate;			// the re-release's 40 Hz (sv_init.c)
 
 cvar_t	*sv_noreload;			// don't reload level state when reentering
 
@@ -730,7 +731,7 @@ void SV_RunGameFrame (void)
 	// compression can get confused when a client
 	// has the "current" frame
 	sv.framenum++;
-	sv.time = sv.framenum*100;
+	sv.time = sv.framenum*sv.frametime;
 
 	// don't run if paused
 	if (!sv_paused->value || maxclients->value > 1)
@@ -780,11 +781,11 @@ void SV_Frame (int msec)
 	if (!sv_timedemo->value && svs.realtime < sv.time)
 	{
 		// never let the time get too far off
-		if (sv.time - svs.realtime > 100)
+		if (sv.time - svs.realtime > sv.frametime)
 		{
 			if (sv_showclamp->value)
 				Com_Printf ("sv lowclamp\n");
-			svs.realtime = sv.time - 100;
+			svs.realtime = sv.time - sv.frametime;
 		}
 		NET_Sleep(sv.time - svs.realtime);
 		return;
@@ -927,6 +928,7 @@ void SV_UserinfoChanged (client_t *cl)
 
 	// this engine's client, which reads the extensions it is sent
 	cl->ext_scale = atoi (Info_ValueForKey (cl->userinfo, "q2ext")) >= 1;
+	cl->ext_tick = atoi (Info_ValueForKey (cl->userinfo, "q2ext")) >= 2;
 
 	// msg command
 	val = Info_ValueForKey (cl->userinfo, "msg");
@@ -977,6 +979,7 @@ void SV_Init (void)
 	sv_noreload = Cvar_Get ("sv_noreload", "0", 0);
 
 	sv_airaccelerate = Cvar_Get("sv_airaccelerate", "0", CVAR_LATCH);
+	sv_tickrate = Cvar_Get ("sv_tickrate", "40", CVAR_ARCHIVE);	// from the next level
 
 	public_server = Cvar_Get ("public", "0", 0);
 

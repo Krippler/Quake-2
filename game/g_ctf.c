@@ -461,7 +461,7 @@ edict_t *SelectCTFSpawnPoint (edict_t *ent)
 	char	*cname;
 
 	if (ent->client->resp.ctf_state)
-		if ( (int)(dmflags->value) & DF_SPAWN_FARTHEST)
+		if ( G_DMFlags () & DF_SPAWN_FARTHEST)
 			return SelectFarthestDeathmatchSpawnPoint ();
 		else
 			return SelectRandomDeathmatchSpawnPoint ();
@@ -963,6 +963,25 @@ void CTFEffects(edict_t *player)
 }
 
 // called when we enter the intermission
+/*
+The re-release's team deathmatch (teamplay): a team's frags, kept where
+CTF keeps its captures, so the scoreboard and status bar show them
+*/
+void CTFAdjustTeamScore (int team, int delta)
+{
+	if (!teamplay->value)
+		return;
+	if (team == CTF_TEAM1)
+		ctfgame.team1 += delta;
+	else if (team == CTF_TEAM2)
+		ctfgame.team2 += delta;
+}
+
+qboolean CTFTeamFragLimitHit (void)
+{
+	return ctfgame.team1 >= fraglimit->value || ctfgame.team2 >= fraglimit->value;
+}
+
 void CTFCalcScores(void)
 {
 	int i;
@@ -3080,6 +3099,9 @@ int CTFUpdateJoinMenu(edict_t *ent)
 	static char team1players[32];
 	static char team2players[32];
 	int num1, num2, i;
+
+	// the re-release's team deathmatch has the same menu, its own title
+	joinmenu[1].text = teamplay->value ? "*Team Deathmatch" : "*ThreeWave Capture the Flag";
 
 	if (ctfgame.match >= MATCH_PREGAME && matchlock->value) {
 		joinmenu[jmenu_red].text = "MATCH IS LOCKED";

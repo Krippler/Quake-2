@@ -438,7 +438,7 @@ void M_ReactToDamage (edict_t *targ, edict_t *attacker, edict_t *inflictor)
 qboolean CheckTeamDamage (edict_t *targ, edict_t *attacker)
 {
 	// CTF's: not your own team
-	if (ctf->value && targ->client && attacker->client)
+	if (G_TeamplayEnabled () && targ->client && attacker->client)
 		if (targ->client->resp.ctf_team == attacker->client->resp.ctf_team &&
 			targ != attacker)
 			return true;
@@ -460,19 +460,33 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	if (!targ->takedamage)
 		return;
 
+	// the re-release's instagib: every hit between players kills
+	if (G_Instagib () && attacker->client && targ->client)
+		damage = 9999;
+
 	// friendly fire avoidance
 	// if enabled you can't hurt teammates (but you can hurt yourself)
 	// knockback still occurs
-	if ((targ != attacker) && ((deathmatch->value && ((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS))) || coop->value))
+	// (co-op's players, and team deathmatch's and CTF's, are teams too, as
+	// in the re-release, which has friendly fire off by default; the A-M
+	// bomb hurts everyone)
+	if ((targ != attacker) && !(dflags & DAMAGE_NO_PROTECTION)
+		&& ((deathmatch->value && (G_DMFlags () & (DF_MODELTEAMS | DF_SKINTEAMS))) || coop->value || G_TeamplayEnabled ()))
 	{
 		if (OnSameTeam (targ, attacker))
 		{
-			if ((int)(dmflags->value) & DF_NO_FRIENDLY_FIRE)
+			if ((G_DMFlags () & DF_NO_FRIENDLY_FIRE) && mod != MOD_NUKE)
 				damage = 0;
 			else
 				mod |= MOD_FRIENDLY_FIRE;
 		}
 	}
+
+	// the re-release's damage scales: what monsters take, and the rest
+	if (targ->svflags & SVF_MONSTER)
+		damage *= ai_damage_scale->value;
+	else
+		damage *= g_damage_scale->value;
 	meansOfDeath = mod;
 
 	// easy mode takes half damage
@@ -584,6 +598,11 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 		&& !(client && client->invincible_framenum > level.framenum))
 		take = damage;
 
+	// the re-release's hit marker, for the player who did it
+	if (targ != attacker && attacker->client && targ->health > 0
+		&& !(targ->svflags & SVF_DEADMONSTER) && mod != MOD_TARGET_LASER)
+		attacker->client->hit_marker += take + psave + asave;
+
 	// team damage avoidance
 	if (!(dflags & DAMAGE_NO_PROTECTION) && CheckTeamDamage (targ, attacker))
 		return;
@@ -655,12 +674,56 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	// at the end of the frame
 	if (client)
 	{
+		// the re-release's co-op: hurt, so in a fight (G_CoopRespawn)
+		client->last_damage_time = level.time + COOP_DAMAGE_RESPAWN_TIME;
 		client->damage_parmor += psave;
 		client->damage_armor += asave;
 		client->damage_blood += take;
 		client->damage_knockback += knockback;
 		VectorCopy (point, client->damage_from);
+		G_DamageIndicator (client, inflictor, attacker, dflags, take, asave, psave);
 	}
+}
+
+/*
+============
+G_DamageIndicator
+
+The re-release's: where a player was hurt from, for the client's arrows
+round the crosshair; hurts from near the same place add up
+============
+*/
+void G_DamageIndicator (gclient_t *client, edict_t *inflictor, edict_t *attacker, int dflags,
+	int take, int asave, int psave)
+{
+	int		i;
+	vec3_t	v;
+	float	*from;
+
+	if (inflictor == world || attacker == world || !(take || asave || psave))
+		return;
+
+	// a direct hit points to the attacker, splash to what went off
+	from = (dflags & DAMAGE_RADIUS) ? inflictor->s.origin : attacker->s.origin;
+	for (i = 0 ; i < client->num_damage_indicators ; i++)
+	{
+		VectorSubtract (from, client->damage_indicators[i].from, v);
+		if (VectorLength (v) < 32)
+			break;
+	}
+	if (i == client->num_damage_indicators)
+	{
+		if (i == MAX_DAMAGE_INDICATORS)
+			return;
+		VectorCopy (from, client->damage_indicators[i].from);
+		client->damage_indicators[i].health = 0;
+		client->damage_indicators[i].armor = 0;
+		client->damage_indicators[i].power = 0;
+		client->num_damage_indicators++;
+	}
+	client->damage_indicators[i].health += take;
+	client->damage_indicators[i].armor += asave;
+	client->damage_indicators[i].power += psave;
 }
 
 

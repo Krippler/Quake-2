@@ -1196,7 +1196,7 @@ static void WidowPrecache (void)
  */
 void SP_monster_widow (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;

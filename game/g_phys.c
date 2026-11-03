@@ -322,9 +322,9 @@ SV_AddGravity
 void SV_AddGravity (edict_t *ent)
 {
 	if (GRAVITY_UP(ent))	// Ground Zero's stalker, on a ceiling
-		VectorMA (ent->velocity, ent->gravity * sv_gravity->value * FRAMETIME, ent->gravityVector, ent->velocity);
+		VectorMA (ent->velocity, ent->gravity * sv_gravity->value * TICKTIME, ent->gravityVector, ent->velocity);
 	else
-		ent->velocity[2] -= ent->gravity * sv_gravity->value * FRAMETIME;
+		ent->velocity[2] -= ent->gravity * sv_gravity->value * TICKTIME;
 }
 
 /*
@@ -582,8 +582,8 @@ void SV_Physics_Pusher (edict_t *ent)
 			part->avelocity[0] || part->avelocity[1] || part->avelocity[2]
 			)
 		{	// object is moving
-			VectorScale (part->velocity, FRAMETIME, move);
-			VectorScale (part->avelocity, FRAMETIME, amove);
+			VectorScale (part->velocity, TICKTIME, move);
+			VectorScale (part->avelocity, TICKTIME, amove);
 
 			if (!SV_Push (part, move, amove))
 				break;	// move was blocked
@@ -598,7 +598,7 @@ void SV_Physics_Pusher (edict_t *ent)
 		for (mv = ent ; mv ; mv=mv->teamchain)
 		{
 			if (mv->nextthink > 0)
-				mv->nextthink += FRAMETIME;
+				mv->nextthink += TICKTIME;
 		}
 
 		// if the pusher has a "blocked" function, call it
@@ -649,8 +649,8 @@ void SV_Physics_Noclip (edict_t *ent)
 	if (!SV_RunThink (ent))
 		return;
 	
-	VectorMA (ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
-	VectorMA (ent->s.origin, FRAMETIME, ent->velocity, ent->s.origin);
+	VectorMA (ent->s.angles, TICKTIME, ent->avelocity, ent->s.angles);
+	VectorMA (ent->s.origin, TICKTIME, ent->velocity, ent->s.origin);
 
 	gi.linkentity (ent);
 }
@@ -710,10 +710,10 @@ void SV_Physics_Toss (edict_t *ent)
 		SV_AddGravity (ent);
 
 // move angles
-	VectorMA (ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
+	VectorMA (ent->s.angles, TICKTIME, ent->avelocity, ent->s.angles);
 
 // move origin
-	VectorScale (ent->velocity, FRAMETIME, move);
+	VectorScale (ent->velocity, TICKTIME, move);
 	trace = SV_PushEntity (ent, move);
 	if (!ent->inuse)
 		return;
@@ -793,7 +793,11 @@ FIXME: is this true?
 */
 
 //FIXME: hacked in for E3 demo
-#define	sv_stopspeed		100
+// physics moves by TICKTIME, a tick of the server's (the re-release's 40 Hz,
+// or 1997's 10), and thinks keep their own times
+// the re-release's sv_stopspeed, 100 as 1997's constant was
+#define	sv_stopspeed		(sv_stopspeed_cvar ? sv_stopspeed_cvar->value : 100)
+static cvar_t	*sv_stopspeed_cvar;
 #define sv_friction			6
 #define sv_waterfriction	1
 
@@ -802,8 +806,8 @@ void SV_AddRotationalFriction (edict_t *ent)
 	int		n;
 	float	adjustment;
 
-	VectorMA (ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
-	adjustment = FRAMETIME * sv_stopspeed * sv_friction;
+	VectorMA (ent->s.angles, TICKTIME, ent->avelocity, ent->s.angles);
+	adjustment = TICKTIME * sv_stopspeed * sv_friction;
 	for (n = 0; n < 3; n++)
 	{
 		if (ent->avelocity[n] > 0)
@@ -830,6 +834,9 @@ void SV_Physics_Step (edict_t *ent)
 	float		friction;
 	edict_t		*groundentity;
 	int			mask;
+
+	if (!sv_stopspeed_cvar)
+		sv_stopspeed_cvar = gi.cvar ("sv_stopspeed", "100", 0);
 
 	// airborn monsters should always check for ground
 	if (!ent->groundentity)
@@ -868,7 +875,7 @@ void SV_Physics_Step (edict_t *ent)
 		speed = fabs(ent->velocity[2]);
 		control = speed < sv_stopspeed ? sv_stopspeed : speed;
 		friction = sv_friction/3;
-		newspeed = speed - (FRAMETIME * control * friction);
+		newspeed = speed - (TICKTIME * control * friction);
 		if (newspeed < 0)
 			newspeed = 0;
 		newspeed /= speed;
@@ -880,7 +887,7 @@ void SV_Physics_Step (edict_t *ent)
 	{
 		speed = fabs(ent->velocity[2]);
 		control = speed < sv_stopspeed ? sv_stopspeed : speed;
-		newspeed = speed - (FRAMETIME * control * sv_waterfriction * ent->waterlevel);
+		newspeed = speed - (TICKTIME * control * sv_waterfriction * ent->waterlevel);
 		if (newspeed < 0)
 			newspeed = 0;
 		newspeed /= speed;
@@ -901,7 +908,7 @@ void SV_Physics_Step (edict_t *ent)
 					friction = sv_friction;
 
 					control = speed < sv_stopspeed ? sv_stopspeed : speed;
-					newspeed = speed - FRAMETIME*control*friction;
+					newspeed = speed - TICKTIME*control*friction;
 
 					if (newspeed < 0)
 						newspeed = 0;
@@ -916,7 +923,7 @@ void SV_Physics_Step (edict_t *ent)
 			mask = MASK_MONSTERSOLID;
 		else
 			mask = MASK_SOLID;
-		SV_FlyMove (ent, FRAMETIME, mask);
+		SV_FlyMove (ent, TICKTIME, mask);
 
 		gi.linkentity (ent);
 		// not in a Quake 64 map's first frame, as the re-release: its

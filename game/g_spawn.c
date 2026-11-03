@@ -439,6 +439,18 @@ void ED_CallSpawn (edict_t *ent)
 			continue;
 		if (!strcmp(item->classname, ent->classname))
 		{	// found it
+			// Ground Zero's random items, as the re-release has them
+			// (g_dm_random_items)
+			if (deathmatch->value && g_dm_random_items->value)
+			{
+				gitem_t	*it = G_RandomItem (item);
+
+				if (it)
+				{
+					item = it;
+					ent->classname = it->classname;
+				}
+			}
 			SpawnItem (ent, item);
 			return;
 		}
@@ -704,6 +716,8 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	int			i;
 	float		skill_level;
 
+	G_SetTickRate ();		// the server's tick, 1997's 10 Hz or the re-release's 40
+
 	InitGameRules ();	// Ground Zero's deathmatch games, each level anew
 
 	skill_level = floor (skill->value);
@@ -724,6 +738,16 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 
 	strncpy (level.mapname, mapname, sizeof(level.mapname)-1);
 	level.is_n64 = !strncmp (level.mapname, "q64/", 4);
+
+	// the re-release's co-op (g_coop.c): its monsters' health for more
+	// players, and whether players pass through each other, which the
+	// client predicts
+	level.coop_health_scaling = coop->value ? g_coop_health_scaling->value : 0;
+	if (level.coop_health_scaling < 0)
+		level.coop_health_scaling = 0;
+	else if (level.coop_health_scaling > 1)
+		level.coop_health_scaling = 1;
+	gi.configstring (CS_NO_PLAYER_COLLISION, G_ShouldPlayersCollide (false) ? "" : "1");
 	strncpy (game.spawnpoint, spawnpoint, sizeof(game.spawnpoint)-1);
 
 	// set client fields on player ents
@@ -880,6 +904,14 @@ char *single_statusbar =
 "	yb	-50 "
 "endif "
 
+// the re-release's: the item just selected's name, the timer over it
+"if 22 "
+"	yb	-34 "
+"	xv	319 "
+"	stat_rstring 22 "
+"	yb	-58 "
+"endif "
+
 // timer
 "if 9 "
 "	xv	262 "
@@ -888,16 +920,46 @@ char *single_statusbar =
 "	pic	9 "
 "endif "
 
+"yb	-50 "
+
 //  help / weapon icon 
 "if 11 "
 "	xv	148 "
 "	pic	11 "
 "endif "
 
+// the re-release's keys held, over the timer and the name if they are there
+"if 9 "
+"	yb	-76 "
+"endif "
+"if 22 "
+"	yb	-58 "
+"	if 9 "
+"		yb	-84 "
+"	endif "
+"endif "
+"if 19 "
+"	xv	296 "
+"	pic	19 "
+"endif "
+"if 20 "
+"	xv	272 "
+"	pic	20 "
+"endif "
+"if 21 "
+"	xv	248 "
+"	pic	21 "
+"endif "
+
 // the re-release's bosses' health bars
 "if 18 "
 "	yt	24 "
 "	health_bars "
+"endif "
+
+// the re-release's co-op lives and respawn messages
+"if 31 "
+"	coop "
 "endif "
 ;
 
@@ -1013,6 +1075,10 @@ Only used for the world.
 */
 void SP_worldspawn (edict_t *ent)
 {
+	// the re-release's: what a player starting the game here has (the
+	// Call of the Machine's later maps')
+	level.start_items = st.start_items;
+
 	int		i;
 
 	ent->movetype = MOVETYPE_PUSH;
@@ -1076,7 +1142,7 @@ void SP_worldspawn (edict_t *ent)
 	gi.configstring (CS_MAXCLIENTS, va("%i", (int)(maxclients->value) ) );
 
 	// status bar program
-	if (deathmatch->value && ctf->value)
+	if (deathmatch->value && G_TeamplayEnabled ())
 	{
 		// CTF's, and its pictures
 		gi.configstring (CS_STATUSBAR, ctf_statusbar);

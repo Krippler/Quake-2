@@ -452,12 +452,14 @@ void TossClientWeapon (edict_t *self)
 		return;
 
 	item = self->client->pers.weapon;
+	if (G_Instagib ())		// the re-release's: the railgun stays theirs
+		item = NULL;
 	if (! self->client->pers.inventory[self->client->ammo_index] )
 		item = NULL;
 	if (item && (strcmp (item->pickup_name, "Blaster") == 0))
 		item = NULL;
 
-	if (!((int)(dmflags->value) & DF_QUAD_DROP))
+	if (!(G_DMFlags () & DF_QUAD_DROP))
 		quad = false;
 	else
 		quad = (self->client->quad_framenum > (level.framenum + 10));
@@ -558,16 +560,20 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 	if (!self->deadflag)
 	{
 		self->client->respawn_time = level.time + 1.0;
+		// the re-release's: so long before deathmatch respawns them anyway
+		if (deathmatch->value && g_dm_force_respawn_time->value)
+			self->client->respawn_time = level.time + g_dm_force_respawn_time->value;
 		LookAtKiller (self, inflictor, attacker);
 		self->client->ps.pmove.pm_type = PM_DEAD;
 		ClientObituary (self, inflictor, attacker);
 
 		// CTF's: telefragged by a teammate at the start, it was no frag
-		if (ctf->value && meansOfDeath == MOD_TELEFRAG && attacker->client &&
+		if (G_TeamplayEnabled () && meansOfDeath == MOD_TELEFRAG && attacker->client &&
 			self->client->resp.ctf_state < 2 &&
 			self->client->resp.ctf_team == attacker->client->resp.ctf_team)
 		{
 			attacker->client->resp.score--;
+			CTFAdjustTeamScore (attacker->client->resp.ctf_team, -1);
 			self->client->resp.ctf_state = 0;
 		}
 		CTFFragBonuses (self, inflictor, attacker);
@@ -585,12 +591,17 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 		// clear inventory
 		// this is kind of ugly, but it's how we want to handle keys in coop
-		for (n = 0; n < game.num_items; n++)
-		{
-			if (coop->value && itemlist[n].flags & IT_KEY)
-				self->client->resp.coop_respawn.inventory[n] = self->client->pers.inventory[n];
-			self->client->pers.inventory[n] = 0;
-		}
+		// (the re-release's instanced items: a player keeps theirs)
+		if (!G_UseCoopInstancedItems ())
+			for (n = 0; n < game.num_items; n++)
+			{
+				if (coop->value && itemlist[n].flags & IT_KEY)
+					self->client->resp.coop_respawn.inventory[n] = self->client->pers.inventory[n];
+				self->client->pers.inventory[n] = 0;
+			}
+
+		// the re-release's co-op lives and squad respawn (g_coop.c)
+		G_CoopPlayerDied (self);
 	}
 
 	// remove powerups
@@ -693,6 +704,43 @@ void InitClientPersistant (gclient_t *client)
 	client->pers.max_prox		= 50;
 
 	client->pers.connected = true;
+
+	// the re-release's: instagib's railgun in place of the blaster, then
+	// what g_start_items and the level say to start with
+	if (G_Instagib ())
+	{
+		client->pers.inventory[ITEM_INDEX(FindItem("Blaster"))] = 0;
+		if (!g_start_items->string[0])
+		{
+			client->pers.inventory[ITEM_INDEX(FindItem("Railgun"))] = 1;
+			client->pers.inventory[ITEM_INDEX(FindItem("Slugs"))] = 99;
+			client->pers.weapon = client->pers.lastweapon = FindItem("Railgun");
+			client->pers.selected_item = ITEM_INDEX(client->pers.weapon);
+		}
+	}
+	if (g_start_items->string[0] || (level.start_items && level.start_items[0]))
+	{
+		edict_t	*ent = g_edicts + 1 + (client - game.clients);
+
+		client->newweapon = NULL;
+		if (ent->client == client)
+		{
+			if (g_start_items->string[0])
+				G_GiveStartItems (ent, g_start_items->string);
+			if (level.start_items && level.start_items[0])
+				G_GiveStartItems (ent, level.start_items);
+		}
+		if (client->newweapon)
+		{
+			client->pers.weapon = client->pers.lastweapon = client->newweapon;
+			client->pers.selected_item = ITEM_INDEX(client->pers.weapon);
+			client->newweapon = NULL;
+		}
+	}
+
+	// the re-release's co-op lives (g_coop.c)
+	if (coop->value && g_coop_enable_lives->value)
+		client->pers.lives = (int)g_coop_num_lives->value + 1;
 }
 
 
@@ -708,7 +756,7 @@ void InitClientResp (gclient_t *client)
 	client->resp.enterframe = level.framenum;
 	client->resp.coop_respawn = client->pers;
 
-	if (ctf->value && client->resp.ctf_team < CTF_TEAM1)
+	if (G_TeamplayEnabled () && client->resp.ctf_team < CTF_TEAM1)
 		CTFAssignTeam (client);
 }
 
@@ -896,7 +944,7 @@ edict_t *SelectFarthestDeathmatchSpawnPoint (void)
 
 edict_t *SelectDeathmatchSpawnPoint (void)
 {
-	if ( (int)(dmflags->value) & DF_SPAWN_FARTHEST)
+	if ( G_DMFlags () & DF_SPAWN_FARTHEST)
 		return SelectFarthestDeathmatchSpawnPoint ();
 	else
 		return SelectRandomDeathmatchSpawnPoint ();
@@ -1016,7 +1064,7 @@ void	SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles)
 {
 	edict_t	*spot = NULL;
 
-	if (deathmatch->value && ctf->value)
+	if (deathmatch->value && G_TeamplayEnabled ())
 		spot = SelectCTFSpawnPoint (ent);	// CTF's: its team's
 	else if (deathmatch->value)
 		spot = SelectDeathmatchSpawnPoint ();
@@ -1285,6 +1333,13 @@ void PutClientInServer (edict_t *ent)
 	// ranging doesn't count this client
 	SelectSpawnPoint (ent, spawn_origin, spawn_angles);
 
+	// the re-release's squad respawn: beside a living player (g_coop.c)
+	if (use_squad_respawn)
+	{
+		VectorCopy (squad_respawn_position, spawn_origin);
+		VectorCopy (squad_respawn_angles, spawn_angles);
+	}
+
 	index = ent-g_edicts-1;
 	client = ent->client;
 
@@ -1311,9 +1366,21 @@ void PutClientInServer (edict_t *ent)
 //			if (itemlist[n].flags & IT_KEY)
 //				resp.coop_respawn.inventory[n] = client->pers.inventory[n];
 //		}
-		resp.coop_respawn.game_helpchanged = client->pers.game_helpchanged;
-		resp.coop_respawn.helpchanged = client->pers.helpchanged;
-		client->pers = resp.coop_respawn;
+		if (!G_UseCoopInstancedItems ())
+		{
+			resp.coop_respawn.game_helpchanged = client->pers.game_helpchanged;
+			resp.coop_respawn.helpchanged = client->pers.helpchanged;
+			client->pers = resp.coop_respawn;
+		}
+		else
+		{
+			// the re-release's instanced items: what they had, and their
+			// health
+			if (!client->pers.weapon)
+				client->pers.weapon = client->pers.lastweapon;
+			if (client->pers.health <= 0)
+				client->pers.health = client->pers.max_health;
+		}
 		ClientUserinfoChanged (ent, userinfo);
 		if (resp.score > client->pers.score)
 			client->pers.score = resp.score;
@@ -1367,7 +1434,7 @@ void PutClientInServer (edict_t *ent)
 	client->ps.pmove.origin[2] = spawn_origin[2]*8;
 	client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;	// CTF's: as an observer it was not
 
-	if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV))
+	if (deathmatch->value && (G_DMFlags () & DF_FIXED_FOV))
 	{
 		client->ps.fov = 90;
 	}
@@ -1392,7 +1459,8 @@ void PutClientInServer (edict_t *ent)
 
 	ent->s.frame = 0;
 	VectorCopy (spawn_origin, ent->s.origin);
-	ent->s.origin[2] += 1;	// make sure off ground
+	if (!use_squad_respawn)
+		ent->s.origin[2] += 1;	// make sure off ground
 	VectorCopy (ent->s.origin, ent->s.old_origin);
 
 	// set the delta angle
@@ -1432,10 +1500,11 @@ void PutClientInServer (edict_t *ent)
 		client->resp.spectator = false;
 
 	// CTF's: not on a team yet, an observer, to its menu
-	if (ctf->value && CTFStartClient (ent))
+	if (G_TeamplayEnabled () && CTFStartClient (ent))
 		return;
 
-	if (!KillBox (ent))
+	// in the re-release's co-op without player collision, not the others
+	if (!KillBoxMask (ent, G_ClientMask (ent, MASK_PLAYERSOLID, false)))
 	{	// could't spawn in?
 	}
 
@@ -1459,7 +1528,7 @@ void ClientBeginDeathmatch (edict_t *ent)
 	G_InitEdict (ent);
 
 	// CTF's: a team to be joined, afresh
-	ent->client->resp.ctf_team = ctf->value ? -1 : CTF_NOTEAM;
+	ent->client->resp.ctf_team = G_TeamplayEnabled () ? -1 : CTF_NOTEAM;
 	ent->client->resp.id_state = false;
 	InitClientResp (ent->client);
 
@@ -1544,6 +1613,10 @@ void ClientBegin (edict_t *ent)
 		}
 	}
 
+	// the re-release's co-op health scaling: one more player in the level
+	level.coop_scale_players++;
+	G_CheckCoopHealthScaling ();
+
 	// make sure all view stuff is valid
 	ClientEndServerFrame (ent);
 }
@@ -1587,13 +1660,13 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	playernum = ent-g_edicts-1;
 
 	// combine name and skin into a configstring; in CTF, its team's
-	if (ctf->value)
+	if (G_TeamplayEnabled ())
 		CTFAssignSkin (ent, s);
 	else
 		gi.configstring (CS_PLAYERSKINS+playernum, va("%s\\%s", ent->client->pers.netname, s) );
 
 	// fov
-	if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV))
+	if (deathmatch->value && (G_DMFlags () & DF_FIXED_FOV))
 	{
 		ent->client->ps.fov = 90;
 	}
@@ -1743,8 +1816,10 @@ edict_t	*pm_passent;
 // pmove doesn't need to know about passent and contentmask
 trace_t	PM_trace (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end)
 {
+	// through the other players, in the re-release's co-op without player
+	// collision
 	if (pm_passent->health > 0)
-		return gi.trace (start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
+		return gi.trace (start, mins, maxs, end, pm_passent, G_ClientMask (pm_passent, MASK_PLAYERSOLID, false));
 	else
 		return gi.trace (start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
 }
@@ -1948,7 +2023,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 			} else
 				GetChaseTarget(ent);
 
-		} else if (!client->weapon_thunk && !(ctf->value && ent->movetype == MOVETYPE_NOCLIP)) {	// (CTF's observers)
+		} else if (!client->weapon_thunk && !(G_TeamplayEnabled () && ent->movetype == MOVETYPE_NOCLIP)) {	// (CTF's observers)
 			client->weapon_thunk = true;
 			Think_Weapon (ent);
 		}
@@ -2013,15 +2088,17 @@ void ClientBeginServerFrame (edict_t *ent)
 	}
 
 	// run weapon animations if it hasn't been done by a ucmd_t
-	if (!client->weapon_thunk && !client->resp.spectator && !(ctf->value && ent->movetype == MOVETYPE_NOCLIP))
+	if (!client->weapon_thunk && !client->resp.spectator && !(G_TeamplayEnabled () && ent->movetype == MOVETYPE_NOCLIP))
 		Think_Weapon (ent);
 	else
 		client->weapon_thunk = false;
 
 	if (ent->deadflag)
 	{
-		// wait for any button just going down
-		if ( level.time > client->respawn_time)
+		// wait for any button just going down; not while the level is to
+		// start again, and in the re-release's co-op its own way back
+		if ( level.time > client->respawn_time && !level.coop_level_restart_time
+			&& !G_CoopRespawn (ent))
 		{
 			// in deathmatch, only wait for attack button
 			if (deathmatch->value)
@@ -2030,7 +2107,7 @@ void ClientBeginServerFrame (edict_t *ent)
 				buttonMask = -1;
 
 			if ( ( client->latched_buttons & buttonMask ) ||
-				(deathmatch->value && ((int)dmflags->value & DF_FORCE_RESPAWN) ) )
+				(deathmatch->value && (G_DMFlags () & DF_FORCE_RESPAWN) ) )
 			{
 				respawn(ent);
 				client->latched_buttons = 0;

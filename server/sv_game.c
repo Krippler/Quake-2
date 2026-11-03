@@ -256,6 +256,11 @@ A player's fog, as the game would have it: sent to them, reliably, if
 their client draws it ("q2ext").
 ===============
 */
+int PF_TickRate (void)
+{
+	return sv.tickrate ? sv.tickrate : 10;
+}
+
 void PF_SetFog (edict_t *ent, float *fog, int msec)
 {
 	int			i, e = NUM_FOR_EDICT (ent);
@@ -271,6 +276,42 @@ void PF_SetFog (edict_t *ent, float *fog, int msec)
 	MSG_WriteShort (&cl->netchan.message, msec < 0 ? 0 : msec > 65535 ? 65535 : msec);
 	for (i = 0 ; i < FOG_VALUES ; i++)
 		MSG_WriteFloat (&cl->netchan.message, fog[i]);
+}
+
+
+/*
+===============
+PF_DamageFeedback
+
+A player's hit marker and damage arrows this tick, if their client shows
+them ("q2ext"); unreliable, as the re-release sends them
+===============
+*/
+void PF_DamageFeedback (edict_t *ent, int hit, int count, int *encoded, vec3_t *dirs)
+{
+	int			i, e = NUM_FOR_EDICT (ent);
+	client_t	*cl;
+	sizebuf_t	*msg;
+
+	if (e < 1 || e > maxclients->value || (hit <= 0 && count <= 0))
+		return;
+	cl = svs.clients + e - 1;
+	if (cl->state != cs_spawned || !cl->ext_scale)
+		return;
+	if (count < 0)
+		count = 0;
+	if (count > 8)
+		count = 8;
+
+	msg = &cl->datagram;
+	MSG_WriteByte (msg, svc_damage);
+	MSG_WriteShort (msg, hit < 0 ? 0 : hit > 32767 ? 32767 : hit);
+	MSG_WriteByte (msg, count);
+	for (i = 0 ; i < count ; i++)
+	{
+		MSG_WriteByte (msg, encoded[i]);
+		MSG_WriteDir (msg, dirs[i]);
+	}
 }
 
 
@@ -435,6 +476,8 @@ void SV_InitGameProgs (void)
 	import.SetEntityScale = PF_SetEntityScale;
 	import.Clip = SV_Clip;
 	import.SetFog = PF_SetFog;
+	import.TickRate = PF_TickRate;
+	import.DamageFeedback = PF_DamageFeedback;
 	import.SetAreaPortalState = CM_SetAreaPortalState;
 	import.AreasConnected = CM_AreasConnected;
 
@@ -442,7 +485,7 @@ void SV_InitGameProgs (void)
 
 	if (!ge)
 		Com_Error (ERR_DROP, "failed to load game DLL");
-	if (ge->apiversion != GAME_API_VERSION)
+	if (ge->apiversion != GAME_API_VERSION && ge->apiversion != GAME_API_VERSION_EXT)
 		Com_Error (ERR_DROP, "game is version %i, not %i", ge->apiversion,
 		GAME_API_VERSION);
 

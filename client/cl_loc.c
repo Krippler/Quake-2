@@ -31,8 +31,9 @@ in the file read
 
 	map_establish_communication = "Establish communication\nlink to command ship." // 1 hits
 
-with, before some, the re-release's key hints, %bind:+moveup:...%, which
-are left out.
+with, before some, the re-release's key hints, %bind:+moveup:$desc%, which
+go under the message, a line each: the key bound to the command, and the
+description, "[SPACE] Hold jump to move up ladders."
 
 loc_language picks the file. A message the file does not have, or every
 one when there is no file, is worded from its name, which the re-release
@@ -163,21 +164,8 @@ static void Loc_Load (void)
 		u = (const unsigned char *)line;
 		while ((const char *)u < eol && *u != '"')
 		{
-			// the re-release's key hints, "%bind:+moveup:$map_jump_ladder%"
-			// before the words: drawn as pictures of keys, which the 1997
-			// font has none of, so left out
-			if (!strncmp ((const char *)u, "%bind:", 6))
-			{
-				const unsigned char	*e = u + 6;
-
-				while ((const char *)e < eol && *e != '%' && *e != '"')
-					e++;
-				if ((const char *)e < eol && *e == '%')
-				{
-					u = e + 1;
-					continue;
-				}
-			}
+			// the re-release's key hints, "%bind:+moveup:$map_jump_ladder%",
+			// are kept as they are, for CL_Localize (the binding may change)
 			if (*u == '\\' && (const char *)u + 1 < eol)
 			{
 				u++;
@@ -285,6 +273,51 @@ static char *Loc_Argument (const char *a, int len, char *out, char *end)
 }
 
 /*
+A key hint, "%bind:+moveup:$map_jump_ladder%" at h: its line, "[SPACE]
+Hold jump to move up ladders.", added to hints; where it ends, or NULL if
+it is not one
+*/
+static const char *Loc_KeyHint (const char *h, char *hints, char *end)
+{
+	const char	*cmd, *desc, *e;
+	char		*out;
+	int			cmdlen, k;
+
+	if (strncmp (h, "%bind:", 6))
+		return NULL;
+	cmd = h + 6;
+	for (desc = cmd ; *desc && *desc != ':' && *desc != '%' ; desc++)
+		;
+	cmdlen = desc - cmd;
+	if (*desc == ':')
+		desc++;
+	for (e = desc ; *e && *e != '%' ; e++)
+		;
+	if (*e != '%')
+		return NULL;
+
+	out = hints + strlen (hints);
+	if (out < end && hints[0])
+		*out++ = '\n';
+
+	// the first key bound to it, as the key binding menu names it
+	for (k = 0 ; k < 256 ; k++)
+		if (keybindings[k] && (int)strlen (keybindings[k]) == cmdlen
+			&& !Q_strncasecmp (keybindings[k], (char *)cmd, cmdlen))
+			break;
+	if (out < end)
+	{
+		Com_sprintf (out, end - out + 1, "[%s] ", k < 256 ? Key_KeynumToString (k) : "unbound");
+		if (out[1] && out[2] == ']')
+			out[1] = toupper ((unsigned char)out[1]);	// [Q], as on the key
+		out += strlen (out);
+	}
+	out = Loc_Argument (desc, e - desc, out, end);
+	*out = 0;
+	return e + 1;
+}
+
+/*
 The string with each $key in it that the file has replaced by its text;
 the string itself when there is none. The result lasts until the next call
 but one.
@@ -298,9 +331,9 @@ char *CL_Localize (char *s)
 	static char	bufs[2][2048];
 	static int	which;
 	char		*out, *end, *o, *value;
-	const char	*p, *k, *args[8], *a;
+	const char	*p, *k, *args[8], *a, *h;
 	int			n, i, nargs, alen[8];
-	char		words[1024];
+	char		words[1024], hints[512];
 
 	if (!s || !strchr (s, '$'))
 		return s;
@@ -333,8 +366,14 @@ char *CL_Localize (char *s)
 					alen[nargs++] = p - a;
 				}
 
+				hints[0] = 0;
 				for (value = words, i = 0 ; *value && out < end ; )
 				{
+					if (value[0] == '%' && (h = Loc_KeyHint (value, hints, hints + sizeof(hints) - 1)))
+					{
+						value = (char *)h;
+						continue;
+					}
 					if (value[0] == '{' && value[1] == '}')
 					{
 						if (i < nargs)
@@ -352,6 +391,19 @@ char *CL_Localize (char *s)
 					*out++ = i ? ',' : ':';
 					*out++ = ' ';
 					out = Loc_Argument (args[i], alen[i], out, end);
+				}
+				// its key hints under it
+				for (h = hints, i = 0 ; *h && out < end ; h++)
+				{
+					if (!i++)
+					{
+						*out++ = '\n';
+						if (out < end)
+							*out++ = '\n';
+						if (out >= end)
+							break;
+					}
+					*out++ = *h;
 				}
 				continue;
 			}

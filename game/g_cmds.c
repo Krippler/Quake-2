@@ -36,13 +36,13 @@ char *ClientTeam (edict_t *ent)
 	if (!p)
 		return value;
 
-	if ((int)(dmflags->value) & DF_MODELTEAMS)
+	if (G_DMFlags () & DF_MODELTEAMS)
 	{
 		*p = 0;
 		return value;
 	}
 
-	// if ((int)(dmflags->value) & DF_SKINTEAMS)
+	// if (G_DMFlags () & DF_SKINTEAMS)
 	return ++p;
 }
 
@@ -51,7 +51,16 @@ qboolean OnSameTeam (edict_t *ent1, edict_t *ent2)
 	char	ent1Team [512];
 	char	ent2Team [512];
 
-	if (!((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS)))
+	// the re-release's: co-op's players are a team, and team deathmatch's
+	// and CTF's by their team
+	if (!ent1->client || !ent2->client || ent1 == ent2)
+		return false;
+	if (coop->value)
+		return true;
+	if (G_TeamplayEnabled ())
+		return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
+
+	if (!(G_DMFlags () & (DF_MODELTEAMS | DF_SKINTEAMS)))
 		return false;
 
 	strcpy (ent1Team, ClientTeam (ent1));
@@ -62,6 +71,22 @@ qboolean OnSameTeam (edict_t *ent1, edict_t *ent2)
 	return false;
 }
 
+
+/*
+=================
+G_ShowSelectedItem
+
+The re-release's: the item just selected, named over the status bar's
+right for a while, outside deathmatch
+=================
+*/
+void G_ShowSelectedItem (edict_t *ent)
+{
+	if (deathmatch->value || ent->client->pers.selected_item <= 0)
+		return;
+	ent->client->selected_item_time = level.time + 3.0;
+	ent->client->ps.stats[STAT_SELECTED_ITEM_NAME] = CS_ITEMS + ent->client->pers.selected_item;
+}
 
 void SelectNextItem (edict_t *ent, int itflags)
 {
@@ -93,6 +118,7 @@ void SelectNextItem (edict_t *ent, int itflags)
 			continue;
 
 		cl->pers.selected_item = index;
+		G_ShowSelectedItem (ent);
 		return;
 	}
 
@@ -129,6 +155,7 @@ void SelectPrevItem (edict_t *ent, int itflags)
 			continue;
 
 		cl->pers.selected_item = index;
+		G_ShowSelectedItem (ent);
 		return;
 	}
 
@@ -519,7 +546,7 @@ void Cmd_Inven_f (edict_t *ent)
 		return;
 	}
 
-	if (ctf->value && cl->resp.ctf_team == CTF_NOTEAM)	// and opened to join
+	if (G_TeamplayEnabled () && cl->resp.ctf_team == CTF_NOTEAM)	// and opened to join
 	{
 		CTFOpenJoinMenu (ent);
 		return;
@@ -890,7 +917,7 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	if (gi.argc () < 2 && !arg0)
 		return;
 
-	if (!((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS)))
+	if (!(G_DMFlags () & (DF_MODELTEAMS | DF_SKINTEAMS)))
 		team = false;
 
 	if (team)
@@ -1001,7 +1028,7 @@ void ClientCommand (edict_t *ent)
 	}
 	if (Q_stricmp (cmd, "say_team") == 0 || Q_stricmp (cmd, "steam") == 0)
 	{
-		if (ctf->value)		// CTF's, with its %-codes
+		if (G_TeamplayEnabled ())		// CTF's, with its %-codes
 			CTFSay_Team (ent, gi.args ());
 		else
 			Cmd_Say_f (ent, true, false);
@@ -1067,7 +1094,7 @@ void ClientCommand (edict_t *ent)
 		Cmd_Wave_f (ent);
 	else if (Q_stricmp(cmd, "playerlist") == 0)
 	{
-		if (ctf->value)
+		if (G_TeamplayEnabled ())
 			CTFPlayerList (ent);
 		else
 			Cmd_PlayerList_f(ent);

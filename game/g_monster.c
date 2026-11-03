@@ -435,8 +435,49 @@ void M_MoveFrame (edict_t *self)
 }
 
 
+/*
+================
+monster_think
+
+A frame of the monster's, ten a second. At a faster tick (the re-release's
+40 Hz) it thinks every tick, as the re-release's monsters do: its frame,
+its decisions and its step as they were, every tenth of a second, then that
+step and turn taken a share a tick, from where it was, so that it moves as
+smoothly as the tick goes
+================
+*/
+static void M_StepTick (edict_t *self)
+{
+	int		i;
+
+	if (self->monsterinfo.step_ticks <= 0)
+		return;
+	for (i = 0 ; i < 3 ; i++)
+		self->s.origin[i] += self->monsterinfo.step_move[i] / tickratio;
+	self->s.angles[YAW] = anglemod (self->s.angles[YAW] + self->monsterinfo.step_yaw / tickratio);
+	self->monsterinfo.step_ticks--;
+	gi.linkentity (self);
+}
+
 void monster_think (edict_t *self)
 {
+	vec3_t	before, moved;
+	float	yaw_before, turned;
+
+	if (tickratio > 1 && level.time + 0.001 < self->monsterinfo.next_move_time)
+	{	// between its frames: a share of the last one's step
+		M_StepTick (self);
+		self->nextthink = level.time + TICKTIME;
+		return;
+	}
+
+	// what the last frame's step has left, all at once
+	while (self->monsterinfo.step_ticks > 0)
+		M_StepTick (self);
+
+	VectorCopy (self->s.origin, before);
+	yaw_before = self->s.angles[YAW];
+
 	M_MoveFrame (self);
 	// gone by its own frame (the re-release's widow, become its legs)
 	if (!self->inuse)
@@ -449,6 +490,30 @@ void monster_think (edict_t *self)
 	M_CatagorizePosition (self);
 	M_WorldEffects (self);
 	M_SetEffects (self);
+
+	if (tickratio > 1 && self->think == monster_think
+		&& fabs (self->nextthink - (level.time + FRAMETIME)) < 0.001)
+	{
+		self->monsterinfo.next_move_time = self->nextthink;
+		self->nextthink = level.time + TICKTIME;
+
+		// the step and turn it took, given back to be taken over the frame;
+		// not a teleport or a fall, nor the dead's
+		VectorSubtract (self->s.origin, before, moved);
+		turned = anglemod (self->s.angles[YAW] - yaw_before);
+		if (turned > 180)
+			turned -= 360;
+		self->monsterinfo.step_ticks = 0;
+		if (!self->deadflag && VectorLength (moved) < 64 && (VectorLength (moved) > 0 || turned))
+		{
+			VectorCopy (moved, self->monsterinfo.step_move);
+			self->monsterinfo.step_yaw = turned;
+			VectorCopy (before, self->s.origin);
+			self->s.angles[YAW] = yaw_before;
+			self->monsterinfo.step_ticks = tickratio;
+			M_StepTick (self);
+		}
+	}
 }
 
 
@@ -565,7 +630,7 @@ void monster_death_use (edict_t *self)
 
 qboolean monster_start (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return false;
@@ -625,6 +690,12 @@ qboolean monster_start (edict_t *self)
 
 	// the re-release's: its height standing, which its ducks come down from
 	self->monsterinfo.base_height = self->maxs[2];
+
+	// the re-release's co-op health scaling: its health for one player, and
+	// more for each past the first already there (g_coop.c)
+	self->monsterinfo.base_health = self->health;
+	self->monsterinfo.health_scaling = 1;
+	G_MonsterScaleCoopHealth (self);
 
 	return true;
 }

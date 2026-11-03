@@ -68,6 +68,43 @@ P_DamageFeedback
 Handles color blends and view kicks
 ===============
 */
+/*
+===============
+P_SendDamageFeedback
+
+The re-release's: this tick's arrows to where the player was hurt from,
+and the hit marker for what they hurt, to their client
+===============
+*/
+void P_SendDamageFeedback (edict_t *player)
+{
+	gclient_t	*client = player->client;
+	int			i, n, total, encoded[MAX_DAMAGE_INDICATORS];
+	vec3_t		dirs[MAX_DAMAGE_INDICATORS];
+
+	n = client->num_damage_indicators;
+	if ((n || client->hit_marker > 0) && gi.DamageFeedback)
+	{
+		for (i = 0 ; i < n ; i++)
+		{
+			total = (client->damage_indicators[i].health + client->damage_indicators[i].armor
+				+ client->damage_indicators[i].power) / 3;
+			encoded[i] = total < 1 ? 1 : total > 0x1f ? 0x1f : total;
+			if (client->damage_indicators[i].health)
+				encoded[i] |= 0x20;
+			if (client->damage_indicators[i].armor)
+				encoded[i] |= 0x40;
+			if (client->damage_indicators[i].power)
+				encoded[i] |= 0x80;
+			VectorSubtract (player->s.origin, client->damage_indicators[i].from, dirs[i]);
+			VectorNormalize (dirs[i]);
+		}
+		gi.DamageFeedback (player, client->hit_marker, n, encoded, dirs);
+	}
+	client->num_damage_indicators = 0;
+	client->hit_marker = 0;
+}
+
 void P_DamageFeedback (edict_t *player)
 {
 	gclient_t	*client;
@@ -403,8 +440,8 @@ void SV_CalcGunOffset (edict_t *ent)
 		if (delta < -45)
 			delta = -45;
 		if (i == YAW)
-			ent->client->ps.gunangles[ROLL] += 0.1*delta;
-		ent->client->ps.gunangles[i] += 0.2 * delta;
+			ent->client->ps.gunangles[ROLL] += 0.1*delta*tickratio;	// a frame of 1997's worth of turn
+		ent->client->ps.gunangles[i] += 0.2 * delta*tickratio;
 	}
 
 	// gun height
@@ -497,7 +534,7 @@ void SV_CalcBlend (edict_t *ent)
 	if (ent->client->quad_framenum > level.framenum)
 	{
 		remaining = ent->client->quad_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == 30 && level.frame10)	// beginning to fade (once, at any tick)
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage2.wav"), 1, ATTN_NORM, 0);
 		if (remaining > 30 || (remaining & 4) )
 			SV_AddBlend (0, 0, 1, 0.08, ent->client->ps.blend);
@@ -505,7 +542,7 @@ void SV_CalcBlend (edict_t *ent)
 	else if (ent->client->double_framenum > level.framenum)
 	{
 		remaining = ent->client->double_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == 30 && level.frame10)	// beginning to fade (once, at any tick)
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("misc/ddamage2.wav"), 1, ATTN_NORM, 0);
 		if (remaining > 30 || (remaining & 4) )
 			SV_AddBlend (0.9, 0.7, 0, 0.08, ent->client->ps.blend);
@@ -513,7 +550,7 @@ void SV_CalcBlend (edict_t *ent)
 	else if (ent->client->quadfire_framenum > level.framenum)
 	{
 		remaining = ent->client->quadfire_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == 30 && level.frame10)	// beginning to fade (once, at any tick)
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/quadfire2.wav"), 1, ATTN_NORM, 0);
 		if (remaining > 30 || (remaining & 4) )
 			SV_AddBlend (1, 0.2, 0.5, 0.08, ent->client->ps.blend);
@@ -521,7 +558,7 @@ void SV_CalcBlend (edict_t *ent)
 	else if (ent->client->invincible_framenum > level.framenum)
 	{
 		remaining = ent->client->invincible_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == 30 && level.frame10)	// beginning to fade (once, at any tick)
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect2.wav"), 1, ATTN_NORM, 0);
 		if (remaining > 30 || (remaining & 4) )
 			SV_AddBlend (1, 1, 0, 0.08, ent->client->ps.blend);
@@ -529,7 +566,7 @@ void SV_CalcBlend (edict_t *ent)
 	else if (ent->client->enviro_framenum > level.framenum)
 	{
 		remaining = ent->client->enviro_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == 30 && level.frame10)	// beginning to fade (once, at any tick)
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/airout.wav"), 1, ATTN_NORM, 0);
 		if (remaining > 30 || (remaining & 4) )
 			SV_AddBlend (0, 1, 0, 0.08, ent->client->ps.blend);
@@ -537,7 +574,7 @@ void SV_CalcBlend (edict_t *ent)
 	else if (ent->client->breather_framenum > level.framenum)
 	{
 		remaining = ent->client->breather_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == 30 && level.frame10)	// beginning to fade (once, at any tick)
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/airout.wav"), 1, ATTN_NORM, 0);
 		if (remaining > 30 || (remaining & 4) )
 			SV_AddBlend (0.4, 1, 0.4, 0.04, ent->client->ps.blend);
@@ -552,12 +589,12 @@ void SV_CalcBlend (edict_t *ent)
 		SV_AddBlend (0.85, 0.7, 0.3, ent->client->bonus_alpha, ent->client->ps.blend);
 
 	// drop the damage value
-	ent->client->damage_alpha -= 0.06;
+	ent->client->damage_alpha -= 0.06 * TICKTIME / FRAMETIME;	// as fast at any tick
 	if (ent->client->damage_alpha < 0)
 		ent->client->damage_alpha = 0;
 
 	// drop the bonus value
-	ent->client->bonus_alpha -= 0.1;
+	ent->client->bonus_alpha -= 0.1 * TICKTIME / FRAMETIME;
 	if (ent->client->bonus_alpha < 0)
 		ent->client->bonus_alpha = 0;
 }
@@ -635,7 +672,7 @@ void P_FallingDamage (edict_t *ent)
 			damage = 1;
 		VectorSet (dir, 0, 0, 1);
 
-		if (!deathmatch->value || !((int)dmflags->value & DF_NO_FALLING) )
+		if (!deathmatch->value || !(G_DMFlags () & DF_NO_FALLING) )
 			T_Damage (ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, 0, MOD_FALLING);
 	}
 	else
@@ -1137,7 +1174,9 @@ void ClientEndServerFrame (edict_t *ent)
 	AngleVectors (ent->client->v_angle, forward, right, up);
 
 	// burn from lava, etc
-	P_WorldEffects ();
+	// once a frame of 1997's: its damage and sounds are per frame
+	if (level.frame10)
+		P_WorldEffects ();
 
 	//
 	// set model angles from view angles so other things in
@@ -1172,6 +1211,8 @@ void ClientEndServerFrame (edict_t *ent)
 			bobmove = 0.0625;
 	}
 	
+	// bobmove is a frame of 1997's; a tick of the re-release's 40 Hz has its share
+	bobmove *= TICKTIME / FRAMETIME;
 	bobtime = (current_client->bobtime += bobmove);
 
 	if (current_client->ps.pmove.pm_flags & PMF_DUCKED)
@@ -1185,6 +1226,7 @@ void ClientEndServerFrame (edict_t *ent)
 
 	// apply all the damage taken this frame
 	P_DamageFeedback (ent);
+	P_SendDamageFeedback (ent);
 
 	// a kick this frame, on the re-release's maps, to go down to none
 	if (RR_Map () && (!VectorCompare (ent->client->kick_angles, vec3_origin)
@@ -1223,7 +1265,9 @@ void ClientEndServerFrame (edict_t *ent)
 
 	G_SetClientSound (ent);
 
-	G_SetClientFrame (ent);
+	// the player's model animates ten frames a second, whatever the tick
+	if (level.frame10)
+		G_SetClientFrame (ent);
 
 	VectorCopy (ent->velocity, ent->client->oldvelocity);
 	VectorCopy (ent->client->ps.viewangles, ent->client->oldviewangles);
@@ -1233,7 +1277,7 @@ void ClientEndServerFrame (edict_t *ent)
 	VectorClear (ent->client->kick_angles);
 
 	// if the scoreboard is up, update it
-	if (ent->client->showscores && !(level.framenum & 31) )
+	if (ent->client->showscores && !(level.framenum & 31) && level.frame10)
 	{
 		if (ent->client->menu)		// CTF's menu, not the scores
 		{

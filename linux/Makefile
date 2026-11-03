@@ -41,7 +41,9 @@ STRIP   ?= strip
 # Q_fabs), which gcc 3 and later may assume never happens. -fwrapv likewise:
 # the fixed-point maths overflows on purpose. -fcommon because the 1997 headers
 # define variables, not just declare them, and gcc 10 stopped merging those.
-BASE_CFLAGS = -Dstricmp=strcasecmp -D_GNU_SOURCE -DC_ONLY \
+# -std=gnu11 because C23, gcc 15's default, makes true and false keywords,
+# which q_shared.h's qboolean enum names.
+BASE_CFLAGS = -std=gnu11 -Dstricmp=strcasecmp -D_GNU_SOURCE -DC_ONLY \
               -fno-strict-aliasing -fwrapv -fcommon -fPIC
 
 # Warnings the 1997 sources trip over constantly and that say nothing about
@@ -123,7 +125,7 @@ CLIENT_SRCS = \
 	client/cl_cin.c client/cl_ents.c client/cl_fx.c client/cl_input.c \
 	client/cl_inv.c client/cl_main.c client/cl_parse.c client/cl_pred.c \
 	client/cl_tent.c client/cl_scrn.c client/cl_view.c client/cl_newfx.c \
-	client/cl_loc.c client/cl_wheel.c \
+	client/cl_loc.c client/cl_wheel.c client/cl_damage.c \
 	client/console.c client/keys.c client/menu.c client/snd_dma.c \
 	client/snd_mem.c client/snd_mix.c client/qmenu.c \
 	game/m_flash.c \
@@ -173,7 +175,7 @@ CTF_SRCS  = $(patsubst $(TOP)/%,%,$(wildcard $(TOP)/ctf/g_*.c $(TOP)/ctf/m_*.c \
 # with Yamagi's own flags, not the 1997 code's, since they are already
 # 64-bit clean. YQ2OSTYPE and YQ2ARCH go into their savegames, and match
 # Yamagi's own builds so saves move between the two.
-MP_CFLAGS = -O2 -fno-strict-aliasing -fwrapv -fvisibility=hidden -fPIC \
+MP_CFLAGS = -std=gnu11 -O2 -fno-strict-aliasing -fwrapv -fvisibility=hidden -fPIC \
             -Wno-format-truncation -Wno-format-overflow \
             -DYQ2OSTYPE=\"Linux\" -DYQ2ARCH=\"$(shell uname -m)\" \
             $(EXTRA_CFLAGS)

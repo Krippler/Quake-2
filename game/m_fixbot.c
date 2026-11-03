@@ -1204,7 +1204,7 @@ static void fixbot_die (edict_t *self, edict_t *inflictor, edict_t *attacker, in
  */
 void SP_monster_fixbot (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;

@@ -114,7 +114,9 @@ game_export_t *GetGameAPI (game_import_t *import)
 {
 	gi = *import;
 
-	globals.apiversion = GAME_API_VERSION;
+	// with EntityVisibleToClient, for the re-release's co-op items
+	globals.apiversion = GAME_API_VERSION_EXT;
+	globals.EntityVisibleToClient = EntityVisibleToClient;
 	globals.Init = InitGame;
 	globals.Shutdown = ShutdownGame;
 	globals.SpawnEntities = SpawnEntities;
@@ -232,9 +234,16 @@ void EndDMLevel (void)
 	}
 
 	// stay on same level flag
-	if ((int)dmflags->value & DF_SAME_LEVEL)
+	if (G_DMFlags () & DF_SAME_LEVEL)
 	{
 		BeginIntermission (CreateTargetChangeLevel (level.mapname) );
+		return;
+	}
+
+	// the re-release's map list, shuffled if it says (g_rropts.c)
+	if ((s = G_NextMapInList ()) != NULL)
+	{
+		BeginIntermission (CreateTargetChangeLevel (s) );
 		return;
 	}
 
@@ -313,6 +322,17 @@ void CheckDMRules (void)
 		}
 	}
 
+	// the re-release's team deathmatch: a team's frags, not a player's
+	if (teamplay->value)
+	{
+		if (fraglimit->value && CTFTeamFragLimitHit ())
+		{
+			gi.bprintf (PRINT_HIGH, "Fraglimit hit.\n");
+			EndDMLevel ();
+		}
+		return;
+	}
+
 	if (fraglimit->value)
 	{
 		for (i=0 ; i<maxclients->value ; i++)
@@ -346,6 +366,12 @@ void ExitLevel (void)
 	if (CTFNextMap ())		// CTF's: a match's
 		return;
 
+	// the re-release's co-op lives, back at the end of a unit
+	if (coop->value && g_coop_enable_lives->value && strchr (level.changemap, '*'))
+		for (i=0 ; i<maxclients->value ; i++)
+			if (g_edicts[1+i].inuse && g_edicts[1+i].client)
+				game.clients[i].pers.lives = (int)g_coop_num_lives->value + 1;
+
 	Com_sprintf (command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
 	gi.AddCommandString (command);
 	level.changemap = NULL;
@@ -372,13 +398,37 @@ G_RunFrame
 Advances the world by 0.1 seconds
 ================
 */
+float	ticktime = 0.1;
+int		tickratio = 1;
+
+/*
+================
+G_SetTickRate
+
+The server's tick, from it: 1997's 10 Hz, or the re-release's 40
+================
+*/
+void G_SetTickRate (void)
+{
+	int		rate = gi.TickRate ? gi.TickRate () : 10;
+
+	if (rate != 20 && rate != 40)
+		rate = 10;
+	ticktime = 1.0 / rate;
+	tickratio = rate / 10;
+}
+
 void G_RunFrame (void)
 {
 	int		i;
 	edict_t	*ent;
 
-	level.framenum++;
-	level.time = level.framenum*FRAMETIME;
+	// a tick of the server's; 1997's frames, a tenth of a second, counted
+	// in level.framenum as they always were, every tickratio'th
+	level.tick++;
+	level.time = level.tick*TICKTIME;
+	level.framenum = level.tick / tickratio;
+	level.frame10 = !(level.tick % tickratio);
 
 	// choose a client for monsters to target this frame
 	AI_SetSightClient ();
@@ -393,6 +443,10 @@ void G_RunFrame (void)
 		ExitLevel ();
 		return;
 	}
+
+	// the re-release's co-op: the level again, everyone being dead; each
+	// player's respawn state
+	G_CoopFrameBegin ();
 
 	//
 	// treat each object in turn
@@ -429,6 +483,11 @@ void G_RunFrame (void)
 
 	// see if it is time to end a deathmatch
 	CheckDMRules ();
+
+	// see if needpass needs updated (the re-release's, and 3.20's)
+	CheckNeedPass ();
+
+	G_CoopFrameEnd ();
 
 	// build the playerstate_t structures for all players
 	ClientEndServerFrames ();

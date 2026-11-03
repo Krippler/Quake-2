@@ -117,6 +117,25 @@ void SV_EmitProjectileUpdate (sizebuf_t *msg)
 
 /*
 =============
+SV_KeepEntity
+
+The frame's entity at index from, sent, moves to index to
+=============
+*/
+static void SV_KeepEntity (client_frame_t *frame, int to, int from)
+{
+	int		a, b;
+
+	if (to == from)
+		return;
+	a = (frame->first_entity + to) % svs.num_client_entities;
+	b = (frame->first_entity + from) % svs.num_client_entities;
+	svs.client_entities[a] = svs.client_entities[b];
+	svs.client_entity_scales[a] = svs.client_entity_scales[b];
+}
+
+/*
+=============
 SV_EmitPacketEntities
 
 Writes a delta update of an entity_state_t list to the message.
@@ -130,6 +149,8 @@ void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t 
 	int		oldnum, newnum;
 	int		from_num_entities;
 	int		bits;
+	int		kept, room;
+	entity_state_t	*keep;
 
 #if 0
 	if (numprojs)
@@ -142,6 +163,13 @@ void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t 
 		from_num_entities = 0;
 	else
 		from_num_entities = from->num_entities;
+
+	// what is sent is kept in the frame, in its order (kept <= newindex);
+	// an entity new to the client that there is no room left for waits
+	// for a later frame, which will send it from its baseline, so that a
+	// big map's first frame is not too big to send at all
+	room = msg->maxsize - 64;
+	kept = 0;
 
 	newindex = 0;
 	oldindex = 0;
@@ -172,6 +200,7 @@ void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t 
 			// note that players are always 'newentities', this updates their oldorigin always
 			// and prevents warping
 			MSG_WriteDeltaEntityScale (oldent, newent, oldscale, newscale, msg, false, newent->number <= maxclients->value);
+			SV_KeepEntity (to, kept++, newindex);
 			oldindex++;
 			newindex++;
 			continue;
@@ -179,7 +208,11 @@ void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t 
 
 		if (newnum < oldnum)
 		{	// this is a new entity, send it from the baseline
-			MSG_WriteDeltaEntityScale (&sv.baselines[newnum], newent, 0, newscale, msg, true, true);
+			if (msg->cursize < room)
+			{
+				MSG_WriteDeltaEntityScale (&sv.baselines[newnum], newent, 0, newscale, msg, true, true);
+				SV_KeepEntity (to, kept++, newindex);
+			}
 			newindex++;
 			continue;
 		}
@@ -205,6 +238,7 @@ void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t 
 	}
 
 	MSG_WriteShort (msg, 0);	// end of packetentities
+	to->num_entities = kept;
 
 #if 0
 	if (numprojs)
@@ -445,8 +479,18 @@ void SV_WriteFrameToClient (client_t *client, sizebuf_t *msg)
 	}
 
 	MSG_WriteByte (msg, svc_frame);
-	MSG_WriteLong (msg, sv.framenum);
-	MSG_WriteLong (msg, lastframe);	// what we are delta'ing from
+	// a client of 1997's frame rate gets every tickratio'th, numbered as
+	// its own (SV_SendClientMessages, SV_ExecuteClientMessage)
+	if (client->ext_tick || sv.tickratio <= 1)
+	{
+		MSG_WriteLong (msg, sv.framenum);
+		MSG_WriteLong (msg, lastframe);	// what we are delta'ing from
+	}
+	else
+	{
+		MSG_WriteLong (msg, sv.framenum / sv.tickratio);
+		MSG_WriteLong (msg, lastframe > 0 ? lastframe / sv.tickratio : lastframe);
+	}
 	MSG_WriteByte (msg, client->surpressCount);	// rate dropped packets
 	client->surpressCount = 0;
 
@@ -586,6 +630,11 @@ void SV_BuildClientFrame (client_t *client)
 
 		// ignore ents without visible models
 		if (ent->svflags & SVF_NOCLIENT)
+			continue;
+
+		// the game's say for an instanced one (an item this player has had)
+		if ((ent->svflags & SVF_INSTANCED) && ge->apiversion == GAME_API_VERSION_EXT
+			&& !ge->EntityVisibleToClient (ent, clent))
 			continue;
 
 		// ignore ents without visible models unless they have an effect

@@ -135,7 +135,7 @@ void DoRespawn (edict_t *ent)
 
 		// CTF's: with weapons staying, only a team of weapons' master
 		// is spawned
-		if (ctf->value && ((int)dmflags->value & DF_WEAPONS_STAY)
+		if (ctf->value && (G_DMFlags () & DF_WEAPONS_STAY)
 			&& master->item && (master->item->flags & IT_WEAPON))
 			ent = master;
 		else
@@ -156,6 +156,21 @@ void DoRespawn (edict_t *ent)
 
 	// send an effect
 	ent->s.event = EV_ITEM_RESPAWN;
+
+	// Ground Zero's random items, as the re-release has them
+	// (g_dm_random_items): another of its kind comes back
+	if (deathmatch->value && g_dm_random_items->value)
+	{
+		gitem_t	*it = G_RandomItem (ent->item);
+
+		if (it)
+		{
+			ent->item = it;
+			ent->classname = it->classname;
+			ent->s.effects = it->world_model_flags;
+			gi.setmodel (ent, it->world_model);
+		}
+	}
 }
 
 void SetRespawn (edict_t *ent, float delay)
@@ -179,7 +194,7 @@ qboolean Pickup_Powerup (edict_t *ent, edict_t *other)
 	if ((skill->value == 1 && quantity >= 2) || (skill->value >= 2 && quantity >= 1))
 		return false;
 
-	if ((coop->value) && (ent->item->flags & IT_STAY_COOP) && (quantity > 0))
+	if ((coop->value) && !G_UseCoopInstancedItems () && (ent->item->flags & IT_STAY_COOP) && (quantity > 0))
 		return false;
 
 	other->client->pers.inventory[ITEM_INDEX(ent->item)]++;
@@ -188,7 +203,7 @@ qboolean Pickup_Powerup (edict_t *ent, edict_t *other)
 	{
 		if (!(ent->spawnflags & DROPPED_ITEM) )
 			SetRespawn (ent, ent->item->quantity);
-		if (((int)dmflags->value & DF_INSTANT_ITEMS) || ((ent->item->use == Use_Quad) && (ent->spawnflags & DROPPED_PLAYER_ITEM)))
+		if ((G_DMFlags () & DF_INSTANT_ITEMS) || ((ent->item->use == Use_Quad) && (ent->spawnflags & DROPPED_PLAYER_ITEM)))
 		{
 			if ((ent->item->use == Use_Quad) && (ent->spawnflags & DROPPED_PLAYER_ITEM))
 				quad_drop_timeout_hack = (ent->nextthink - level.time) / FRAMETIME;
@@ -580,7 +595,7 @@ qboolean Pickup_Sphere (edict_t *ent, edict_t *other)
 	if ((skill->value == 1 && quantity >= 2) || (skill->value >= 2 && quantity >= 1))
 		return false;
 
-	if ((coop->value) && (ent->item->flags & IT_STAY_COOP) && (quantity > 0))
+	if ((coop->value) && !G_UseCoopInstancedItems () && (ent->item->flags & IT_STAY_COOP) && (quantity > 0))
 		return false;
 
 	other->client->pers.inventory[ITEM_INDEX(ent->item)]++;
@@ -939,7 +954,7 @@ qboolean Pickup_Ammo (edict_t *ent, edict_t *other)
 	qboolean	weapon;
 
 	weapon = (ent->item->flags & IT_WEAPON);
-	if ( (weapon) && ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+	if ( (weapon) && ( G_DMFlags () & DF_INFINITE_AMMO ) )
 		count = 1000;
 	else if (ent->count)
 		count = ent->count;
@@ -1232,6 +1247,10 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 	if (CTFMatchSetup ())
 		return;		// CTF's: can't pick stuff up right now
 
+	// the re-release's co-op instanced items: one each
+	if (G_UseCoopInstancedItems () && G_ItemPickedUpBy (ent, other))
+		return;
+
 	taken = ent->item->pickup(ent, other);
 
 	if (taken)
@@ -1244,9 +1263,14 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 		other->client->ps.stats[STAT_PICKUP_STRING] = CS_ITEMS+ITEM_INDEX(ent->item);
 		other->client->pickup_msg_time = level.time + 3.0;
 
-		// change selected item
-		if (ent->item->use)
+		// change selected item, if it is still had (the re-release's;
+		// its name not shown, the pickup's being there)
+		if (ent->item->use && other->client->pers.inventory[ITEM_INDEX(ent->item)])
+		{
 			other->client->pers.selected_item = other->client->ps.stats[STAT_SELECTED_ITEM] = ITEM_INDEX(ent->item);
+			if (!deathmatch->value)
+				other->client->ps.stats[STAT_SELECTED_ITEM_NAME] = 0;
+		}
 
 		if (ent->item->pickup == Pickup_Health)
 		{
@@ -1263,6 +1287,9 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 		{
 			gi.sound(other, CHAN_ITEM, gi.soundindex(ent->item->pickup_sound), 1, ATTN_NORM, 0);
 		}
+
+		if (G_UseCoopInstancedItems ())
+			G_SetItemPickedUpBy (ent, other);
 	}
 
 	if (!(ent->spawnflags & ITEM_TARGETS_USED))
@@ -1274,7 +1301,14 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 	if (!taken)
 		return;
 
-	if (!((coop->value) &&  (ent->item->flags & IT_STAY_COOP)) || (ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM)))
+	// with the re-release's instanced items, only what a player dropped
+	// goes; the rest stays for the others
+	if (G_UseCoopInstancedItems ())
+	{
+		if ((ent->spawnflags & DROPPED_PLAYER_ITEM) || !(ent->svflags & SVF_INSTANCED))
+			G_FreeEdict (ent);
+	}
+	else if (!((coop->value) &&  (ent->item->flags & IT_STAY_COOP)) || (ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM)))
 	{
 		if (ent->flags & FL_RESPAWN)
 			ent->flags &= ~FL_RESPAWN;
@@ -1346,6 +1380,11 @@ edict_t *Drop_Item (edict_t *ent, gitem_t *item)
 
 	dropped->think = drop_make_touchable;
 	dropped->nextthink = level.time + 1;
+
+	// one for each player, with the re-release's co-op instanced items; not
+	// what a player drops, which is theirs to give
+	if (G_UseCoopInstancedItems () && !ent->client)
+		dropped->svflags |= SVF_INSTANCED;
 
 	gi.linkentity (dropped);
 
@@ -1543,7 +1582,7 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 	// some items will be prevented in deathmatch
 	if (deathmatch->value)
 	{
-		if ( (int)dmflags->value & DF_NO_ARMOR )
+		if ( G_DMFlags () & DF_NO_ARMOR )
 		{
 			if (item->pickup == Pickup_Armor || item->pickup == Pickup_PowerArmor)
 			{
@@ -1551,7 +1590,7 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 				return;
 			}
 		}
-		if ( (int)dmflags->value & DF_NO_ITEMS )
+		if ( G_DMFlags () & DF_NO_ITEMS )
 		{
 			if (item->pickup == Pickup_Powerup)
 			{
@@ -1559,7 +1598,7 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 				return;
 			}
 		}
-		if ( (int)dmflags->value & DF_NO_HEALTH )
+		if ( G_DMFlags () & DF_NO_HEALTH )
 		{
 			if (item->pickup == Pickup_Health || item->pickup == Pickup_Adrenaline || item->pickup == Pickup_AncientHead)
 			{
@@ -1567,13 +1606,39 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 				return;
 			}
 		}
-		if ( (int)dmflags->value & DF_INFINITE_AMMO )
+		if ( G_DMFlags () & DF_INFINITE_AMMO )
 		{
 			if ( (item->flags == IT_AMMO) || (strcmp(ent->classname, "weapon_bfg") == 0) )
 			{
 				G_FreeEdict (ent);
 				return;
 			}
+		}
+		// Ground Zero's (and the re-release's settings for them)
+		if ((G_DMFlags () & DF_NO_MINES) && (!strcmp (ent->classname, "ammo_prox")
+			|| !strcmp (ent->classname, "ammo_tesla") || !strcmp (ent->classname, "ammo_trap")
+			|| !strcmp (ent->classname, "weapon_proxlauncher")))
+		{
+			G_FreeEdict (ent);
+			return;
+		}
+		if ((G_DMFlags () & DF_NO_NUKES) && !strcmp (ent->classname, "ammo_nuke"))
+		{
+			G_FreeEdict (ent);
+			return;
+		}
+		if ((G_DMFlags () & DF_NO_SPHERES) && (!strcmp (ent->classname, "item_sphere_vengeance")
+			|| !strcmp (ent->classname, "item_sphere_hunter") || !strcmp (ent->classname, "item_sphere_defender")))
+		{
+			G_FreeEdict (ent);
+			return;
+		}
+		// the re-release's instagib: no pickups at all but keys and flags
+		if (G_Instagib () && !(item->flags & IT_KEY) && strcmp (ent->classname, "item_flag_team1")
+			&& strcmp (ent->classname, "item_flag_team2"))
+		{
+			G_FreeEdict (ent);
+			return;
 		}
 	}
 
@@ -1584,7 +1649,11 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 	}
 
 	// don't let them drop items that stay in a coop game
-	if ((coop->value) && (item->flags & IT_STAY_COOP))
+	// (with the re-release's instanced items they don't stay: each is
+	// each player's, and seen as such)
+	if (G_UseCoopInstancedItems ())
+		ent->svflags |= SVF_INSTANCED;
+	else if ((coop->value) && (item->flags & IT_STAY_COOP))
 	{
 		item->drop = NULL;
 	}
@@ -3510,7 +3579,7 @@ any map */
 */
 void SP_item_health (edict_t *self)
 {
-	if ( deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH) )
+	if ( deathmatch->value && (G_DMFlags () & DF_NO_HEALTH) )
 	{
 		G_FreeEdict (self);
 		return;
@@ -3526,7 +3595,7 @@ void SP_item_health (edict_t *self)
 */
 void SP_item_health_small (edict_t *self)
 {
-	if ( deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH) )
+	if ( deathmatch->value && (G_DMFlags () & DF_NO_HEALTH) )
 	{
 		G_FreeEdict (self);
 		return;
@@ -3543,7 +3612,7 @@ void SP_item_health_small (edict_t *self)
 */
 void SP_item_health_large (edict_t *self)
 {
-	if ( deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH) )
+	if ( deathmatch->value && (G_DMFlags () & DF_NO_HEALTH) )
 	{
 		G_FreeEdict (self);
 		return;
@@ -3559,7 +3628,7 @@ void SP_item_health_large (edict_t *self)
 */
 void SP_item_health_mega (edict_t *self)
 {
-	if ( deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH) )
+	if ( deathmatch->value && (G_DMFlags () & DF_NO_HEALTH) )
 	{
 		G_FreeEdict (self);
 		return;

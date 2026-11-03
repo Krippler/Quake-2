@@ -426,6 +426,7 @@ void CL_InitInput (void)
 {
 	Cmd_AddCommand ("centerview",IN_CenterView);
 	CL_InitWheel ();
+	CL_InitDamage ();
 
 	Cmd_AddCommand ("+moveup",IN_UpDown);
 	Cmd_AddCommand ("-moveup",IN_UpUp);

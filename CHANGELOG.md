@@ -5,6 +5,78 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.28] — 2026-11-03
+
+### Added
+
+- **Nightmare.** The difficulty screen has the fourth, hardest skill, as
+  the re-release's has.
+- **The re-release's co-op.** As in the re-release, by default:
+  - each item is each player's, so one taking it leaves it for the rest
+  - a player who dies keeps what they had, and comes back beside a living
+    teammate once that one is out of a fight, watching meanwhile
+  - players and their shots pass through each other
+
+  Its settings change this: `g_coop_instanced_items`,
+  `g_coop_squad_respawn`, `g_coop_player_collision`, and
+  `g_coop_enable_lives` with `g_coop_num_lives`. With lives on, the level
+  starts again when everyone is dead with none left.
+  `g_coop_health_scaling` gives monsters more health for each extra
+  player.
+- **The re-release's 40 Hz tick.** The server runs the world four times as
+  often as 1997's ten:
+  - projectiles, gibs, doors and lifts move every 25 ms
+  - monsters walk and turn smoothly rather than in tenth-of-a-second steps
+  - other players and everything else reach the client 40 times a second
+
+  Animation, weapons, fire rates and timings are as they were.
+  `g_quick_weapon_switch` (on by default, as in the re-release) raises and
+  lowers weapons twice as fast. `sv_tickrate 10` goes back to 1997's tick
+  (from the next level). Older clients still get ten frames a second. The
+  mission packs' own game code, and mods', stay at 10 Hz.
+- **The re-release's game settings.**
+  - **Team deathmatch** (`teamplay 1`): CTF's teams, menus and scoreboard,
+    with frags as the team score and the frag limit applying to teams.
+  - **Instagib** (`g_instagib`): railguns only, every hit kills, no pickups.
+  - **Starting items** (`g_start_items`), and the starting items its maps
+    set; starting a Call of the Machine level directly gives you its
+    weapons.
+  - **Map rotation** (`g_map_list`, shuffled with `g_map_list_shuffle`).
+  - **Randomised items** (`g_dm_random_items`).
+  - **Monsters in deathmatch** (`ai_allow_dm_spawn`).
+  - **Instant weapon switching** (`g_instant_weapon_switch`).
+  - **Damage scales** (`g_damage_scale`, `ai_damage_scale`).
+  - **`g_dm_*` and `g_no_*` names for the `dmflags` settings**, plus
+    `g_infinite_ammo`, `g_friendly_fire` and `g_weapon_respawn_time`.
+  - **`sv_airaccelerate` outside deathmatch.**
+
+  The re-release's defaults differ from 1997's: powerups are used when picked
+  up in deathmatch, you spawn as far as possible from other players, the
+  quad and DualFire drop when their holder dies, and teammates (co-op
+  players too) do not hurt each other.
+- **Damage indicators and hit markers.** Hurt, a coloured arc round the
+  crosshair points to where it came from (red health, yellow armour, green
+  power armour), longer the more it was. Hitting something shows the
+  re-release's hit marker and plays its sound. `cl_damage_indicators 0`
+  and `cl_hit_markers 0` (or 1, no sound) turn them off.
+- **The re-release's status bar.** Outside deathmatch, the keys you hold
+  show over its right (taking turns if more than three), and choosing an
+  item names it there for three seconds. Picking an item up selects it
+  only if you still have it.
+- **Key hints.** The re-release's messages that say which key does
+  something (climbing ladders, the equipment wheel) show it under the
+  message, from your own bindings: `[SPACE] Hold jump to move up ladders.`
+- **See-through foliage and grates.** Surfaces the re-release's maps mark as
+  cut out (Call of the Machine's jungle canopies) show what is behind
+  their holes rather than drawing them as solid colour.
+
+### Fixed
+
+- **Big maps' first frame.** On maps with many entities in view, such as
+  Call of the Machine's mgu5m1, the server's first frame to a client was
+  too big for one packet, so it was dropped each time and the client never
+  got into the game. What doesn't fit now follows in the next frames.
+
 ## [1.3.27] — 2026-10-28
 
 ### Added

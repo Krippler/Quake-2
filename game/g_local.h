@@ -46,6 +46,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // view pitching times
 #define DAMAGE_TIME		0.5
+#define MAX_DAMAGE_INDICATORS	4
 #define	FALL_TIME		0.3
 
 
@@ -81,7 +82,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define FL_RESPAWN				0x80000000	// used for item respawning
 
 
-#define	FRAMETIME		0.1
+#define	FRAMETIME		0.1		// one of 1997's frames: its thinks, animation and timers
+
+// the server's tick, a frame of 1997's or a quarter of one at the
+// re-release's 40 Hz (gi.TickRate): what level.time steps by and physics
+// moves by (G_SetTickRate)
+extern float	ticktime;
+extern int		tickratio;		// ticks to a FRAMETIME
+#define	TICKTIME		ticktime
+void G_SetTickRate (void);
 
 // memory tags to allow dynamic memory to be cleaned up
 #define	TAG_GAME	765		// clear when unloading the dll
@@ -364,8 +373,10 @@ typedef struct
 //
 typedef struct
 {
-	int			framenum;
+	int			framenum;		// 1997's frames, ten a second, whatever the tick
 	float		time;
+	int			tick;			// the server's ticks (TICKTIME)
+	qboolean	frame10;		// this tick begins one of 1997's frames
 
 	char		level_name[MAX_QPATH];	// the descriptive name (Outer Base, etc)
 	char		mapname[MAX_QPATH];		// the server name (base1, etc)
@@ -427,6 +438,15 @@ typedef struct
 	int			body_que;			// dead bodies
 
 	int			power_cubes;		// ugly necessity for coop
+
+	// the re-release's co-op (g_coop.c): the level again after this,
+	// everyone being dead; how many players have joined it, and how much
+	// more health a monster has for each past the first
+	float		coop_level_restart_time;
+	int			coop_scale_players;
+	float		coop_health_scaling;
+
+	char		*start_items;		// the re-release's: what a player starts the game with here
 } level_locals_t;
 
 
@@ -473,6 +493,7 @@ typedef struct
 	float		health_multiplier;	// a monster's health, scaled
 	char		*reinforcements;	// the re-release's summoners': "classname strength;..."
 	int			monster_slots;		// and how much they may have summoned at once
+	char		*start_items;		// the re-release's worldspawn's: what a player starts with
 } spawn_temp_t;
 
 
@@ -694,6 +715,19 @@ typedef struct
 	float		path_wait_time;
 	qboolean	no_path_finding;
 	float		random_change_time;
+
+	// the re-release's co-op health scaling (g_coop.c): its health for one
+	// player, and how many players it has been scaled for
+	int			base_health;
+	int			health_scaling;
+
+	// at a faster tick (the re-release's 40 Hz): its next frame of 1997's,
+	// and the rest of that frame's step and turn, taken a tick at a time
+	// (monster_think)
+	float		next_move_time;
+	vec3_t		step_move;
+	float		step_yaw;
+	int			step_ticks;
 } monsterinfo_t;
 
 
@@ -1058,6 +1092,7 @@ void vectoangles (vec3_t vec, vec3_t angles);
 qboolean OnSameTeam (edict_t *ent1, edict_t *ent2);
 qboolean CanDamage (edict_t *targ, edict_t *inflictor);
 void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir, vec3_t point, vec3_t normal, int damage, int knockback, int dflags, int mod);
+void G_DamageIndicator (gclient_t *client, edict_t *inflictor, edict_t *attacker, int dflags, int take, int asave, int psave);
 void T_RadiusDamage (edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod);
 
 // damage flags
@@ -1189,6 +1224,8 @@ void ClientEndServerFrame (edict_t *ent);
 //
 void MoveClientToIntermission (edict_t *client);
 void G_SetStats (edict_t *ent);
+void G_SetKeyStats (edict_t *ent);
+void G_ShowSelectedItem (edict_t *ent);
 void G_SetSpectatorStats (edict_t *ent);
 void G_CheckChaseStats (edict_t *ent);
 void ValidateSelectedItem (edict_t *ent);
@@ -1293,6 +1330,8 @@ typedef struct
 	// how long, in seconds, to go over to it (trigger_fog)
 	float		wanted_fog[FOG_VALUES];
 	float		fog_transition_time;
+
+	int			lives;				// the re-release's co-op lives, and one more (g_coop.c)
 } client_persistant_t;
 
 // client data that stays across deathmatch respawns
@@ -1355,6 +1394,16 @@ struct gclient_s
 	int			damage_blood;		// damage taken out of health
 	int			damage_knockback;	// impact damage
 	vec3_t		damage_from;		// origin for vector calculation
+
+	// the re-release's damage indicators (from where, and how much of
+	// each, this tick) and hit marker (damage this player did, this tick)
+	int			num_damage_indicators;
+	struct
+	{
+		vec3_t	from;
+		int		health, armor, power;
+	} damage_indicators[MAX_DAMAGE_INDICATORS];
+	int			hit_marker;
 
 	float		killer_yaw;			// when dead, look at killer
 
@@ -1420,12 +1469,20 @@ struct gclient_s
 	int			weapon_sound;
 
 	float		pickup_msg_time;
+	float		selected_item_time;		// the re-release's: its name shown until
 
 	float		flood_locktill;		// locked from talking
 	float		flood_when[10];		// when messages were said
 	int			flood_whenhead;		// head pointer for when said
 
 	float		respawn_time;		// can respawn when time > this
+	float		weapon_think_time;	// its weapon thinks no sooner (Think_Weapon)
+
+	// the re-release's co-op (g_coop.c): why they cannot respawn yet
+	// (COOP_RESPAWN_*), and till when they count as hurt and as shooting
+	int			coop_respawn_state;
+	float		last_damage_time;
+	float		last_firing_time;
 
 	edict_t		*chase_target;		// player we are chasing
 	qboolean	update_chase;		// need to update chase info?
@@ -1626,6 +1683,10 @@ struct edict_s
 	float		fog[FOG_VALUES];
 	float		fog_off[FOG_VALUES];
 
+	// the re-release's co-op instanced items (g_coop.c): who has taken it,
+	// a bit each
+	unsigned	item_picked_up_by[MAX_CLIENTS / 32];
+
 	// Ground Zero's hint_path: the next on its chain, which chain, and its
 	// links as monsterlost_checkhint sorts them
 	edict_t		*hint_chain;
@@ -1657,6 +1718,58 @@ void Tag_DropToken (edict_t *ent, gitem_t *item);
 void SP_dm_tag_token (edict_t *self);
 edict_t *SelectDeathmatchSpawnPoint (void);
 void SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles);
+
+// the re-release's co-op (g_coop.c)
+#define	COOP_DAMAGE_RESPAWN_TIME	2.0		// hurt, in a fight for so long
+#define	COOP_DAMAGE_FIRING_TIME		2.5		// and shooting
+extern cvar_t	*g_coop_player_collision;
+extern cvar_t	*g_coop_squad_respawn;
+extern cvar_t	*g_coop_enable_lives;
+extern cvar_t	*g_coop_num_lives;
+extern cvar_t	*g_coop_instanced_items;
+extern cvar_t	*g_coop_health_scaling;
+extern cvar_t	*g_disable_player_collision;
+extern qboolean	use_squad_respawn;
+extern vec3_t	squad_respawn_position, squad_respawn_angles;
+void CoopInit (void);
+qboolean G_UseCoopInstancedItems (void);
+qboolean G_ShouldPlayersCollide (qboolean weaponry);
+int G_ClientMask (edict_t *self, int mask, qboolean weaponry);
+qboolean EntityVisibleToClient (edict_t *ent, edict_t *client);
+qboolean G_ItemPickedUpBy (edict_t *ent, edict_t *player);
+void G_SetItemPickedUpBy (edict_t *ent, edict_t *player);
+void G_MonsterScaleCoopHealth (edict_t *self);
+void G_CheckCoopHealthScaling (void);
+qboolean G_CoopRespawn (edict_t *ent);
+void G_CoopPlayerDied (edict_t *self);
+void G_CoopFrameBegin (void);
+void G_CoopFrameEnd (void);
+void G_SetCoopStats (edict_t *ent);
+void CopyToBodyQue (edict_t *ent);
+void GetChaseTarget (edict_t *ent);
+qboolean KillBoxMask (edict_t *ent, int mask);
+
+// the re-release's settings for deathmatch and the rest (g_rropts.c)
+extern cvar_t	*g_dm_force_respawn_time;
+extern cvar_t	*g_dm_random_items;
+extern cvar_t	*g_friendly_fire;
+extern cvar_t	*g_instagib;
+extern cvar_t	*g_instant_weapon_switch;
+extern cvar_t	*g_quick_weapon_switch;
+extern cvar_t	*g_start_items;
+extern cvar_t	*g_damage_scale;
+extern cvar_t	*ai_damage_scale;
+extern cvar_t	*ai_allow_dm_spawn;
+extern cvar_t	*g_weapon_respawn_time;
+extern cvar_t	*teamplay;
+void RROptionsInit (void);
+int G_DMFlags (void);
+qboolean G_Instagib (void);
+qboolean G_TeamplayEnabled (void);
+void G_GiveStartItems (edict_t *ent, char *list);
+gitem_t *G_RandomItem (gitem_t *item);
+char *G_NextMapInList (void);
+void CheckNeedPass (void);
 
 // Threewave CTF, in the base game as the re-release has it
 #include "g_ctf.h"

@@ -289,7 +289,7 @@ static void hunter_pain (edict_t *self, edict_t *other, float kick, int damage)
 	// a doppleganger's, forced respawn is on, or huntercam is 0
 	if ((self->spawnflags & SPHERE_DOPPLEGANGER) || !(owner && owner->client))
 		return;
-	if (((int)dmflags->value & DF_FORCE_RESPAWN) || !huntercam->value)
+	if ((G_DMFlags () & DF_FORCE_RESPAWN) || !huntercam->value)
 		return;
 
 	VectorSubtract (other->s.origin, self->s.origin, dir);

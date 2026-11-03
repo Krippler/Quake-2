@@ -144,9 +144,9 @@ static void fire_lead (edict_t *self, vec3_t start, vec3_t aimdir, int damage, i
 	float		u;
 	vec3_t		water_start;
 	qboolean	water = false;
-	int			content_mask = MASK_SHOT | MASK_WATER;
+	int			content_mask = G_ClientMask (self, MASK_SHOT | MASK_WATER, true);	// through teammates, the re-release's co-op
 
-	tr = gi.trace (self->s.origin, NULL, NULL, start, self, MASK_SHOT);
+	tr = gi.trace (self->s.origin, NULL, NULL, start, self, G_ClientMask (self, MASK_SHOT, true));
 	if (!(tr.fraction < 1.0))
 	{
 		vectoangles (aimdir, dir);
@@ -214,7 +214,7 @@ static void fire_lead (edict_t *self, vec3_t start, vec3_t aimdir, int damage, i
 			}
 
 			// re-trace ignoring water this time
-			tr = gi.trace (water_start, NULL, NULL, end, self, MASK_SHOT);
+			tr = gi.trace (water_start, NULL, NULL, end, self, G_ClientMask (self, MASK_SHOT, true));
 		}
 
 		// the re-release's go through the dead, hurting them
@@ -227,7 +227,7 @@ static void fire_lead (edict_t *self, vec3_t start, vec3_t aimdir, int damage, i
 				|| ((tr.ent->svflags & SVF_MONSTER) && tr.ent->health <= 0)) ; n++)
 			{
 				T_Damage (tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, mod);
-				tr = gi.trace (tr.endpos, NULL, NULL, end, tr.ent, MASK_SHOT);
+				tr = gi.trace (tr.endpos, NULL, NULL, end, tr.ent, G_ClientMask (self, MASK_SHOT, true));
 			}
 		}
 	}
@@ -378,7 +378,7 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 	vectoangles (dir, bolt->s.angles);
 	VectorScale (dir, speed, bolt->velocity);
 	bolt->movetype = MOVETYPE_FLYMISSILE;
-	bolt->clipmask = MASK_SHOT;
+	bolt->clipmask = G_ClientMask (self, MASK_SHOT, true);
 	bolt->solid = SOLID_BBOX;
 	bolt->s.effects |= effect;
 	VectorClear (bolt->mins);
@@ -398,7 +398,7 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 	if (self->client)
 		check_dodge (self, bolt->s.origin, dir, speed);
 
-	tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
+	tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt, bolt->clipmask);
 	if (tr.fraction < 1.0)
 	{
 		VectorMA (bolt->s.origin, -10, dir, bolt->s.origin);
@@ -560,7 +560,7 @@ void fire_grenade_adjust (edict_t *self, vec3_t start, vec3_t aimdir, int damage
 	VectorMA (grenade->velocity, right_adjust, right, grenade->velocity);
 	VectorSet (grenade->avelocity, 300, 300, 300);
 	grenade->movetype = MOVETYPE_BOUNCE;
-	grenade->clipmask = MASK_SHOT;
+	grenade->clipmask = G_ClientMask (self, MASK_SHOT, true);
 	grenade->solid = SOLID_BBOX;
 	grenade->s.effects |= EF_GRENADE;
 	VectorClear (grenade->mins);
@@ -609,7 +609,7 @@ void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int 
 	if (RR_Map ())	// the re-release's tumbles any way
 		VectorSet (grenade->avelocity, crandom() * 360, crandom() * 360, crandom() * 360);
 	grenade->movetype = MOVETYPE_BOUNCE;
-	grenade->clipmask = MASK_SHOT;
+	grenade->clipmask = G_ClientMask (self, MASK_SHOT, true);
 	grenade->solid = SOLID_BBOX;
 	grenade->s.effects |= EF_GRENADE;
 	VectorClear (grenade->mins);
@@ -705,7 +705,7 @@ void fire_rocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 	vectoangles (dir, rocket->s.angles);
 	VectorScale (dir, speed, rocket->velocity);
 	rocket->movetype = MOVETYPE_FLYMISSILE;
-	rocket->clipmask = MASK_SHOT;
+	rocket->clipmask = G_ClientMask (self, MASK_SHOT, true);
 	rocket->solid = SOLID_BBOX;
 	rocket->s.effects |= EF_ROCKET;
 	VectorClear (rocket->mins);
@@ -746,7 +746,7 @@ void fire_rail (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick
 	VectorCopy (start, from);
 	ignore = self;
 	water = false;
-	mask = MASK_SHOT|CONTENTS_SLIME|CONTENTS_LAVA;
+	mask = G_ClientMask (self, MASK_SHOT|CONTENTS_SLIME|CONTENTS_LAVA, true);
 	while (ignore)
 	{
 		tr = gi.trace (from, NULL, NULL, end, ignore, mask);
@@ -911,7 +911,7 @@ void bfg_think (edict_t *self)
 			continue;
 
 		// CTF's: not your own team
-		if (ctf->value && ent->client && self->owner->client &&
+		if (G_TeamplayEnabled () && ent->client && self->owner->client &&
 			ent->client->resp.ctf_team == self->owner->client->resp.ctf_team)
 			continue;
 
@@ -972,7 +972,7 @@ void fire_bfg (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, f
 	vectoangles (dir, bfg->s.angles);
 	VectorScale (dir, speed, bfg->velocity);
 	bfg->movetype = MOVETYPE_FLYMISSILE;
-	bfg->clipmask = MASK_SHOT;
+	bfg->clipmask = G_ClientMask (self, MASK_SHOT, true);
 	bfg->solid = SOLID_BBOX;
 	bfg->s.effects |= EF_BFG | EF_ANIM_ALLFAST;
 	VectorClear (bfg->mins);

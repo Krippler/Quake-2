@@ -370,6 +370,9 @@ COLLISION DETECTION
 #define	CONTENTS_DETAIL			0x8000000	// brushes to be added after vis leafs
 #define	CONTENTS_TRANSLUCENT	0x10000000	// auto set if any surface has trans
 #define	CONTENTS_LADDER			0x20000000
+// in a trace's mask, not a brush's: players are passed through (sv_world.c);
+// the re-release's co-op without player collision
+#define	CONTENTS_NOCLIENTS		0x40000000
 
 
 
@@ -383,6 +386,7 @@ COLLISION DETECTION
 #define	SURF_TRANS66	0x20
 #define	SURF_FLOWING	0x40	// scroll towards angle
 #define	SURF_NODRAW		0x80	// don't bother referencing the texture
+#define	SURF_ALPHATEST	0x2000000	// the 2023 re-release's: see-through where the texture is 255
 
 
 
@@ -1106,7 +1110,23 @@ typedef enum
 #define	STAT_FLASHES			15		// cleared each frame, 1 = health, 2 = armor
 #define STAT_CHASE				16
 #define STAT_SPECTATOR			17
+// the re-release's, outside deathmatch (CTF's are there in it): the keys
+// held, and the name of the item just selected
+#define STAT_KEY_A				19
+#define STAT_KEY_B				20
+#define STAT_KEY_C				21
+#define STAT_SELECTED_ITEM_NAME	22
 #define STAT_HEALTH_BARS		18		// the re-release's: two bosses' health, a byte each, 0x80 shown and 0..127 of it
+// the re-release's co-op (game/g_coop.c, the status bar's "coop"): lives and
+// one more in the low byte (0, none counted), why a dead player cannot
+// respawn yet above it
+#define STAT_COOP				31
+#define	COOP_RESPAWN_NONE		0
+#define	COOP_RESPAWN_IN_COMBAT	1
+#define	COOP_RESPAWN_BAD_AREA	2
+#define	COOP_RESPAWN_BLOCKED	3
+#define	COOP_RESPAWN_WAITING	4
+#define	COOP_RESPAWN_NO_LIVES	5
 
 #define	MAX_STATS				32
 
@@ -1246,6 +1266,12 @@ ROGUE - VERSIONS
 // "item ammo-item min-ammo icon" (ammo -1 for none), a powerup's "item icon"
 #define	CS_WHEEL_WEAPONS	(CS_CD_LOOP_COUNT+1)
 #define	CS_WHEEL_POWERUPS	(CS_WHEEL_WEAPONS+MAX_WHEEL_ITEMS)
+// "1" when players pass through each other (the re-release's co-op without
+// player collision, g_coop_player_collision 0): the client predicts so
+#define	CS_NO_PLAYER_COLLISION	(CS_WHEEL_POWERUPS+MAX_WHEEL_ITEMS)
+// the server's frames a second when not 1997's 10 (the re-release's 40,
+// server/sv_init.c): the client times its frames by it
+#define	CS_TICK_RATE		(CS_NO_PLAYER_COLLISION+1)
 #define	MAX_WHEEL_ITEMS		32
 
 

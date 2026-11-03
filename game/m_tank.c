@@ -793,7 +793,7 @@ void SP_monster_tank_rr (edict_t *self);
 
 void SP_monster_tank (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;
@@ -882,7 +882,7 @@ void tank_stand_think (edict_t *self)
 
 void SP_monster_tank_stand (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;
