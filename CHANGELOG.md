@@ -5,6 +5,16 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **The container stopping when x11vnc exits.** x11vnc quits on any X
+  error, such as one it can get when the game resizes the screen; the
+  container then stopped the game, restarted it without x11vnc, and gave
+  up after three tries. x11vnc is now started again and the game carries
+  on; the browser reconnects.
+
 ## [1.3.28] — 2026-11-03
 
 ### Added

@@ -624,15 +624,51 @@ done
 # -noxdamage -wait 1 -defer 1: a game changes most of the screen every frame,
 # and scanning it outright costs less than following the damage reports.
 #
+#
+# Kept running. x11vnc takes any X error as fatal, and one can come when the
+# engine resizes the screen (RANDR) while x11vnc is reading it at the old
+# size: BadMatch, and x11vnc gone, with the game still running and nothing
+# to see it by. So it is started again, and the browser reconnects. Three
+# exits in a row within seconds of starting are a configuration it cannot
+# run with (a mistyped QUAKE2_VNC_ARGS), and are left for watch_helpers to
+# report.
+#
 log "starting x11vnc on port $VNC_PORT"
-# shellcheck disable=SC2086
-x11vnc -display "$DISP" -rfbport "$VNC_PORT" -forever -shared -quiet \
-       $vnc_8to24 \
-       -nowireframe -noscrollcopyrect -noxdamage \
-       -xrandr resize \
-       -nonap -wait "${QUAKE2_VNC_WAIT:-1}" -defer "${QUAKE2_VNC_DEFER:-1}" \
-       ${QUAKE2_VNC_ARGS:-} \
-       $vnc_auth >"$STATE/x11vnc.log" 2>&1 &
+(
+    vnc_child=""
+    trap '[ -n "$vnc_child" ] && kill "$vnc_child" 2>/dev/null; exit 0' TERM INT
+    quick=0
+    while :; do
+        vnc_started=$(date +%s)
+        # shellcheck disable=SC2086
+        x11vnc -display "$DISP" -rfbport "$VNC_PORT" -forever -shared -quiet \
+               $vnc_8to24 \
+               -nowireframe -noscrollcopyrect -noxdamage \
+               -xrandr resize \
+               -nonap -wait "${QUAKE2_VNC_WAIT:-1}" -defer "${QUAKE2_VNC_DEFER:-1}" \
+               ${QUAKE2_VNC_ARGS:-} \
+               $vnc_auth >"$STATE/x11vnc.log" 2>&1 &
+        vnc_child=$!
+        vnc_status=0
+        wait "$vnc_child" || vnc_status=$?
+        vnc_child=""
+        [ "$SHUTTING_DOWN" = "0" ] || exit 0
+
+        if [ $(( $(date +%s) - vnc_started )) -lt 5 ]; then
+            quick=$((quick + 1))
+            [ "$quick" -ge 3 ] && exit "$vnc_status"
+        else
+            quick=0
+        fi
+
+        said=$(tail -n 20 "$STATE/x11vnc.log" 2>/dev/null \
+               | grep -E "X Error|Major opcode|Minor opcode" | tr -s ' ' | paste -sd ';' -)
+        log "x11vnc exited (status $vnc_status${said:+: $said}); starting it again"
+        log "  its log is kept as $STATE/x11vnc.prev.log"
+        cp -f "$STATE/x11vnc.log" "$STATE/x11vnc.prev.log" 2>/dev/null || true
+        sleep 1
+    done
+) &
 VNC_PID=$!
 
 ##############################################################################
