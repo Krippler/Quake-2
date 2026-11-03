@@ -19,6 +19,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "qcommon.h"
+#ifndef _WIN32
+#include <dirent.h>
+#endif
 
 // define this to dissalow any data but the demo pak file
 //#define	NO_ADDONS
@@ -212,6 +215,57 @@ int	Developer_searchpath (int who)
 
 /*
 ===========
+FS_FOpenCaseless
+
+A file in a directory, its name in any case: a copy from the CD, or from
+Windows, may have VIDEO/NTRO.CIN where the game asks for video/ntro.cin.
+Each part of the path is looked for as it is, then by name ignoring case.
+netpath is set to the path found.
+===========
+*/
+static FILE *FS_FOpenCaseless (const char *dir, const char *filename, char *netpath, int size)
+{
+#ifdef _WIN32
+	return NULL;		// Windows' own names ignore case
+#else
+	char		path[MAX_OSPATH], part[MAX_QPATH];
+	const char	*s, *e;
+	DIR			*d;
+	struct dirent	*de;
+	int			len;
+
+	Com_sprintf (path, sizeof(path), "%s", dir);
+	for (s = filename ; *s ; s = *e ? e + 1 : e)
+	{
+		for (e = s ; *e && *e != '/' ; e++)
+			;
+		len = e - s;
+		if (!len || len >= (int)sizeof(part))
+			return NULL;
+		memcpy (part, s, len);
+		part[len] = 0;
+
+		if (!(d = opendir (path)))
+			return NULL;
+		while ((de = readdir (d)))
+			if (!Q_strcasecmp (de->d_name, part))
+				break;
+		if (!de)
+		{
+			closedir (d);
+			return NULL;
+		}
+		len = strlen (path);
+		Com_sprintf (path + len, sizeof(path) - len, "/%s", de->d_name);
+		closedir (d);
+	}
+	Com_sprintf (netpath, size, "%s", path);
+	return fopen (path, "rb");
+#endif
+}
+
+/*
+===========
 FS_FOpenFile
 
 Finds the file in the search path.
@@ -304,6 +358,8 @@ int FS_FOpenFile (char *filename, FILE **file)
 			Com_sprintf (netpath, sizeof(netpath), "%s/%s",search->filename, filename);
 			
 			*file = fopen (netpath, "rb");
+			if (!*file)
+				*file = FS_FOpenCaseless (search->filename, filename, netpath, sizeof(netpath));
 			if (!*file)
 				continue;
 			if (fs_skip)

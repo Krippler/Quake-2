@@ -456,6 +456,15 @@ grep -q "demos/old.dm2 is in protocol" "$work/rerelease.log" \
     && die "a protocol 26 demo, as the original game's are, was refused; see $work/rerelease.log"
 alive rerelease
 say "a demo in protocol 26, as the original game's are, was not refused"
+
+# A cinematic, as the intro is: video/smoke.cin, which is VIDEO/SMOKE.CIN
+# on disk, as a copy from the CD has it. Its frames are 256 colours of bars.
+console_type "map smoke.cin"
+sleep 1.5
+alive rerelease
+n=$(colours rerelease)
+[ "$n" -ge 128 ] || die "the cinematic did not play: the screen holds $n colours; see $work/rerelease.log"
+say "a cinematic played, from a file named in capitals; its frame holds $n colours"
 stop_engine
 rm -f "$work/baseq2/pak9.pak"
 
