@@ -467,6 +467,71 @@ def to_qbsp(bsp):
     return bytes(out)
 
 
+def make_cin(width=64, height=48, frames=42, rate=22050):
+    """An id cinematic, as the game's video/*.cin are: colour bars that move,
+    at 14 frames a second, over a 440 Hz tone, 16-bit stereo. Each byte is
+    Huffman coded by a table chosen by the byte before it; with every count
+    the same, each table is the same complete tree (client/cl_cin.c builds
+    it the same way from the counts), so every code is 8 bits."""
+    count = [1] * 256 + [0] * 256
+    used = [False] * 512
+    nodes = {}
+
+    def smallest(n):
+        best, found = 99999999, -1
+        for i in range(n):
+            if not used[i] and count[i] and count[i] < best:
+                best, found = count[i], i
+        if found >= 0:
+            used[found] = True
+        return found
+
+    n = 256
+    while n != 511:
+        a = smallest(n)
+        b = smallest(n) if a >= 0 else -1
+        if b < 0:
+            break
+        nodes[n] = (a, b)
+        count[n] = count[a] + count[b]
+        n += 1
+    codes = {}
+
+    def walk(node, bits):
+        if node < 256:
+            codes[node] = bits
+        else:
+            walk(nodes[node][0], bits + [0])
+            walk(nodes[node][1], bits + [1])
+    walk(n - 1, [])
+
+    def compress(data):
+        bits = [bit for b in data for bit in codes[b]]
+        out = bytearray(struct.pack("<i", len(data)))
+        for i in range(0, len(bits), 8):
+            out.append(sum(bit << j for j, bit in enumerate(bits[i:i + 8])))
+        return bytes(out)
+
+    out = bytearray(struct.pack("<5i", width, height, rate, 2, 2))
+    out += bytes([1]) * (256 * 256)
+    palette = bytearray()
+    for i in range(256):
+        palette += bytes(((i * 7) & 255, (i * 3) & 255, (255 - i) & 255))
+    for frame in range(frames):
+        out += struct.pack("<i", 1 if frame == 0 else 0)
+        if frame == 0:
+            out += palette
+        pic = bytes(((x * 4 + frame * 8) // 16 * 16 + y // 3) & 255
+                    for y in range(height) for x in range(width))
+        data = compress(pic)
+        out += struct.pack("<i", len(data)) + data
+        for s in range(frame * rate // 14, (frame + 1) * rate // 14):
+            v = int(8000 * math.sin(2 * math.pi * 440 * s / rate))
+            out += struct.pack("<hh", v, v)
+    out += struct.pack("<i", 2)
+    return bytes(out)
+
+
 def build_pak(files):
     """A PACK: the directory at the end, 64 bytes an entry, names of 56."""
     body = bytearray()
@@ -549,6 +614,13 @@ def main():
     os.makedirs(os.path.join(dest, "baseq2"), exist_ok=True)
     with open(os.path.join(dest, "baseq2", "pak0.pak"), "wb") as f:
         f.write(build_pak(files))
+
+    # A cinematic, loose in the game directory as the game's video/ are, in
+    # capitals as a copy from the CD has them: the engine asks for
+    # video/smoke.cin (qcommon/files.c, FS_FOpenCaseless).
+    os.makedirs(os.path.join(dest, "baseq2", "VIDEO"), exist_ok=True)
+    with open(os.path.join(dest, "baseq2", "VIDEO", "SMOKE.CIN"), "wb") as f:
+        f.write(make_cin())
 
     # Track 2, twice: the game's own music directory, which should win, at
     # 880 Hz, and a shared one for $QUAKE2_MUSICDIR at 440.

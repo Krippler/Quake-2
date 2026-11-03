@@ -5,6 +5,20 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.32] — 2026-11-03
+
+### Fixed
+
+- **Videos with their names in capitals.** A copy of the game from the CD,
+  or from Windows, can have `VIDEO/NTRO.CIN` where the game asks for
+  `video/ntro.cin`; on Linux that was not found, and the intro and the
+  other cinematics were skipped. Files in the game's directories are now
+  found whatever the case of their names.
+
+### Added
+
+- **The smoke test plays a cinematic**, from a file named in capitals.
+
 ## [1.3.31] — 2026-11-03
 
 ### Fixed
