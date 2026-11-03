@@ -184,7 +184,7 @@ void SV_CheckForSavegame (void)
 
 		previousState = sv.state;				// PGM
 		sv.state = ss_loading;					// PGM
-		for (i=0 ; i<100 ; i++)
+		for (i=0 ; i<100*sv.tickratio ; i++)
 			ge->RunFrame ();
 
 		sv.state = previousState;				// PGM
@@ -248,6 +248,21 @@ void SV_SpawnServer (char *server, char *spawnpoint, server_state_t serverstate,
 	}
 
 	sv.time = 1000;
+
+	// the re-release's faster tick, for a game that can take it (its
+	// apiversion says) and a level, not a demo or a cinematic
+	sv.tickrate = 10;
+	if (serverstate == ss_game && ge && ge->apiversion == GAME_API_VERSION_EXT)
+	{
+		sv.tickrate = (int)sv_tickrate->value;
+		if (sv.tickrate != 20 && sv.tickrate != 40)
+			sv.tickrate = 10;
+	}
+	sv.frametime = 1000 / sv.tickrate;
+	sv.tickratio = sv.tickrate / 10;
+	if (sv.tickrate != 10)
+		Com_sprintf (sv.configstrings[CS_TICK_RATE], sizeof(sv.configstrings[CS_TICK_RATE]),
+			"%i", sv.tickrate);
 	
 	strcpy (sv.name, server);
 	strcpy (sv.configstrings[CS_NAME], server);
@@ -295,9 +310,9 @@ void SV_SpawnServer (char *server, char *spawnpoint, server_state_t serverstate,
 	// load and spawn all other entities
 	ge->SpawnEntities ( sv.name, CM_EntityString(), spawnpoint );
 
-	// run two frames to allow everything to settle
-	ge->RunFrame ();
-	ge->RunFrame ();
+	// run two frames to allow everything to settle (1997's two, in ticks)
+	for (i=0 ; i<2*sv.tickratio ; i++)
+		ge->RunFrame ();
 
 	// all precaches are complete
 	sv.state = serverstate;

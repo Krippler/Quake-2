@@ -188,7 +188,9 @@ PROTOCOL
 
 //=========================================
 
-#define	UPDATE_BACKUP	16	// copies of entity_state_t to keep buffered
+#define	UPDATE_BACKUP	32	// copies of entity_state_t to keep buffered
+							// (16 in 1997: the re-release's 40 Hz has four
+							// times the frames)
 							// must be power of two
 #define	UPDATE_MASK		(UPDATE_BACKUP-1)
 

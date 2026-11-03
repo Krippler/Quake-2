@@ -398,13 +398,37 @@ G_RunFrame
 Advances the world by 0.1 seconds
 ================
 */
+float	ticktime = 0.1;
+int		tickratio = 1;
+
+/*
+================
+G_SetTickRate
+
+The server's tick, from it: 1997's 10 Hz, or the re-release's 40
+================
+*/
+void G_SetTickRate (void)
+{
+	int		rate = gi.TickRate ? gi.TickRate () : 10;
+
+	if (rate != 20 && rate != 40)
+		rate = 10;
+	ticktime = 1.0 / rate;
+	tickratio = rate / 10;
+}
+
 void G_RunFrame (void)
 {
 	int		i;
 	edict_t	*ent;
 
-	level.framenum++;
-	level.time = level.framenum*FRAMETIME;
+	// a tick of the server's; 1997's frames, a tenth of a second, counted
+	// in level.framenum as they always were, every tickratio'th
+	level.tick++;
+	level.time = level.tick*TICKTIME;
+	level.framenum = level.tick / tickratio;
+	level.frame10 = !(level.tick % tickratio);
 
 	// choose a client for monsters to target this frame
 	AI_SetSightClient ();

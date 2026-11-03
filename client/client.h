@@ -63,6 +63,11 @@ typedef struct
 	vec3_t		lerp_origin;		// for trails (variable hz)
 
 	int			fly_stoptime;
+
+	// a faster tick's models still animate at 10 Hz (the re-release's 40,
+	// CL_FrameTime): the frame before this one, and when this one began
+	int			anim_oldframe;
+	int			anim_start;
 } centity_t;
 
 #define MAX_CLIENTWEAPONMODELS		20		// PGM -- upped from 16 to fit the chainfist vwep
@@ -168,6 +173,12 @@ typedef struct
 
 	clientinfo_t	clientinfo[MAX_CLIENTS];
 	clientinfo_t	baseclientinfo;
+
+	// the server's frames' milliseconds (CS_TICK_RATE): 100, or the
+	// re-release's 25; CL_FrameTime. The gun's 10 Hz animation's like a
+	// model's (centity_t)
+	int			frametime;
+	int			gun_frame, gun_oldframe, gun_anim_start;
 
 	// the re-release's fog (svc_fog): gone over to from fog_from to
 	// fog_to in fog_msec from fog_start (cl.time), CL_CurrentFog
@@ -314,7 +325,7 @@ extern	cdlight_t	cl_dlights[MAX_DLIGHTS];
 // the cl_parse_entities must be large enough to hold UPDATE_BACKUP frames of
 // entities, so that when a delta compressed message arives from the server
 // it can be un-deltad from the original 
-#define	MAX_PARSE_ENTITIES	1024
+#define	MAX_PARSE_ENTITIES	4096	// 1024 in 1997, before 40 Hz and its frames
 extern	entity_state_t	cl_parse_entities[MAX_PARSE_ENTITIES];
 extern	float			cl_parse_scales[MAX_PARSE_ENTITIES];	// and each one's scale (U_SCALE), 0 unscaled
 
@@ -328,6 +339,10 @@ void DrawAltString (int x, int y, char *s);	// toggle high bit
 
 // cl_wheel.c, the re-release's weapon and powerup wheels
 void CL_InitWheel (void);
+
+#define	CL_FrameTime()	(cl.frametime ? cl.frametime : 100)
+// how far through its 10 Hz frame a model is, a faster tick's (cl_ents.c)
+float CL_AnimLerp (int start);
 qboolean CL_WheelActive (void);
 void CL_WheelMove (float yaw, float pitch);
 void CL_DrawWheel (void);

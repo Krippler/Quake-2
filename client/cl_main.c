@@ -1478,7 +1478,8 @@ void CL_InitLocal (void)
 	skin = Cvar_Get ("skin", "male/grunt", CVAR_USERINFO | CVAR_ARCHIVE);
 	rate = Cvar_Get ("rate", "25000", CVAR_USERINFO | CVAR_ARCHIVE);	// FIXME
 	// this engine's: tells its server this client reads U_SCALE
-	Cvar_Get ("q2ext", "1", CVAR_USERINFO | CVAR_NOSET);
+	// 2: it takes the re-release's faster tick's frames too (server/sv_init.c)
+	Cvar_Get ("q2ext", "2", CVAR_USERINFO | CVAR_NOSET);
 	msg = Cvar_Get ("msg", "1", CVAR_USERINFO | CVAR_ARCHIVE);
 	hand = Cvar_Get ("hand", "0", CVAR_USERINFO | CVAR_ARCHIVE);
 	fov = Cvar_Get ("fov", "90", CVAR_USERINFO | CVAR_ARCHIVE);

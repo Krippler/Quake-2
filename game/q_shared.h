@@ -1262,6 +1262,9 @@ ROGUE - VERSIONS
 // "1" when players pass through each other (the re-release's co-op without
 // player collision, g_coop_player_collision 0): the client predicts so
 #define	CS_NO_PLAYER_COLLISION	(CS_WHEEL_POWERUPS+MAX_WHEEL_ITEMS)
+// the server's frames a second when not 1997's 10 (the re-release's 40,
+// server/sv_init.c): the client times its frames by it
+#define	CS_TICK_RATE		(CS_NO_PLAYER_COLLISION+1)
 #define	MAX_WHEEL_ITEMS		32
 
 

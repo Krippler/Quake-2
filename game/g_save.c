@@ -752,6 +752,12 @@ void ReadLevelLocals (FILE *f)
 
 	fread (&level, sizeof(level), 1, f);
 
+	// its ticks at this server's tick, which may not be the one it was
+	// saved at
+	G_SetTickRate ();
+	level.tick = (int)(level.time / TICKTIME + 0.5);
+	level.framenum = level.tick / tickratio;
+
 	for (field=levelfields ; field->name ; field++)
 	{
 		ReadField (f, field, (byte *)&level);

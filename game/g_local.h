@@ -81,7 +81,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define FL_RESPAWN				0x80000000	// used for item respawning
 
 
-#define	FRAMETIME		0.1
+#define	FRAMETIME		0.1		// one of 1997's frames: its thinks, animation and timers
+
+// the server's tick, a frame of 1997's or a quarter of one at the
+// re-release's 40 Hz (gi.TickRate): what level.time steps by and physics
+// moves by (G_SetTickRate)
+extern float	ticktime;
+extern int		tickratio;		// ticks to a FRAMETIME
+#define	TICKTIME		ticktime
+void G_SetTickRate (void);
 
 // memory tags to allow dynamic memory to be cleaned up
 #define	TAG_GAME	765		// clear when unloading the dll
@@ -364,8 +372,10 @@ typedef struct
 //
 typedef struct
 {
-	int			framenum;
+	int			framenum;		// 1997's frames, ten a second, whatever the tick
 	float		time;
+	int			tick;			// the server's ticks (TICKTIME)
+	qboolean	frame10;		// this tick begins one of 1997's frames
 
 	char		level_name[MAX_QPATH];	// the descriptive name (Outer Base, etc)
 	char		mapname[MAX_QPATH];		// the server name (base1, etc)
@@ -709,6 +719,14 @@ typedef struct
 	// player, and how many players it has been scaled for
 	int			base_health;
 	int			health_scaling;
+
+	// at a faster tick (the re-release's 40 Hz): its next frame of 1997's,
+	// and the rest of that frame's step and turn, taken a tick at a time
+	// (monster_think)
+	float		next_move_time;
+	vec3_t		step_move;
+	float		step_yaw;
+	int			step_ticks;
 } monsterinfo_t;
 
 
@@ -1443,6 +1461,7 @@ struct gclient_s
 	int			flood_whenhead;		// head pointer for when said
 
 	float		respawn_time;		// can respawn when time > this
+	float		weapon_think_time;	// its weapon thinks no sooner (Think_Weapon)
 
 	// the re-release's co-op (g_coop.c): why they cannot respawn yet
 	// (COOP_RESPAWN_*), and till when they count as hurt and as shooting

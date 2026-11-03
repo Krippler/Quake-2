@@ -216,6 +216,10 @@ typedef struct
 	// them as q_shared.h has them, gone over to in msec milliseconds, for
 	// clients that draw it
 	void	(*SetFog) (edict_t *ent, float *fog, int msec);
+
+	// the server's frames a second: 1997's 10, or the re-release's 40
+	// (sv_tickrate), which this level runs at; this game's FRAMETIME
+	int		(*TickRate) (void);
 } game_import_t;
 
 //

@@ -716,6 +716,8 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	int			i;
 	float		skill_level;
 
+	G_SetTickRate ();		// the server's tick, 1997's 10 Hz or the re-release's 40
+
 	InitGameRules ();	// Ground Zero's deathmatch games, each level anew
 
 	skill_level = floor (skill->value);

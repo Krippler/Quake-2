@@ -65,6 +65,10 @@ typedef struct
 	// demo server information
 	FILE		*demofile;
 	qboolean	timedemo;		// don't time sync
+	// the 2023 re-release's faster tick: how many server frames a second
+	// (sv_tickrate: 10, 20 or 40, for a game that can and a level, not a
+	// demo), the milliseconds of each, and how many to one of 1997's
+	int			tickrate, frametime, tickratio;
 } server_t;
 
 #define EDICT_NUM(n) ((edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))
@@ -91,7 +95,7 @@ typedef struct
 } client_frame_t;
 
 #define	LATENCY_COUNTS	16
-#define	RATE_MESSAGES	10
+#define	RATE_MESSAGES	40		// a second's worth at the fastest tick
 
 typedef struct client_s
 {
@@ -116,6 +120,7 @@ typedef struct client_s
 	char			name[32];			// extracted from userinfo, high bits masked
 	int				messagelevel;		// for filtering printed messages
 	qboolean		ext_scale;			// its userinfo's "q2ext": it reads U_SCALE and svc_fog
+	qboolean		ext_tick;			// "q2ext" 2: it takes a frame each tick, not each 100 ms
 
 	// The datagram is written to by sound calls, prints, temp ents, etc.
 	// It can be harmlessly overflowed.
@@ -196,7 +201,8 @@ extern	server_t		sv;					// local server
 extern	cvar_t		*sv_paused;
 extern	cvar_t		*maxclients;
 extern	cvar_t		*sv_noreload;			// don't reload level state when reentering
-extern	cvar_t		*sv_airaccelerate;		// don't reload level state when reentering
+extern	cvar_t		*sv_airaccelerate;
+extern	cvar_t		*sv_tickrate;		// don't reload level state when reentering
 											// development tool
 extern	cvar_t		*sv_enforcetime;
 

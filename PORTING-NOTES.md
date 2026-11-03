@@ -1141,8 +1141,8 @@ The rest:
 - `needpass`: 3.20's `CheckNeedPass`.
 - `sv_stopspeed`: the game's physics' stop speed.
 - `sv_airaccelerate`: the engine sends it outside deathmatch too.
-- `g_quick_weapon_switch` waits for the 40 Hz tick: the re-release only
-  speeds weapon changes when the game runs at 20 Hz or more.
+- `g_quick_weapon_switch` (1): weapons raised and lowered twice as fast,
+  when the tick is 20 Hz or more, as the re-release has it (below).
 - `teamplay`: team deathmatch, CTF's teams without its flags, techs or
   captures. `G_TeamplayEnabled` (CTF or it) stands where the hooks into
   CTF's code are about teams: joining and its menu (titled Team
@@ -1150,6 +1150,59 @@ The rest:
   skins, team chat, the scoreboard and status bar, observers and team
   damage. A frag adds to the team's score, kept where CTF keeps its
   captures (`CTFAdjustTeamScore`), and `fraglimit` is a team's.
+
+**The re-release's 40 Hz tick** (`server/`, `client/cl_ents.c`, `game/`).
+`sv_tickrate` (40; 20 or 10) is how many frames a second the server runs a
+level at. It applies to a game whose `apiversion` is `GAME_API_VERSION_EXT`
+(this one), never to a demo or a cinematic, and it reads at each level's
+start.
+
+The server:
+- `SV_RunGameFrame` steps `sv.time` by `sv.frametime`; a level's settling
+  frames and the ten seconds run on returning to it are 1997's, in ticks.
+- The rate is told to clients as `CS_TICK_RATE`, and to the game by
+  `gi.TickRate`, appended to `game_import_t`.
+- A client whose userinfo says `q2ext 2` (this one's) gets a frame each
+  tick. Any other gets every tickratio'th, numbered as 1997's
+  (`SV_WriteFrameToClient`), its acknowledgements read back
+  (`SV_ExecuteClientMessage`).
+- `UPDATE_BACKUP` is 32 (and the client's `MAX_PARSE_ENTITIES` 4096), for
+  the frames delta compression keeps. `SV_RateDrop` adds up the last
+  second's frames.
+- `sv_airaccelerate` aside, nothing else of the protocol changes.
+
+The client:
+- Its frames' time is `CL_FrameTime` from `CS_TICK_RATE` (100 ms without
+  it, as for every demo), for its clamps and `lerpfrac`.
+- Models and the gun animate at 10 Hz still. Each entity, and the gun,
+  notes the frame before its current one and when that changed, and lerps
+  between them over 100 ms (`CL_AnimLerp`) rather than over a 25 ms frame.
+
+The game keeps 1997's frame, `FRAMETIME` 0.1, for everything it was used
+for: thinks, timers, animation. It adds the server's tick, `TICKTIME`, for
+what moves continuously:
+- `level.time` steps by a tick, and `level.framenum` counts 1997's frames
+  still (`level.tick / tickratio`), so every timer counted in frames lasts
+  as long as it did. `level.frame10` says a tick begins one.
+- Physics (`g_phys.c`'s gravity, velocities, friction, pushers) moves by a
+  tick. Doors and plats, which time their moves by think, end where and
+  when they did.
+- A player's weapon thinks no more than once a frame of 1997's
+  (`weapon_think_time`), so its frames and rate of fire are as they were.
+  The re-release's `g_quick_weapon_switch` raises and lowers it every half
+  frame at a tick of 20 or more, as there.
+- A player's model animates, and their world effects (drowning, lava,
+  powerup sounds) and scoreboard refreshes come, once a frame. Their view's
+  bob, gun lag and blend fades are scaled to the tick, and their movement
+  state is copied every tick for prediction.
+- A monster thinks every tick (`monster_think`). Its frame, decisions and
+  step run every tenth of a second as before; the step and turn it took are
+  then given back, and taken a share a tick, so that it moves and turns
+  smoothly and is hit where it is seen. The re-release, which moves its
+  monsters every tick too, runs their AI then as well; here only their
+  movement is spread, which leaves their decisions as 1997's.
+
+`sv_tickrate 10` runs everything as before.
 
 **`client/menu.c`, `qcommon/files.c`**: the choice of game. The game menu
 lists, in place of 1997's easy, medium and hard, the games whose first map

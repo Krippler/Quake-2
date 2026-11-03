@@ -23,6 +23,17 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   starts again when everyone is dead with none left.
   `g_coop_health_scaling` gives monsters more health for each extra
   player.
+- **The re-release's 40 Hz tick.** The server runs the world four times as
+  often as 1997's ten:
+  - projectiles, gibs, doors and lifts move every 25 ms
+  - monsters walk and turn smoothly rather than in tenth-of-a-second steps
+  - other players and everything else reach the client 40 times a second
+
+  Animation, weapons, fire rates and timings are as they were.
+  `g_quick_weapon_switch` (on by default, as in the re-release) raises and
+  lowers weapons twice as fast. `sv_tickrate 10` goes back to 1997's tick
+  (from the next level). Older clients still get ten frames a second. The
+  mission packs' own game code, and mods', stay at 10 Hz.
 - **The re-release's game settings.**
   - **Team deathmatch** (`teamplay 1`): CTF's teams, menus and scoreboard,
     with frags as the team score and the frag limit applying to teams.

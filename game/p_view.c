@@ -403,8 +403,8 @@ void SV_CalcGunOffset (edict_t *ent)
 		if (delta < -45)
 			delta = -45;
 		if (i == YAW)
-			ent->client->ps.gunangles[ROLL] += 0.1*delta;
-		ent->client->ps.gunangles[i] += 0.2 * delta;
+			ent->client->ps.gunangles[ROLL] += 0.1*delta*tickratio;	// a frame of 1997's worth of turn
+		ent->client->ps.gunangles[i] += 0.2 * delta*tickratio;
 	}
 
 	// gun height
@@ -497,7 +497,7 @@ void SV_CalcBlend (edict_t *ent)
 	if (ent->client->quad_framenum > level.framenum)
 	{
 		remaining = ent->client->quad_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == 30 && level.frame10)	// beginning to fade (once, at any tick)
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage2.wav"), 1, ATTN_NORM, 0);
 		if (remaining > 30 || (remaining & 4) )
 			SV_AddBlend (0, 0, 1, 0.08, ent->client->ps.blend);
@@ -505,7 +505,7 @@ void SV_CalcBlend (edict_t *ent)
 	else if (ent->client->double_framenum > level.framenum)
 	{
 		remaining = ent->client->double_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == 30 && level.frame10)	// beginning to fade (once, at any tick)
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("misc/ddamage2.wav"), 1, ATTN_NORM, 0);
 		if (remaining > 30 || (remaining & 4) )
 			SV_AddBlend (0.9, 0.7, 0, 0.08, ent->client->ps.blend);
@@ -513,7 +513,7 @@ void SV_CalcBlend (edict_t *ent)
 	else if (ent->client->quadfire_framenum > level.framenum)
 	{
 		remaining = ent->client->quadfire_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == 30 && level.frame10)	// beginning to fade (once, at any tick)
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/quadfire2.wav"), 1, ATTN_NORM, 0);
 		if (remaining > 30 || (remaining & 4) )
 			SV_AddBlend (1, 0.2, 0.5, 0.08, ent->client->ps.blend);
@@ -521,7 +521,7 @@ void SV_CalcBlend (edict_t *ent)
 	else if (ent->client->invincible_framenum > level.framenum)
 	{
 		remaining = ent->client->invincible_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == 30 && level.frame10)	// beginning to fade (once, at any tick)
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect2.wav"), 1, ATTN_NORM, 0);
 		if (remaining > 30 || (remaining & 4) )
 			SV_AddBlend (1, 1, 0, 0.08, ent->client->ps.blend);
@@ -529,7 +529,7 @@ void SV_CalcBlend (edict_t *ent)
 	else if (ent->client->enviro_framenum > level.framenum)
 	{
 		remaining = ent->client->enviro_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == 30 && level.frame10)	// beginning to fade (once, at any tick)
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/airout.wav"), 1, ATTN_NORM, 0);
 		if (remaining > 30 || (remaining & 4) )
 			SV_AddBlend (0, 1, 0, 0.08, ent->client->ps.blend);
@@ -537,7 +537,7 @@ void SV_CalcBlend (edict_t *ent)
 	else if (ent->client->breather_framenum > level.framenum)
 	{
 		remaining = ent->client->breather_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == 30 && level.frame10)	// beginning to fade (once, at any tick)
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/airout.wav"), 1, ATTN_NORM, 0);
 		if (remaining > 30 || (remaining & 4) )
 			SV_AddBlend (0.4, 1, 0.4, 0.04, ent->client->ps.blend);
@@ -552,12 +552,12 @@ void SV_CalcBlend (edict_t *ent)
 		SV_AddBlend (0.85, 0.7, 0.3, ent->client->bonus_alpha, ent->client->ps.blend);
 
 	// drop the damage value
-	ent->client->damage_alpha -= 0.06;
+	ent->client->damage_alpha -= 0.06 * TICKTIME / FRAMETIME;	// as fast at any tick
 	if (ent->client->damage_alpha < 0)
 		ent->client->damage_alpha = 0;
 
 	// drop the bonus value
-	ent->client->bonus_alpha -= 0.1;
+	ent->client->bonus_alpha -= 0.1 * TICKTIME / FRAMETIME;
 	if (ent->client->bonus_alpha < 0)
 		ent->client->bonus_alpha = 0;
 }
@@ -1137,7 +1137,9 @@ void ClientEndServerFrame (edict_t *ent)
 	AngleVectors (ent->client->v_angle, forward, right, up);
 
 	// burn from lava, etc
-	P_WorldEffects ();
+	// once a frame of 1997's: its damage and sounds are per frame
+	if (level.frame10)
+		P_WorldEffects ();
 
 	//
 	// set model angles from view angles so other things in
@@ -1172,6 +1174,8 @@ void ClientEndServerFrame (edict_t *ent)
 			bobmove = 0.0625;
 	}
 	
+	// bobmove is a frame of 1997's; a tick of the re-release's 40 Hz has its share
+	bobmove *= TICKTIME / FRAMETIME;
 	bobtime = (current_client->bobtime += bobmove);
 
 	if (current_client->ps.pmove.pm_flags & PMF_DUCKED)
@@ -1223,7 +1227,9 @@ void ClientEndServerFrame (edict_t *ent)
 
 	G_SetClientSound (ent);
 
-	G_SetClientFrame (ent);
+	// the player's model animates ten frames a second, whatever the tick
+	if (level.frame10)
+		G_SetClientFrame (ent);
 
 	VectorCopy (ent->velocity, ent->client->oldvelocity);
 	VectorCopy (ent->client->ps.viewangles, ent->client->oldviewangles);
@@ -1233,7 +1239,7 @@ void ClientEndServerFrame (edict_t *ent)
 	VectorClear (ent->client->kick_angles);
 
 	// if the scoreboard is up, update it
-	if (ent->client->showscores && !(level.framenum & 31) )
+	if (ent->client->showscores && !(level.framenum & 31) && level.frame10)
 	{
 		if (ent->client->menu)		// CTF's menu, not the scores
 		{

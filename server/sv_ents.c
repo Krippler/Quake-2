@@ -445,8 +445,18 @@ void SV_WriteFrameToClient (client_t *client, sizebuf_t *msg)
 	}
 
 	MSG_WriteByte (msg, svc_frame);
-	MSG_WriteLong (msg, sv.framenum);
-	MSG_WriteLong (msg, lastframe);	// what we are delta'ing from
+	// a client of 1997's frame rate gets every tickratio'th, numbered as
+	// its own (SV_SendClientMessages, SV_ExecuteClientMessage)
+	if (client->ext_tick || sv.tickratio <= 1)
+	{
+		MSG_WriteLong (msg, sv.framenum);
+		MSG_WriteLong (msg, lastframe);	// what we are delta'ing from
+	}
+	else
+	{
+		MSG_WriteLong (msg, sv.framenum / sv.tickratio);
+		MSG_WriteLong (msg, lastframe > 0 ? lastframe / sv.tickratio : lastframe);
+	}
 	MSG_WriteByte (msg, client->surpressCount);	// rate dropped packets
 	client->surpressCount = 0;
 

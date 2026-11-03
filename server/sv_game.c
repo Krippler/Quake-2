@@ -256,6 +256,11 @@ A player's fog, as the game would have it: sent to them, reliably, if
 their client draws it ("q2ext").
 ===============
 */
+int PF_TickRate (void)
+{
+	return sv.tickrate ? sv.tickrate : 10;
+}
+
 void PF_SetFog (edict_t *ent, float *fog, int msec)
 {
 	int			i, e = NUM_FOR_EDICT (ent);
@@ -435,6 +440,7 @@ void SV_InitGameProgs (void)
 	import.SetEntityScale = PF_SetEntityScale;
 	import.Clip = SV_Clip;
 	import.SetFog = PF_SetFog;
+	import.TickRate = PF_TickRate;
 	import.SetAreaPortalState = CM_SetAreaPortalState;
 	import.AreasConnected = CM_AreasConnected;
 
