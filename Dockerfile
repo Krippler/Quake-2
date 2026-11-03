@@ -28,6 +28,9 @@ RUN apt-get update \
         libxext-dev \
         libxrandr-dev \
         libsndfile1-dev \
+        libtheora-dev \
+        libvorbis-dev \
+        libogg-dev \
         zlib1g-dev \
  && rm -rf /var/lib/apt/lists/*
 
@@ -49,10 +52,12 @@ COPY audiostream/ ./audiostream/
 # SOUND=stream writes the mixed PCM to a pipe instead of to /dev/dsp, which no
 # kernel has provided for twenty years. MUSIC=sndfile decodes track files,
 # because Quake II's music was CD audio and a container has no drive.
+# THEORA=yes plays the re-release's .ogv cinematics, and fails the build
+# rather than leave them out if libtheora is missing.
 #
 # Stripped of everything but the dynamic symbol table: -rdynamic put the
 # engine's function names there, and that is what a crash backtrace reads.
-RUN make -C linux -j"$(nproc)" SOUND=stream MUSIC=sndfile \
+RUN make -C linux -j"$(nproc)" SOUND=stream MUSIC=sndfile THEORA=yes \
  && strip --strip-unneeded linux/build/quake2 linux/build/ref_softx.so \
           linux/build/baseq2/gamex86_64.so linux/build/ctf/gamex86_64.so \
           linux/build/xatrix/gamex86_64.so linux/build/rogue/gamex86_64.so \
@@ -75,6 +80,9 @@ RUN apt-get update \
         libxext6 \
         libxrandr2 \
         libsndfile1 \
+        libtheora0 \
+        libvorbis0a \
+        libogg0 \
         zlib1g \
         xvfb \
         x11vnc \

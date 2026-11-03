@@ -341,6 +341,11 @@ extern	sizebuf_t	net_message;
 void DrawString (int x, int y, char *s);
 void DrawAltString (int x, int y, char *s);	// toggle high bit
 
+// cl_ogv.c, the re-release's cinematics, Ogg Theora
+qboolean OGV_Open (char *name, int *width, int *height, byte *palette);
+qboolean OGV_Run (int msec, byte **pic);
+void OGV_Close (void);
+
 // cl_damage.c, the re-release's damage indicators and hit markers
 void CL_InitDamage (void);
 void CL_ParseDamage (void);

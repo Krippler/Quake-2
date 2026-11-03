@@ -465,6 +465,24 @@ alive rerelease
 n=$(colours rerelease)
 [ "$n" -ge 128 ] || die "the cinematic did not play: the screen holds $n colours; see $work/rerelease.log"
 say "a cinematic played, from a file named in capitals; its frame holds $n colours"
+
+# The re-release's cinematics are Ogg Theora, asked for by the 1997 names:
+# video/smogv.cin, which is not there, plays video/smogv.ogv (client/cl_ogv.c).
+# Made with ffmpeg where there is one; an engine built THEORA=no skips it.
+if command -v ffmpeg >/dev/null 2>&1; then
+    ffmpeg -hide_banner -loglevel error -y -f lavfi -i testsrc=size=1280x720:rate=30 \
+        -f lavfi -i sine=frequency=440:sample_rate=48000 -t 4 \
+        -c:v libtheora -q:v 5 -c:a libvorbis -ac 2 "$work/baseq2/VIDEO/smogv.ogv" \
+        || die "ffmpeg could not make an Ogg Theora video"
+    console_type "map smogv.cin"
+    sleep 2
+    alive rerelease
+    n=$(colours rerelease)
+    [ "$n" -ge 64 ] || die "the Ogg Theora cinematic did not play: the screen holds $n colours; see $work/rerelease.log"
+    say "an Ogg Theora cinematic played for its .cin name; its frame holds $n colours"
+else
+    say "no ffmpeg to make an Ogg Theora video with; not tried"
+fi
 stop_engine
 rm -f "$work/baseq2/pak9.pak"
 

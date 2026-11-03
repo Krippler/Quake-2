@@ -20,9 +20,9 @@ It runs on Ubuntu 22.04, Debian 12, Fedora 35 or anything newer, under X11
 or XWayland, and needs these libraries, which almost every desktop already
 has:
 
-    Debian, Ubuntu:  sudo apt install libasound2 libsndfile1 libxrandr2
-    Fedora:          sudo dnf install alsa-lib libsndfile libXrandr
-    Arch:            sudo pacman -S alsa-lib libsndfile libxrandr
+    Debian, Ubuntu:  sudo apt install libasound2 libsndfile1 libtheora0 libxrandr2
+    Fedora:          sudo dnf install alsa-lib libsndfile libtheora libXrandr
+    Arch:            sudo pacman -S alsa-lib libsndfile libtheora libxrandr
 
 Game controllers need SDL2 as well (libsdl2-2.0-0, SDL2, sdl2), which is
 installed wherever Steam is. Without it the game runs, without a controller.

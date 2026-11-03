@@ -60,9 +60,9 @@ if [ -n "$missing" ]; then
     for m in $missing; do
         echo "    $m"
     done
-    echo "On Debian or Ubuntu: sudo apt install libasound2 libsndfile1 libxrandr2"
-    echo "On Fedora:           sudo dnf install alsa-lib libsndfile libXrandr"
-    echo "On Arch:             sudo pacman -S alsa-lib libsndfile libxrandr"
+    echo "On Debian or Ubuntu: sudo apt install libasound2 libsndfile1 libtheora0 libxrandr2"
+    echo "On Fedora:           sudo dnf install alsa-lib libsndfile libtheora libXrandr"
+    echo "On Arch:             sudo pacman -S alsa-lib libsndfile libtheora libxrandr"
     exit 1
 fi
 

@@ -18,7 +18,8 @@ docker compose up --build
 
 The engine needs an X display at depth 8, 15, 16 or 24, plus the X11
 (`libx11`, `libxext`, `libxrandr`), libsndfile and zlib development packages
-(zlib for the re-release's PNG images):
+(zlib for the re-release's PNG images), and for the re-release's cinematics
+libtheora, libvorbis and libogg (`THEORA=no` builds without them):
 
 ```
 make -C linux               # -> linux/build/
