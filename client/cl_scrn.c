@@ -251,7 +251,7 @@ void SCR_CenterPrint (char *str)
 void SCR_DrawCenterString (void)
 {
 	char	*start;
-	int		l;
+	int		l, max;
 	int		j;
 	int		x, y;
 	int		remaining;
@@ -269,8 +269,10 @@ void SCR_DrawCenterString (void)
 
 	do	
 	{
-	// scan the width of the line
-		for (l=0 ; l<40 ; l++)
+	// scan the width of the line: 40 characters, or as many as the
+	// screen has room for (the re-release's key hints are 41)
+		max = viddef.width/8 > 40 ? viddef.width/8 : 40;
+		for (l=0 ; l<max ; l++)
 			if (start[l] == '\n' || !start[l])
 				break;
 		x = (viddef.width - l*8)/2;

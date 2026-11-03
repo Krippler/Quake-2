@@ -553,7 +553,12 @@ and lacks `pics/conchars.pcx`. With it on top of the original's paks
     the screen's edge it can land outside the skin, which ASan caught
     with the gekk's.
   - `client/cl_loc.c`: the re-release's key hints, `%bind:cmd:text%`
-    before a message's words, are left out.
+    before a message's words, are kept in the loaded text and made, as
+    the message is shown (`Loc_KeyHint`), into lines under it: the first
+    key bound to the command, as the key menu names it, and the text,
+    `[SPACE] Hold jump to move up ladders.` The re-release draws a picture
+    of the key; the 1997 font has none. A centre print's lines go to the
+    screen's width rather than 40 characters, which the hints pass.
   - `server/sv_ccmds.c`: a level's files in `save/current` are named by
     `SV_LevelFileName`, with `#` for the `/` of `q64/outpost`: the save
     slots are flat directories, copied and wiped by `*.sav`.

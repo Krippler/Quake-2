@@ -63,6 +63,9 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   show over its right (taking turns if more than three), and choosing an
   item names it there for three seconds. Picking an item up selects it
   only if you still have it.
+- **Key hints.** The re-release's messages that say which key does
+  something (climbing ladders, the equipment wheel) show it under the
+  message, from your own bindings: `[SPACE] Hold jump to move up ladders.`
 - **See-through foliage and grates.** Surfaces the re-release's maps mark as
   cut out (Call of the Machine's jungle canopies) show what is behind
   their holes rather than drawing them as solid colour.
