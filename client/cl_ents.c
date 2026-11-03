@@ -386,6 +386,8 @@ void CL_DeltaEntity (frame_t *frame, int newnum, entity_state_t *old, int bits)
 		ent->trailcount = 1024;		// for diminishing rocket / grenade trails
 		ent->anim_oldframe = state->frame;
 		ent->anim_start = cl.frame.servertime - 100;
+		ent->anim_changed = cl.frame.servertime - 1000;
+		ent->anim_len = 100;
 		// duplicate the current state so lerping doesn't hurt anything
 		ent->prev = *state;
 		if (state->event == EV_OTHER_TELEPORT)
@@ -407,6 +409,8 @@ void CL_DeltaEntity (frame_t *frame, int newnum, entity_state_t *old, int bits)
 		{
 			ent->anim_oldframe = ent->current.frame;
 			ent->anim_start = cl.frame.servertime - CL_FrameTime ();
+			ent->anim_len = CL_AnimLength (cl.frame.servertime - ent->anim_changed);
+			ent->anim_changed = cl.frame.servertime;
 		}
 	}
 
@@ -416,20 +420,41 @@ void CL_DeltaEntity (frame_t *frame, int newnum, entity_state_t *old, int bits)
 
 /*
 ==================
+CL_AnimLength
+
+How long a model's (or the gun's) frame is to take to come in, at a faster
+tick: as long as the last one took to come, between a tick and 100 ms. Most
+animations are 10 frames a second, but a weapon raised and lowered with
+the re-release's quick switch is 20, and the frame after a pause is 100 ms
+==================
+*/
+int CL_AnimLength (int since)
+{
+	if (since < CL_FrameTime ())
+		return CL_FrameTime ();
+	if (since > 100)
+		return 100;
+	return since;
+}
+
+/*
+==================
 CL_AnimLerp
 
 How far a model (or the gun) is from its last frame to this one: at 1997's
-10 Hz the frame's own lerp, at a faster tick (the re-release's 40) its 10 Hz
-animation's, the frame coming in over 100 ms from the frame before it
+10 Hz the frame's own lerp, at a faster tick (the re-release's 40) its
+animation's, the frame coming in over len ms from the frame before it
 ==================
 */
-float CL_AnimLerp (int start)
+float CL_AnimLerp (int start, int len)
 {
 	float	f;
 
 	if (CL_FrameTime () >= 100)
 		return cl.lerpfrac;
-	f = (cl.time - start) / 100.0;
+	if (len <= 0)
+		len = 100;
+	f = (float)(cl.time - start) / len;
 	return f < 0 ? 0 : f > 1 ? 1 : f;
 }
 
@@ -800,6 +825,8 @@ void CL_ParseFrame (void)
 		cl.gun_oldframe = cl.gun_frame;
 		cl.gun_frame = cl.frame.playerstate.gunframe;
 		cl.gun_anim_start = cl.frame.servertime - CL_FrameTime ();
+		cl.gun_anim_len = CL_AnimLength (cl.frame.servertime - cl.gun_anim_changed);
+		cl.gun_anim_changed = cl.frame.servertime;
 	}
 
 	// read packet entities
@@ -982,7 +1009,7 @@ void CL_AddPacketEntities (frame_t *frame)
 		if (CL_FrameTime () < 100)
 		{	// the re-release's faster tick: its 10 Hz animation
 			ent.oldframe = cent->anim_oldframe;
-			ent.backlerp = 1.0 - CL_AnimLerp (cent->anim_start);
+			ent.backlerp = 1.0 - CL_AnimLerp (cent->anim_start, cent->anim_len);
 		}
 
 		if (renderfx & (RF_FRAMELERP|RF_BEAM))
@@ -1508,7 +1535,7 @@ void CL_AddViewWeapon (player_state_t *ps, player_state_t *ops)
 	if (CL_FrameTime () < 100 && !gun_frame)
 	{	// the re-release's faster tick: the gun's 10 Hz animation
 		gun.oldframe = gun.frame ? cl.gun_oldframe : 0;
-		gun.backlerp = 1.0 - CL_AnimLerp (cl.gun_anim_start);
+		gun.backlerp = 1.0 - CL_AnimLerp (cl.gun_anim_start, cl.gun_anim_len);
 	}
 	VectorCopy (gun.origin, gun.oldorigin);	// don't lerp at all
 	V_AddEntity (&gun);

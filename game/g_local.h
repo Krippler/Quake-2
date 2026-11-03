@@ -1433,6 +1433,8 @@ struct gclient_s
 
 	// animation vars
 	int			anim_end;
+	float		anim_time;			// when its model's next frame is due (40 Hz)
+	int			anim_lastframe;		// its frame as G_SetClientFrame left it
 	int			anim_priority;
 	qboolean	anim_duck;
 	qboolean	anim_run;
