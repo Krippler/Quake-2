@@ -5,6 +5,25 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Added
+
+- **Nightmare.** The difficulty screen has the fourth, hardest skill, as
+  the re-release's has.
+- **The re-release's co-op.** As in the re-release, by default:
+  - each item is each player's, so one taking it leaves it for the rest
+  - a player who dies keeps what they had, and comes back beside a living
+    teammate once that one is out of a fight, watching meanwhile
+  - players and their shots pass through each other
+
+  Its settings change this: `g_coop_instanced_items`,
+  `g_coop_squad_respawn`, `g_coop_player_collision`, and
+  `g_coop_enable_lives` with `g_coop_num_lives`. With lives on, the level
+  starts again when everyone is dead with none left.
+  `g_coop_health_scaling` gives monsters more health for each extra
+  player.
+
 ## [1.3.27] — 2026-10-28
 
 ### Added

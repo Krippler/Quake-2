@@ -626,6 +626,12 @@ qboolean monster_start (edict_t *self)
 	// the re-release's: its height standing, which its ducks come down from
 	self->monsterinfo.base_height = self->maxs[2];
 
+	// the re-release's co-op health scaling: its health for one player, and
+	// more for each past the first already there (g_coop.c)
+	self->monsterinfo.base_health = self->health;
+	self->monsterinfo.health_scaling = 1;
+	G_MonsterScaleCoopHealth (self);
+
 	return true;
 }
 

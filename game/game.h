@@ -40,12 +40,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // game.h -- game dll information visible to server
 
 #define	GAME_API_VERSION	3
+// a game whose game_export_t goes on past max_edicts, to EntityVisibleToClient
+// (this one's; any other is 3)
+#define	GAME_API_VERSION_EXT	4
 
 // edict->svflags
 
 #define	SVF_NOCLIENT			0x00000001	// don't send entity to clients, even if it has effects
 #define	SVF_DEADMONSTER			0x00000002	// treat as CONTENTS_DEADMONSTER for collision
 #define	SVF_MONSTER				0x00000004	// treat as CONTENTS_MONSTER for collision
+// the 2023 re-release's: seen by each player as the game says
+// (EntityVisibleToClient): its co-op items, each player's own
+#define	SVF_INSTANCED			0x00000100
 
 // edict->solid values
 
@@ -267,6 +273,10 @@ typedef struct
 	int			edict_size;
 	int			num_edicts;		// current number, <= max_edicts
 	int			max_edicts;
+
+	// GAME_API_VERSION_EXT only: whether an SVF_INSTANCED entity is to be
+	// sent to a client (the re-release's Entity_IsVisibleToPlayer)
+	qboolean	(*EntityVisibleToClient) (struct edict_s *ent, struct edict_s *client);
 } game_export_t;
 
 game_export_t *GetGameApi (game_import_t *import);

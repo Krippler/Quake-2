@@ -374,6 +374,9 @@ typedef struct
 #define	CONTENTS_DETAIL			0x8000000	// brushes to be added after vis leafs
 #define	CONTENTS_TRANSLUCENT	0x10000000	// auto set if any surface has trans
 #define	CONTENTS_LADDER			0x20000000
+// in a trace's mask, not a brush's: players are passed through (sv_world.c);
+// the re-release's co-op without player collision
+#define	CONTENTS_NOCLIENTS		0x40000000
 
 
 

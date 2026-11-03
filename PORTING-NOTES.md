@@ -1064,6 +1064,43 @@ see-through water and sprites (`R_SpanletTexel`, `SPANLET_K`). Up to about
 15% slower in timedemo at 640x480; off by default. The 2D pictures (the
 HUD, menus, console) are left sharp.
 
+**`game/g_coop.c`** (new) and the game's hooks into it, **`server/`**,
+**`client/cl_pred.c`**, **`client/cl_scrn.c`**: the re-release's co-op, from
+its game code (`p_client.cpp`, `g_items.cpp`, `g_monster.cpp`, `g_main.cpp`),
+with its settings and their defaults:
+- `g_coop_instanced_items` (1): an item taken by one player stays for the
+  rest. It carries a bit for each player who has had it
+  (`edict_t.item_picked_up_by`), and is `SVF_INSTANCED`: the server asks the
+  game, for each player, whether to send it (`EntityVisibleToClient`, after
+  `max_edicts` in `game_export_t`). The ask is made only of a game whose
+  `apiversion` is `GAME_API_VERSION_EXT` (4), as this one's is; the mission
+  packs' and mods' games, 3, go on as they were. A player who dies keeps
+  their inventory and comes back with their full health. What a player
+  drops is not instanced, and goes when taken.
+- `g_coop_squad_respawn` (1), which makes items instanced too: three seconds
+  after dying, a player comes back beside a living one (`G_FindRespawnSpot`:
+  five boxes thrown back from them onto firm, dry, visible world). That one
+  must not have been hurt in two seconds, nor be hunted by a monster, nor
+  have fired in two and a half while any monster hunts anyone. Meanwhile
+  they watch, chasing, and the HUD says why they wait, in the re-release's
+  words.
+- `g_coop_enable_lives` (0), `g_coop_num_lives` (2): that many lives and one
+  more, back at a unit's end. Out of them a player watches. When every
+  player is dead with none left, everyone goes back to how they entered the
+  level, lives restored, and the server's `restart_level` loads the level
+  again as `gamemap` does but without saving it, so it is as it was entered.
+- `g_coop_player_collision` (0): players pass through each other, and
+  through each other's shots unless `dmflags` has friendly fire on. Traces
+  carry a mask bit, `CONTENTS_NOCLIENTS`, which `SV_ClipMoveToEntities` takes
+  to mean pass players by; `CS_NO_PLAYER_COLLISION` tells the client to
+  predict the same. `g_disable_player_collision` does it in deathmatch too.
+- `g_coop_health_scaling` (0): a monster has that much of its health more
+  for each player who has joined the level past the first, raised as they
+  join.
+
+Lives and the respawn state go in `STAT_COOP` (31), drawn by the status
+bar's new `coop`.
+
 **`client/menu.c`, `qcommon/files.c`**: the choice of game. The game menu
 lists, in place of 1997's easy, medium and hard, the games whose first map
 is there, and the one chosen asks its difficulty and starts

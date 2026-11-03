@@ -588,6 +588,11 @@ void SV_BuildClientFrame (client_t *client)
 		if (ent->svflags & SVF_NOCLIENT)
 			continue;
 
+		// the game's say for an instanced one (an item this player has had)
+		if ((ent->svflags & SVF_INSTANCED) && ge->apiversion == GAME_API_VERSION_EXT
+			&& !ge->EntityVisibleToClient (ent, clent))
+			continue;
+
 		// ignore ents without visible models unless they have an effect
 		if (!ent->s.modelindex && !ent->s.effects && !ent->s.sound
 			&& !ent->s.event)

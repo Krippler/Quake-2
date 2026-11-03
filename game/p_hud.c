@@ -93,7 +93,13 @@ void BeginIntermission (edict_t *targ)
 		if (!client->inuse)
 			continue;
 		if (client->health <= 0)
+		{
+			// the re-release's instanced items: back with their things
+			// and their full health
+			if (G_UseCoopInstancedItems ())
+				client->client->pers.health = client->client->pers.max_health = client->max_health;
 			respawn(client);
+		}
 	}
 
 	level.intermissiontime = level.time;
@@ -561,6 +567,7 @@ void G_SetStats (edict_t *ent)
 	ent->client->ps.stats[STAT_SPECTATOR] = 0;
 
 	G_SetHealthBars (ent);
+	G_SetCoopStats (ent);		// the re-release's co-op lives and respawn
 
 	if (ctf->value)
 		SetCTFStats (ent);		// CTF's

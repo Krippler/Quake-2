@@ -585,12 +585,17 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 		// clear inventory
 		// this is kind of ugly, but it's how we want to handle keys in coop
-		for (n = 0; n < game.num_items; n++)
-		{
-			if (coop->value && itemlist[n].flags & IT_KEY)
-				self->client->resp.coop_respawn.inventory[n] = self->client->pers.inventory[n];
-			self->client->pers.inventory[n] = 0;
-		}
+		// (the re-release's instanced items: a player keeps theirs)
+		if (!G_UseCoopInstancedItems ())
+			for (n = 0; n < game.num_items; n++)
+			{
+				if (coop->value && itemlist[n].flags & IT_KEY)
+					self->client->resp.coop_respawn.inventory[n] = self->client->pers.inventory[n];
+				self->client->pers.inventory[n] = 0;
+			}
+
+		// the re-release's co-op lives and squad respawn (g_coop.c)
+		G_CoopPlayerDied (self);
 	}
 
 	// remove powerups
@@ -693,6 +698,10 @@ void InitClientPersistant (gclient_t *client)
 	client->pers.max_prox		= 50;
 
 	client->pers.connected = true;
+
+	// the re-release's co-op lives (g_coop.c)
+	if (coop->value && g_coop_enable_lives->value)
+		client->pers.lives = (int)g_coop_num_lives->value + 1;
 }
 
 
@@ -1285,6 +1294,13 @@ void PutClientInServer (edict_t *ent)
 	// ranging doesn't count this client
 	SelectSpawnPoint (ent, spawn_origin, spawn_angles);
 
+	// the re-release's squad respawn: beside a living player (g_coop.c)
+	if (use_squad_respawn)
+	{
+		VectorCopy (squad_respawn_position, spawn_origin);
+		VectorCopy (squad_respawn_angles, spawn_angles);
+	}
+
 	index = ent-g_edicts-1;
 	client = ent->client;
 
@@ -1311,9 +1327,21 @@ void PutClientInServer (edict_t *ent)
 //			if (itemlist[n].flags & IT_KEY)
 //				resp.coop_respawn.inventory[n] = client->pers.inventory[n];
 //		}
-		resp.coop_respawn.game_helpchanged = client->pers.game_helpchanged;
-		resp.coop_respawn.helpchanged = client->pers.helpchanged;
-		client->pers = resp.coop_respawn;
+		if (!G_UseCoopInstancedItems ())
+		{
+			resp.coop_respawn.game_helpchanged = client->pers.game_helpchanged;
+			resp.coop_respawn.helpchanged = client->pers.helpchanged;
+			client->pers = resp.coop_respawn;
+		}
+		else
+		{
+			// the re-release's instanced items: what they had, and their
+			// health
+			if (!client->pers.weapon)
+				client->pers.weapon = client->pers.lastweapon;
+			if (client->pers.health <= 0)
+				client->pers.health = client->pers.max_health;
+		}
 		ClientUserinfoChanged (ent, userinfo);
 		if (resp.score > client->pers.score)
 			client->pers.score = resp.score;
@@ -1392,7 +1420,8 @@ void PutClientInServer (edict_t *ent)
 
 	ent->s.frame = 0;
 	VectorCopy (spawn_origin, ent->s.origin);
-	ent->s.origin[2] += 1;	// make sure off ground
+	if (!use_squad_respawn)
+		ent->s.origin[2] += 1;	// make sure off ground
 	VectorCopy (ent->s.origin, ent->s.old_origin);
 
 	// set the delta angle
@@ -1435,7 +1464,8 @@ void PutClientInServer (edict_t *ent)
 	if (ctf->value && CTFStartClient (ent))
 		return;
 
-	if (!KillBox (ent))
+	// in the re-release's co-op without player collision, not the others
+	if (!KillBoxMask (ent, G_ClientMask (ent, MASK_PLAYERSOLID, false)))
 	{	// could't spawn in?
 	}
 
@@ -1543,6 +1573,10 @@ void ClientBegin (edict_t *ent)
 			gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
 		}
 	}
+
+	// the re-release's co-op health scaling: one more player in the level
+	level.coop_scale_players++;
+	G_CheckCoopHealthScaling ();
 
 	// make sure all view stuff is valid
 	ClientEndServerFrame (ent);
@@ -1743,8 +1777,10 @@ edict_t	*pm_passent;
 // pmove doesn't need to know about passent and contentmask
 trace_t	PM_trace (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end)
 {
+	// through the other players, in the re-release's co-op without player
+	// collision
 	if (pm_passent->health > 0)
-		return gi.trace (start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
+		return gi.trace (start, mins, maxs, end, pm_passent, G_ClientMask (pm_passent, MASK_PLAYERSOLID, false));
 	else
 		return gi.trace (start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
 }
@@ -2020,8 +2056,10 @@ void ClientBeginServerFrame (edict_t *ent)
 
 	if (ent->deadflag)
 	{
-		// wait for any button just going down
-		if ( level.time > client->respawn_time)
+		// wait for any button just going down; not while the level is to
+		// start again, and in the re-release's co-op its own way back
+		if ( level.time > client->respawn_time && !level.coop_level_restart_time
+			&& !G_CoopRespawn (ent))
 		{
 			// in deathmatch, only wait for attack button
 			if (deathmatch->value)

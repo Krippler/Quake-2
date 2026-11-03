@@ -1210,6 +1210,50 @@ void SCR_ExecuteLayoutString (char *s)
 		// the re-release's bosses' health bars, STAT_HEALTH_BARS a byte
 		// each, under their name: half the screen wide, red for what is
 		// left, grey for what is gone
+		// the re-release's co-op (game/g_coop.c): lives over the status
+		// bar's left, and why a dead player waits, mid-screen, in its
+		// words (cl_loc.c)
+		if (!strcmp(token, "coop"))
+		{
+			static char	*respawn_keys[] = { NULL, "$g_coop_respawn_in_combat",
+				"$g_coop_respawn_bad_area", "$g_coop_respawn_blocked",
+				"$g_coop_respawn_waiting", "$g_coop_respawn_no_lives" };
+			int		stat = cl.frame.playerstate.stats[STAT_COOP] & 0xffff;
+			int		lives = stat & 0xff, state = stat >> 8;
+			char	buf[64], msg[256], *sp;
+			int		col, max;
+
+			if (lives)
+			{
+				Com_sprintf (buf, sizeof(buf), "%s: %i", CL_Localize ("$g_lives"), lives - 1);
+				DrawAltString (8, viddef.height - 40, buf);
+			}
+			if (state > 0 && state < 6)
+			{
+				// broken at its spaces to the screen's width
+				Com_sprintf (msg, sizeof(msg), "%s", CL_Localize (respawn_keys[state]));
+				max = viddef.width / 8 - 2;
+				for (sp = msg, col = 0 ; *sp ; sp++, col++)
+				{
+					if (*sp == '\n')
+						col = -1;
+					else if (col >= max)
+					{
+						char	*b = sp;
+						while (b > msg && *b != ' ' && *b != '\n')
+							b--;
+						if (*b == ' ')
+						{
+							*b = '\n';
+							col = sp - b - 1;
+						}
+					}
+				}
+				DrawHUDString (msg, 0, viddef.height/2 + 24, viddef.width, 0);
+			}
+			continue;
+		}
+
 		if (!strcmp(token, "health_bars"))
 		{
 			int		stat = cl.frame.playerstate.stats[STAT_HEALTH_BARS] & 0xffff;

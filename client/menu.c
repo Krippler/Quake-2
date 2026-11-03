@@ -1975,6 +1975,7 @@ static menuseparator_s	s_skill_title;
 static menuaction_s		s_easy_game_action;
 static menuaction_s		s_medium_game_action;
 static menuaction_s		s_hard_game_action;
+static menuaction_s		s_nightmare_game_action;
 
 static void EasyGameFunc( void *data )
 {
@@ -1991,6 +1992,13 @@ static void MediumGameFunc( void *data )
 static void HardGameFunc( void *data )
 {
 	Cvar_ForceSet( "skill", "2" );
+	StartGame();
+}
+
+// skill 3, which 1997's menu left to the console; the re-release's has it
+static void NightmareGameFunc( void *data )
+{
+	Cvar_ForceSet( "skill", "3" );
 	StartGame();
 }
 
@@ -2026,10 +2034,18 @@ static void Skill_MenuInit( void )
 	s_hard_game_action.generic.name	= "hard";
 	s_hard_game_action.generic.callback = HardGameFunc;
 
+	s_nightmare_game_action.generic.type	= MTYPE_ACTION;
+	s_nightmare_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
+	s_nightmare_game_action.generic.x		= 0;
+	s_nightmare_game_action.generic.y		= 50;
+	s_nightmare_game_action.generic.name	= "nightmare";
+	s_nightmare_game_action.generic.callback = NightmareGameFunc;
+
 	Menu_AddItem( &s_skill_menu, ( void * ) &s_skill_title );
 	Menu_AddItem( &s_skill_menu, ( void * ) &s_easy_game_action );
 	Menu_AddItem( &s_skill_menu, ( void * ) &s_medium_game_action );
 	Menu_AddItem( &s_skill_menu, ( void * ) &s_hard_game_action );
+	Menu_AddItem( &s_skill_menu, ( void * ) &s_nightmare_game_action );
 
 	Menu_Center( &s_skill_menu );
 	s_skill_menu.cursor = 2;		// medium

@@ -655,6 +655,8 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	// at the end of the frame
 	if (client)
 	{
+		// the re-release's co-op: hurt, so in a fight (G_CoopRespawn)
+		client->last_damage_time = level.time + COOP_DAMAGE_RESPAWN_TIME;
 		client->damage_parmor += psave;
 		client->damage_armor += asave;
 		client->damage_blood += take;

@@ -179,7 +179,7 @@ qboolean Pickup_Powerup (edict_t *ent, edict_t *other)
 	if ((skill->value == 1 && quantity >= 2) || (skill->value >= 2 && quantity >= 1))
 		return false;
 
-	if ((coop->value) && (ent->item->flags & IT_STAY_COOP) && (quantity > 0))
+	if ((coop->value) && !G_UseCoopInstancedItems () && (ent->item->flags & IT_STAY_COOP) && (quantity > 0))
 		return false;
 
 	other->client->pers.inventory[ITEM_INDEX(ent->item)]++;
@@ -580,7 +580,7 @@ qboolean Pickup_Sphere (edict_t *ent, edict_t *other)
 	if ((skill->value == 1 && quantity >= 2) || (skill->value >= 2 && quantity >= 1))
 		return false;
 
-	if ((coop->value) && (ent->item->flags & IT_STAY_COOP) && (quantity > 0))
+	if ((coop->value) && !G_UseCoopInstancedItems () && (ent->item->flags & IT_STAY_COOP) && (quantity > 0))
 		return false;
 
 	other->client->pers.inventory[ITEM_INDEX(ent->item)]++;
@@ -1232,6 +1232,10 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 	if (CTFMatchSetup ())
 		return;		// CTF's: can't pick stuff up right now
 
+	// the re-release's co-op instanced items: one each
+	if (G_UseCoopInstancedItems () && G_ItemPickedUpBy (ent, other))
+		return;
+
 	taken = ent->item->pickup(ent, other);
 
 	if (taken)
@@ -1263,6 +1267,9 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 		{
 			gi.sound(other, CHAN_ITEM, gi.soundindex(ent->item->pickup_sound), 1, ATTN_NORM, 0);
 		}
+
+		if (G_UseCoopInstancedItems ())
+			G_SetItemPickedUpBy (ent, other);
 	}
 
 	if (!(ent->spawnflags & ITEM_TARGETS_USED))
@@ -1274,7 +1281,14 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 	if (!taken)
 		return;
 
-	if (!((coop->value) &&  (ent->item->flags & IT_STAY_COOP)) || (ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM)))
+	// with the re-release's instanced items, only what a player dropped
+	// goes; the rest stays for the others
+	if (G_UseCoopInstancedItems ())
+	{
+		if ((ent->spawnflags & DROPPED_PLAYER_ITEM) || !(ent->svflags & SVF_INSTANCED))
+			G_FreeEdict (ent);
+	}
+	else if (!((coop->value) &&  (ent->item->flags & IT_STAY_COOP)) || (ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM)))
 	{
 		if (ent->flags & FL_RESPAWN)
 			ent->flags &= ~FL_RESPAWN;
@@ -1346,6 +1360,11 @@ edict_t *Drop_Item (edict_t *ent, gitem_t *item)
 
 	dropped->think = drop_make_touchable;
 	dropped->nextthink = level.time + 1;
+
+	// one for each player, with the re-release's co-op instanced items; not
+	// what a player drops, which is theirs to give
+	if (G_UseCoopInstancedItems () && !ent->client)
+		dropped->svflags |= SVF_INSTANCED;
 
 	gi.linkentity (dropped);
 
@@ -1584,7 +1603,11 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 	}
 
 	// don't let them drop items that stay in a coop game
-	if ((coop->value) && (item->flags & IT_STAY_COOP))
+	// (with the re-release's instanced items they don't stay: each is
+	// each player's, and seen as such)
+	if (G_UseCoopInstancedItems ())
+		ent->svflags |= SVF_INSTANCED;
+	else if ((coop->value) && (item->flags & IT_STAY_COOP))
 	{
 		item->drop = NULL;
 	}

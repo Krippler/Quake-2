@@ -351,6 +351,7 @@ void InitGame (void)
 	globals.num_edicts = game.maxclients+1;
 
 	CTFInit ();
+	CoopInit ();		// the re-release's co-op (g_coop.c)
 }
 
 //=========================================================

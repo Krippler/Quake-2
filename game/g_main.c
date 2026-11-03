@@ -114,7 +114,9 @@ game_export_t *GetGameAPI (game_import_t *import)
 {
 	gi = *import;
 
-	globals.apiversion = GAME_API_VERSION;
+	// with EntityVisibleToClient, for the re-release's co-op items
+	globals.apiversion = GAME_API_VERSION_EXT;
+	globals.EntityVisibleToClient = EntityVisibleToClient;
 	globals.Init = InitGame;
 	globals.Shutdown = ShutdownGame;
 	globals.SpawnEntities = SpawnEntities;
@@ -346,6 +348,12 @@ void ExitLevel (void)
 	if (CTFNextMap ())		// CTF's: a match's
 		return;
 
+	// the re-release's co-op lives, back at the end of a unit
+	if (coop->value && g_coop_enable_lives->value && strchr (level.changemap, '*'))
+		for (i=0 ; i<maxclients->value ; i++)
+			if (g_edicts[1+i].inuse && g_edicts[1+i].client)
+				game.clients[i].pers.lives = (int)g_coop_num_lives->value + 1;
+
 	Com_sprintf (command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
 	gi.AddCommandString (command);
 	level.changemap = NULL;
@@ -394,6 +402,10 @@ void G_RunFrame (void)
 		return;
 	}
 
+	// the re-release's co-op: the level again, everyone being dead; each
+	// player's respawn state
+	G_CoopFrameBegin ();
+
 	//
 	// treat each object in turn
 	// even the world gets a chance to think
@@ -429,6 +441,8 @@ void G_RunFrame (void)
 
 	// see if it is time to end a deathmatch
 	CheckDMRules ();
+
+	G_CoopFrameEnd ();
 
 	// build the playerstate_t structures for all players
 	ClientEndServerFrames ();

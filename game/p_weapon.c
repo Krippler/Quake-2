@@ -625,6 +625,7 @@ static void Weapon_Generic2 (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FI
 			{
 				ent->client->ps.gunframe = FRAME_FIRE_FIRST;
 				ent->client->weaponstate = WEAPON_FIRING;
+				ent->client->last_firing_time = level.time + COOP_DAMAGE_FIRING_TIME;	// the re-release's co-op
 
 				// start the animation
 				ent->client->anim_priority = ANIM_ATTACK;
@@ -799,6 +800,7 @@ void Weapon_Grenade (edict_t *ent)
 			{
 				ent->client->ps.gunframe = 1;
 				ent->client->weaponstate = WEAPON_FIRING;
+				ent->client->last_firing_time = level.time + COOP_DAMAGE_FIRING_TIME;	// the re-release's co-op
 				ent->client->grenade_time = 0;
 			}
 			else
@@ -2056,6 +2058,7 @@ static void Throw_Generic (edict_t *ent, int FRAME_FIRE_LAST, int FRAME_IDLE_LAS
 			{
 				ent->client->ps.gunframe = 1;
 				ent->client->weaponstate = WEAPON_FIRING;
+				ent->client->last_firing_time = level.time + COOP_DAMAGE_FIRING_TIME;	// the re-release's co-op
 				ent->client->grenade_time = 0;
 			}
 			else

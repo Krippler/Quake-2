@@ -724,6 +724,16 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 
 	strncpy (level.mapname, mapname, sizeof(level.mapname)-1);
 	level.is_n64 = !strncmp (level.mapname, "q64/", 4);
+
+	// the re-release's co-op (g_coop.c): its monsters' health for more
+	// players, and whether players pass through each other, which the
+	// client predicts
+	level.coop_health_scaling = coop->value ? g_coop_health_scaling->value : 0;
+	if (level.coop_health_scaling < 0)
+		level.coop_health_scaling = 0;
+	else if (level.coop_health_scaling > 1)
+		level.coop_health_scaling = 1;
+	gi.configstring (CS_NO_PLAYER_COLLISION, G_ShouldPlayersCollide (false) ? "" : "1");
 	strncpy (game.spawnpoint, spawnpoint, sizeof(game.spawnpoint)-1);
 
 	// set client fields on player ents
@@ -898,6 +908,11 @@ char *single_statusbar =
 "if 18 "
 "	yt	24 "
 "	health_bars "
+"endif "
+
+// the re-release's co-op lives and respawn messages
+"if 31 "
+"	coop "
 "endif "
 ;
 
