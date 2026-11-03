@@ -249,3 +249,10 @@ starting stop it instead, with the reason above.
 
 **Logs** -- the container's own log is the one to read. Xvfb, x11vnc,
 websockify and audiostream each have a log in the state volume as well.
+
+**x11vnc** is started again if it exits after running a while: it takes
+any X error as fatal, and can get one when the game changes the screen's
+size under it. The browser reconnects on its own. Its log from before is
+kept as `x11vnc.prev.log`. Three exits within seconds of starting (an
+option it does not know, in `QUAKE2_VNC_ARGS`) stop the container, with
+x11vnc's reason in its log.
