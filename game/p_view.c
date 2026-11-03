@@ -1265,9 +1265,18 @@ void ClientEndServerFrame (edict_t *ent)
 
 	G_SetClientSound (ent);
 
-	// the player's model animates ten frames a second, whatever the tick
-	if (level.frame10)
+	// the player's model animates ten frames a second, whatever the tick:
+	// a frame 100 ms after the last, timed from it rather than from the
+	// 10 Hz frame, so that a new animation the game starts at any tick
+	// (firing, pain) has its first frame as long as the rest
+	if (ent->s.frame != ent->client->anim_lastframe
+		|| level.time + 0.001 >= ent->client->anim_time
+		|| ent->client->anim_time > level.time + FRAMETIME + 0.001)	// a new level
+	{
 		G_SetClientFrame (ent);
+		ent->client->anim_time = level.time + FRAMETIME;
+	}
+	ent->client->anim_lastframe = ent->s.frame;
 
 	VectorCopy (ent->velocity, ent->client->oldvelocity);
 	VectorCopy (ent->client->ps.viewangles, ent->client->oldviewangles);

@@ -68,6 +68,7 @@ typedef struct
 	// CL_FrameTime): the frame before this one, and when this one began
 	int			anim_oldframe;
 	int			anim_start;
+	int			anim_changed, anim_len;	// when its frame last changed, and how long it takes (CL_AnimLength)
 } centity_t;
 
 #define MAX_CLIENTWEAPONMODELS		20		// PGM -- upped from 16 to fit the chainfist vwep
@@ -179,6 +180,7 @@ typedef struct
 	// model's (centity_t)
 	int			frametime;
 	int			gun_frame, gun_oldframe, gun_anim_start;
+	int			gun_anim_changed, gun_anim_len;
 
 	// the re-release's fog (svc_fog): gone over to from fog_from to
 	// fog_to in fog_msec from fog_start (cl.time), CL_CurrentFog
@@ -350,7 +352,8 @@ void CL_InitWheel (void);
 
 #define	CL_FrameTime()	(cl.frametime ? cl.frametime : 100)
 // how far through its 10 Hz frame a model is, a faster tick's (cl_ents.c)
-float CL_AnimLerp (int start);
+float CL_AnimLerp (int start, int len);
+int CL_AnimLength (int since);
 qboolean CL_WheelActive (void);
 void CL_WheelMove (float yaw, float pitch);
 void CL_DrawWheel (void);

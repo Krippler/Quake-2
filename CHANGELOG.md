@@ -5,6 +5,19 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.30] — 2026-11-03
+
+### Fixed
+
+- **Weapons raised and lowered in a stutter.** At the 40 Hz tick the
+  quick switch's frames come twice as fast as other animation, but each
+  was eased in over 100 ms, so the gun never reached one before the next.
+  A model's frame, and the gun's, now comes in over as long as its frames
+  are actually taking.
+- **Players' animations starting short.** A player's model was stepped on
+  the 10 Hz frame, so an animation begun between them (firing, pain) had
+  a first frame as short as 25 ms. Each frame is now 100 ms from the last.
+
 ## [1.3.29] — 2026-11-03
 
 ### Fixed
