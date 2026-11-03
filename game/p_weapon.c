@@ -398,17 +398,18 @@ void NoAmmoWeaponChange (edict_t *ent)
 =================
 Think_Weapon
 
-Called by ClientBeginServerFrame and ClientThink
+Called by ClientBeginServerFrame and ClientThink. Whether it thought: not
+before the weapon's next frame is due
 =================
 */
-void Think_Weapon (edict_t *ent)
+qboolean Think_Weapon (edict_t *ent)
 {
 	// a weapon thinks once a frame of 1997's, whatever the tick (the
 	// re-release's 40 Hz): its frames and its rate of fire as they were.
 	// The re-release's quick switch raises and lowers it twice as fast,
 	// at a tick fast enough
 	if (level.time + 0.001 < ent->client->weapon_think_time)
-		return;
+		return false;
 	ent->client->weapon_think_time = level.time + FRAMETIME;
 	if (g_quick_weapon_switch->value && tickratio >= 2
 		&& (ent->client->weaponstate == WEAPON_ACTIVATING || ent->client->weaponstate == WEAPON_DROPPING))
@@ -437,6 +438,7 @@ void Think_Weapon (edict_t *ent)
 			is_silenced = 0;
 		ent->client->pers.weapon->weaponthink (ent);
 	}
+	return true;
 }
 
 

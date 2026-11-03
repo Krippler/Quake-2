@@ -5,6 +5,16 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **A click of the fire button not firing.** Since 1.3.28 a weapon acts
+  once every 100 ms, but a click was forgotten at the end of the server
+  frame it came in, so a click shorter than that (most of them) did
+  nothing, at either tick rate; only holding the button fired. A click
+  now waits for the weapon to act on it.
+
 ## [1.3.30] — 2026-11-03
 
 ### Fixed
