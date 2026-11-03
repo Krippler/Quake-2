@@ -2024,8 +2024,8 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 				GetChaseTarget(ent);
 
 		} else if (!client->weapon_thunk && !(G_TeamplayEnabled () && ent->movetype == MOVETYPE_NOCLIP)) {	// (CTF's observers)
-			client->weapon_thunk = true;
-			Think_Weapon (ent);
+			// thunk only if it thought: a weapon thinks once a 100 ms
+			client->weapon_thunk = Think_Weapon (ent);
 		}
 	}
 
@@ -2074,6 +2074,7 @@ void ClientBeginServerFrame (edict_t *ent)
 {
 	gclient_t	*client;
 	int			buttonMask;
+	qboolean	weapon_thought;
 
 	if (level.intermissiontime)
 		return;
@@ -2088,8 +2089,9 @@ void ClientBeginServerFrame (edict_t *ent)
 	}
 
 	// run weapon animations if it hasn't been done by a ucmd_t
+	weapon_thought = client->weapon_thunk;
 	if (!client->weapon_thunk && !client->resp.spectator && !(G_TeamplayEnabled () && ent->movetype == MOVETYPE_NOCLIP))
-		Think_Weapon (ent);
+		weapon_thought = Think_Weapon (ent);
 	else
 		client->weapon_thunk = false;
 
@@ -2121,5 +2123,8 @@ void ClientBeginServerFrame (edict_t *ent)
 		if (!visible (ent, PlayerTrail_LastSpot() ) )
 			PlayerTrail_Add (ent->s.old_origin);
 
-	client->latched_buttons = 0;
+	// a click of the fire button waits for the weapon to think: at the
+	// re-release's 40 Hz, or between ClientThink and the frame at 10, it
+	// may not have this frame, and a click shorter than a frame would go
+	client->latched_buttons = weapon_thought ? 0 : (client->latched_buttons & BUTTON_ATTACK);
 }
