@@ -438,7 +438,7 @@ void M_ReactToDamage (edict_t *targ, edict_t *attacker, edict_t *inflictor)
 qboolean CheckTeamDamage (edict_t *targ, edict_t *attacker)
 {
 	// CTF's: not your own team
-	if (ctf->value && targ->client && attacker->client)
+	if (G_TeamplayEnabled () && targ->client && attacker->client)
 		if (targ->client->resp.ctf_team == attacker->client->resp.ctf_team &&
 			targ != attacker)
 			return true;
@@ -460,19 +460,33 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	if (!targ->takedamage)
 		return;
 
+	// the re-release's instagib: every hit between players kills
+	if (G_Instagib () && attacker->client && targ->client)
+		damage = 9999;
+
 	// friendly fire avoidance
 	// if enabled you can't hurt teammates (but you can hurt yourself)
 	// knockback still occurs
-	if ((targ != attacker) && ((deathmatch->value && ((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS))) || coop->value))
+	// (co-op's players, and team deathmatch's and CTF's, are teams too, as
+	// in the re-release, which has friendly fire off by default; the A-M
+	// bomb hurts everyone)
+	if ((targ != attacker) && !(dflags & DAMAGE_NO_PROTECTION)
+		&& ((deathmatch->value && (G_DMFlags () & (DF_MODELTEAMS | DF_SKINTEAMS))) || coop->value || G_TeamplayEnabled ()))
 	{
 		if (OnSameTeam (targ, attacker))
 		{
-			if ((int)(dmflags->value) & DF_NO_FRIENDLY_FIRE)
+			if ((G_DMFlags () & DF_NO_FRIENDLY_FIRE) && mod != MOD_NUKE)
 				damage = 0;
 			else
 				mod |= MOD_FRIENDLY_FIRE;
 		}
 	}
+
+	// the re-release's damage scales: what monsters take, and the rest
+	if (targ->svflags & SVF_MONSTER)
+		damage *= ai_damage_scale->value;
+	else
+		damage *= g_damage_scale->value;
 	meansOfDeath = mod;
 
 	// easy mode takes half damage

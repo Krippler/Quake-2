@@ -434,6 +434,8 @@ typedef struct
 	float		coop_level_restart_time;
 	int			coop_scale_players;
 	float		coop_health_scaling;
+
+	char		*start_items;		// the re-release's: what a player starts the game with here
 } level_locals_t;
 
 
@@ -480,6 +482,7 @@ typedef struct
 	float		health_multiplier;	// a monster's health, scaled
 	char		*reinforcements;	// the re-release's summoners': "classname strength;..."
 	int			monster_slots;		// and how much they may have summoned at once
+	char		*start_items;		// the re-release's worldspawn's: what a player starts with
 } spawn_temp_t;
 
 
@@ -1711,6 +1714,28 @@ void G_SetCoopStats (edict_t *ent);
 void CopyToBodyQue (edict_t *ent);
 void GetChaseTarget (edict_t *ent);
 qboolean KillBoxMask (edict_t *ent, int mask);
+
+// the re-release's settings for deathmatch and the rest (g_rropts.c)
+extern cvar_t	*g_dm_force_respawn_time;
+extern cvar_t	*g_dm_random_items;
+extern cvar_t	*g_friendly_fire;
+extern cvar_t	*g_instagib;
+extern cvar_t	*g_instant_weapon_switch;
+extern cvar_t	*g_quick_weapon_switch;
+extern cvar_t	*g_start_items;
+extern cvar_t	*g_damage_scale;
+extern cvar_t	*ai_damage_scale;
+extern cvar_t	*ai_allow_dm_spawn;
+extern cvar_t	*g_weapon_respawn_time;
+extern cvar_t	*teamplay;
+void RROptionsInit (void);
+int G_DMFlags (void);
+qboolean G_Instagib (void);
+qboolean G_TeamplayEnabled (void);
+void G_GiveStartItems (edict_t *ent, char *list);
+gitem_t *G_RandomItem (gitem_t *item);
+char *G_NextMapInList (void);
+void CheckNeedPass (void);
 
 // Threewave CTF, in the base game as the re-release has it
 #include "g_ctf.h"

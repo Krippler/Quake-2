@@ -1101,6 +1101,56 @@ with its settings and their defaults:
 Lives and the respawn state go in `STAT_COOP` (31), drawn by the status
 bar's new `coop`.
 
+**`game/g_rropts.c`** (new): the re-release's game settings, from its
+`g_main.cpp`, `g_items.cpp`, `p_client.cpp`, `p_weapon.cpp`, `g_combat.cpp`
+and `rogue/g_rogue_newdm.cpp`, with its defaults. Most are `dmflags` bits
+under names, and `G_DMFlags`, which every check of them here now calls, is
+`dmflags` with them in, so either sets each:
+- `g_dm_weapons_stay`, `g_dm_no_fall_damage`, `g_dm_same_level`,
+  `g_dm_force_respawn`, `g_dm_allow_exit`, `g_no_armor`, `g_no_health`,
+  `g_no_items`, `g_no_mines`, `g_no_nukes`, `g_no_spheres`,
+  `g_dm_no_stack_double`, `g_infinite_ammo` (in single player too, as
+  there)
+- `g_dm_instant_items` and `g_dm_spawn_farthest`, both on by default
+- `g_dm_no_quad_drop` and `g_dm_no_quadfire_drop`, the other way to 1997's
+  drop flags
+- `g_friendly_fire`, off by default, the other way to `DF_NO_FRIENDLY_FIRE`
+
+Mines, nukes and spheres are now kept out of deathmatch as Ground Zero's
+flags said, which nothing here did. Co-op's players are a team, as are team
+deathmatch's and CTF's, so teammates' hits do nothing without friendly fire
+(the A-M bomb aside).
+
+The rest:
+- `g_instagib`: every hit between players kills; no pickups but keys and
+  flags; the railgun with 99 slugs and infinite ammo in place of the
+  blaster, kept on death.
+- `g_start_items` ("classname count;..."), and the worldspawn's
+  `start_items` (Call of the Machine's later maps): picked up as dropped
+  items when a player's game starts.
+- `g_map_list`, `g_map_list_shuffle`: the next map at a level's end,
+  before `sv_maplist`.
+- `g_dm_random_items`: Ground Zero's random items, another of the same kind
+  where each spawns and respawns. Health is one item here, sized by its
+  spawn function, so it and armour shards stay as they are.
+- `g_dm_force_respawn_time`, `g_weapon_respawn_time` (30),
+  `g_damage_scale`, `ai_damage_scale`.
+- `ai_allow_dm_spawn`: monsters in deathmatch; the forty places a monster
+  removed itself there ask it.
+- `g_instant_weapon_switch`: CTF's `instantweap`.
+- `needpass`: 3.20's `CheckNeedPass`.
+- `sv_stopspeed`: the game's physics' stop speed.
+- `sv_airaccelerate`: the engine sends it outside deathmatch too.
+- `g_quick_weapon_switch` waits for the 40 Hz tick: the re-release only
+  speeds weapon changes when the game runs at 20 Hz or more.
+- `teamplay`: team deathmatch, CTF's teams without its flags, techs or
+  captures. `G_TeamplayEnabled` (CTF or it) stands where the hooks into
+  CTF's code are about teams: joining and its menu (titled Team
+  Deathmatch), team spawn points (deathmatch's where a map has none),
+  skins, team chat, the scoreboard and status bar, observers and team
+  damage. A frag adds to the team's score, kept where CTF keeps its
+  captures (`CTFAdjustTeamScore`), and `fraglimit` is a team's.
+
 **`client/menu.c`, `qcommon/files.c`**: the choice of game. The game menu
 lists, in place of 1997's easy, medium and hard, the games whose first map
 is there, and the one chosen asks its difficulty and starts

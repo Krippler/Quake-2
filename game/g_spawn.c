@@ -439,6 +439,18 @@ void ED_CallSpawn (edict_t *ent)
 			continue;
 		if (!strcmp(item->classname, ent->classname))
 		{	// found it
+			// Ground Zero's random items, as the re-release has them
+			// (g_dm_random_items)
+			if (deathmatch->value && g_dm_random_items->value)
+			{
+				gitem_t	*it = G_RandomItem (item);
+
+				if (it)
+				{
+					item = it;
+					ent->classname = it->classname;
+				}
+			}
 			SpawnItem (ent, item);
 			return;
 		}
@@ -1028,6 +1040,10 @@ Only used for the world.
 */
 void SP_worldspawn (edict_t *ent)
 {
+	// the re-release's: what a player starting the game here has (the
+	// Call of the Machine's later maps')
+	level.start_items = st.start_items;
+
 	int		i;
 
 	ent->movetype = MOVETYPE_PUSH;
@@ -1091,7 +1107,7 @@ void SP_worldspawn (edict_t *ent)
 	gi.configstring (CS_MAXCLIENTS, va("%i", (int)(maxclients->value) ) );
 
 	// status bar program
-	if (deathmatch->value && ctf->value)
+	if (deathmatch->value && G_TeamplayEnabled ())
 	{
 		// CTF's, and its pictures
 		gi.configstring (CS_STATUSBAR, ctf_statusbar);

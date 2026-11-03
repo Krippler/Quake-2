@@ -23,6 +23,26 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   starts again when everyone is dead with none left.
   `g_coop_health_scaling` gives monsters more health for each extra
   player.
+- **The re-release's game settings.**
+  - **Team deathmatch** (`teamplay 1`): CTF's teams, menus and scoreboard,
+    with frags as the team score and the frag limit applying to teams.
+  - **Instagib** (`g_instagib`): railguns only, every hit kills, no pickups.
+  - **Starting items** (`g_start_items`), and the starting items its maps
+    set; starting a Call of the Machine level directly gives you its
+    weapons.
+  - **Map rotation** (`g_map_list`, shuffled with `g_map_list_shuffle`).
+  - **Randomised items** (`g_dm_random_items`).
+  - **Monsters in deathmatch** (`ai_allow_dm_spawn`).
+  - **Instant weapon switching** (`g_instant_weapon_switch`).
+  - **Damage scales** (`g_damage_scale`, `ai_damage_scale`).
+  - **`g_dm_*` and `g_no_*` names for the `dmflags` settings**, plus
+    `g_infinite_ammo`, `g_friendly_fire` and `g_weapon_respawn_time`.
+  - **`sv_airaccelerate` outside deathmatch.**
+
+  The re-release's defaults differ from 1997's: powerups are used when picked
+  up in deathmatch, you spawn as far as possible from other players, the
+  quad and DualFire drop when their holder dies, and teammates (co-op
+  players too) do not hurt each other.
 
 ## [1.3.27] — 2026-10-28
 

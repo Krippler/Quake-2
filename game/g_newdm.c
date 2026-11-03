@@ -314,5 +314,8 @@ void G_Score (edict_t *scorer, edict_t *victim, int change)
 	if (DMGame.Score)
 		DMGame.Score (scorer, victim, change, meansOfDeath);
 	else
+	{
 		scorer->client->resp.score += change;
+		CTFAdjustTeamScore (scorer->client->resp.ctf_team, change);	// the re-release's team deathmatch
+	}
 }

@@ -81,7 +81,7 @@ void BeginIntermission (edict_t *targ)
 	if (level.intermissiontime)
 		return;		// already activated
 
-	if (deathmatch->value && ctf->value)	// CTF's team scores
+	if (deathmatch->value && G_TeamplayEnabled ())	// CTF's team scores
 		CTFCalcScores ();
 
 	game.autosaved = false;
@@ -193,7 +193,7 @@ void DeathmatchScoreboardMessage (edict_t *ent, edict_t *killer)
 	edict_t		*cl_ent;
 	char	*tag;
 
-	if (ctf->value)		// CTF's, by team
+	if (G_TeamplayEnabled ())		// CTF's, by team
 	{
 		CTFScoreboardMessage (ent, killer);
 		return;
@@ -569,7 +569,7 @@ void G_SetStats (edict_t *ent)
 	G_SetHealthBars (ent);
 	G_SetCoopStats (ent);		// the re-release's co-op lives and respawn
 
-	if (ctf->value)
+	if (G_TeamplayEnabled ())
 		SetCTFStats (ent);		// CTF's
 }
 

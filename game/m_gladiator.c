@@ -397,7 +397,7 @@ void SP_monster_gladiator_rr (edict_t *self);
 
 void SP_monster_gladiator (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;
@@ -457,7 +457,7 @@ with a power shield.
 */
 void SP_monster_gladb (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;

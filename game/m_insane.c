@@ -624,7 +624,7 @@ void SP_misc_insane (edict_t *self)
 {
 //	static int skin = 0;	//@@
 
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;

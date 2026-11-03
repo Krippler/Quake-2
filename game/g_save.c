@@ -226,6 +226,7 @@ field_t fields[] = {
 
 	{"gravity", STOFS(gravity), F_LSTRING, FFL_SPAWNTEMP},
 	{"sky", STOFS(sky), F_LSTRING, FFL_SPAWNTEMP},
+	{"start_items", STOFS(start_items), F_LSTRING, FFL_SPAWNTEMP},
 	{"skyrotate", STOFS(skyrotate), F_FLOAT, FFL_SPAWNTEMP},
 	{"skyaxis", STOFS(skyaxis), F_VECTOR, FFL_SPAWNTEMP},
 	{"skyautorotate", STOFS(skyautorotate), F_LSTRING, FFL_SPAWNTEMP},
@@ -243,6 +244,7 @@ field_t		levelfields[] =
 {
 	{"changemap", LLOFS(changemap), F_LSTRING},
 	{"goals", LLOFS(goals), F_LSTRING},
+	{"start_items", LLOFS(start_items), F_LSTRING},
                    
 	{"sight_client", LLOFS(sight_client), F_EDICT},
 	{"sight_entity", LLOFS(sight_entity), F_EDICT},
@@ -352,6 +354,7 @@ void InitGame (void)
 
 	CTFInit ();
 	CoopInit ();		// the re-release's co-op (g_coop.c)
+	RROptionsInit ();	// and its other settings (g_rropts.c)
 }
 
 //=========================================================

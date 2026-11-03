@@ -234,9 +234,16 @@ void EndDMLevel (void)
 	}
 
 	// stay on same level flag
-	if ((int)dmflags->value & DF_SAME_LEVEL)
+	if (G_DMFlags () & DF_SAME_LEVEL)
 	{
 		BeginIntermission (CreateTargetChangeLevel (level.mapname) );
+		return;
+	}
+
+	// the re-release's map list, shuffled if it says (g_rropts.c)
+	if ((s = G_NextMapInList ()) != NULL)
+	{
+		BeginIntermission (CreateTargetChangeLevel (s) );
 		return;
 	}
 
@@ -313,6 +320,17 @@ void CheckDMRules (void)
 			EndDMLevel ();
 			return;
 		}
+	}
+
+	// the re-release's team deathmatch: a team's frags, not a player's
+	if (teamplay->value)
+	{
+		if (fraglimit->value && CTFTeamFragLimitHit ())
+		{
+			gi.bprintf (PRINT_HIGH, "Fraglimit hit.\n");
+			EndDMLevel ();
+		}
+		return;
 	}
 
 	if (fraglimit->value)
@@ -441,6 +459,9 @@ void G_RunFrame (void)
 
 	// see if it is time to end a deathmatch
 	CheckDMRules ();
+
+	// see if needpass needs updated (the re-release's, and 3.20's)
+	CheckNeedPass ();
 
 	G_CoopFrameEnd ();
 

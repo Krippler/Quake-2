@@ -99,8 +99,8 @@ qboolean G_ShouldPlayersCollide (qboolean weaponry)
 		return false;
 	if (!coop->value)
 		return true;
-	// shots hit if friendly fire is on (not dmflags' DF_NO_FRIENDLY_FIRE)
-	if (weaponry && !((int)dmflags->value & DF_NO_FRIENDLY_FIRE))
+	// shots hit if friendly fire is on
+	if (weaponry && !(G_DMFlags () & DF_NO_FRIENDLY_FIRE))
 		return true;
 	return g_coop_player_collision->value != 0;
 }

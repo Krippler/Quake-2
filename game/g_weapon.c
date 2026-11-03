@@ -911,7 +911,7 @@ void bfg_think (edict_t *self)
 			continue;
 
 		// CTF's: not your own team
-		if (ctf->value && ent->client && self->owner->client &&
+		if (G_TeamplayEnabled () && ent->client && self->owner->client &&
 			ent->client->resp.ctf_team == self->owner->client->resp.ctf_team)
 			continue;
 

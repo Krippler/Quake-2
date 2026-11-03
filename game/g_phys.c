@@ -793,7 +793,9 @@ FIXME: is this true?
 */
 
 //FIXME: hacked in for E3 demo
-#define	sv_stopspeed		100
+// the re-release's sv_stopspeed, 100 as 1997's constant was
+#define	sv_stopspeed		(sv_stopspeed_cvar ? sv_stopspeed_cvar->value : 100)
+static cvar_t	*sv_stopspeed_cvar;
 #define sv_friction			6
 #define sv_waterfriction	1
 
@@ -830,6 +832,9 @@ void SV_Physics_Step (edict_t *ent)
 	float		friction;
 	edict_t		*groundentity;
 	int			mask;
+
+	if (!sv_stopspeed_cvar)
+		sv_stopspeed_cvar = gi.cvar ("sv_stopspeed", "100", 0);
 
 	// airborn monsters should always check for ground
 	if (!ent->groundentity)

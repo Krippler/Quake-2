@@ -680,7 +680,7 @@ quarter, in deathmatch), past the most
 */
 void SP_item_foodcube (edict_t *self)
 {
-	if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH))
+	if (deathmatch->value && (G_DMFlags () & DF_NO_HEALTH))
 	{
 		G_FreeEdict (self);
 		return;

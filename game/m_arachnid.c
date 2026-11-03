@@ -356,7 +356,7 @@ void arachnid_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int dam
 */
 void SP_monster_arachnid (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && !ai_allow_dm_spawn->value)
 	{
 		G_FreeEdict (self);
 		return;

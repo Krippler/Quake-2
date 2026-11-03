@@ -135,7 +135,7 @@ void DoRespawn (edict_t *ent)
 
 		// CTF's: with weapons staying, only a team of weapons' master
 		// is spawned
-		if (ctf->value && ((int)dmflags->value & DF_WEAPONS_STAY)
+		if (ctf->value && (G_DMFlags () & DF_WEAPONS_STAY)
 			&& master->item && (master->item->flags & IT_WEAPON))
 			ent = master;
 		else
@@ -156,6 +156,21 @@ void DoRespawn (edict_t *ent)
 
 	// send an effect
 	ent->s.event = EV_ITEM_RESPAWN;
+
+	// Ground Zero's random items, as the re-release has them
+	// (g_dm_random_items): another of its kind comes back
+	if (deathmatch->value && g_dm_random_items->value)
+	{
+		gitem_t	*it = G_RandomItem (ent->item);
+
+		if (it)
+		{
+			ent->item = it;
+			ent->classname = it->classname;
+			ent->s.effects = it->world_model_flags;
+			gi.setmodel (ent, it->world_model);
+		}
+	}
 }
 
 void SetRespawn (edict_t *ent, float delay)
@@ -188,7 +203,7 @@ qboolean Pickup_Powerup (edict_t *ent, edict_t *other)
 	{
 		if (!(ent->spawnflags & DROPPED_ITEM) )
 			SetRespawn (ent, ent->item->quantity);
-		if (((int)dmflags->value & DF_INSTANT_ITEMS) || ((ent->item->use == Use_Quad) && (ent->spawnflags & DROPPED_PLAYER_ITEM)))
+		if ((G_DMFlags () & DF_INSTANT_ITEMS) || ((ent->item->use == Use_Quad) && (ent->spawnflags & DROPPED_PLAYER_ITEM)))
 		{
 			if ((ent->item->use == Use_Quad) && (ent->spawnflags & DROPPED_PLAYER_ITEM))
 				quad_drop_timeout_hack = (ent->nextthink - level.time) / FRAMETIME;
@@ -939,7 +954,7 @@ qboolean Pickup_Ammo (edict_t *ent, edict_t *other)
 	qboolean	weapon;
 
 	weapon = (ent->item->flags & IT_WEAPON);
-	if ( (weapon) && ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+	if ( (weapon) && ( G_DMFlags () & DF_INFINITE_AMMO ) )
 		count = 1000;
 	else if (ent->count)
 		count = ent->count;
@@ -1562,7 +1577,7 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 	// some items will be prevented in deathmatch
 	if (deathmatch->value)
 	{
-		if ( (int)dmflags->value & DF_NO_ARMOR )
+		if ( G_DMFlags () & DF_NO_ARMOR )
 		{
 			if (item->pickup == Pickup_Armor || item->pickup == Pickup_PowerArmor)
 			{
@@ -1570,7 +1585,7 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 				return;
 			}
 		}
-		if ( (int)dmflags->value & DF_NO_ITEMS )
+		if ( G_DMFlags () & DF_NO_ITEMS )
 		{
 			if (item->pickup == Pickup_Powerup)
 			{
@@ -1578,7 +1593,7 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 				return;
 			}
 		}
-		if ( (int)dmflags->value & DF_NO_HEALTH )
+		if ( G_DMFlags () & DF_NO_HEALTH )
 		{
 			if (item->pickup == Pickup_Health || item->pickup == Pickup_Adrenaline || item->pickup == Pickup_AncientHead)
 			{
@@ -1586,13 +1601,39 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 				return;
 			}
 		}
-		if ( (int)dmflags->value & DF_INFINITE_AMMO )
+		if ( G_DMFlags () & DF_INFINITE_AMMO )
 		{
 			if ( (item->flags == IT_AMMO) || (strcmp(ent->classname, "weapon_bfg") == 0) )
 			{
 				G_FreeEdict (ent);
 				return;
 			}
+		}
+		// Ground Zero's (and the re-release's settings for them)
+		if ((G_DMFlags () & DF_NO_MINES) && (!strcmp (ent->classname, "ammo_prox")
+			|| !strcmp (ent->classname, "ammo_tesla") || !strcmp (ent->classname, "ammo_trap")
+			|| !strcmp (ent->classname, "weapon_proxlauncher")))
+		{
+			G_FreeEdict (ent);
+			return;
+		}
+		if ((G_DMFlags () & DF_NO_NUKES) && !strcmp (ent->classname, "ammo_nuke"))
+		{
+			G_FreeEdict (ent);
+			return;
+		}
+		if ((G_DMFlags () & DF_NO_SPHERES) && (!strcmp (ent->classname, "item_sphere_vengeance")
+			|| !strcmp (ent->classname, "item_sphere_hunter") || !strcmp (ent->classname, "item_sphere_defender")))
+		{
+			G_FreeEdict (ent);
+			return;
+		}
+		// the re-release's instagib: no pickups at all but keys and flags
+		if (G_Instagib () && !(item->flags & IT_KEY) && strcmp (ent->classname, "item_flag_team1")
+			&& strcmp (ent->classname, "item_flag_team2"))
+		{
+			G_FreeEdict (ent);
+			return;
 		}
 	}
 
@@ -3533,7 +3574,7 @@ any map */
 */
 void SP_item_health (edict_t *self)
 {
-	if ( deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH) )
+	if ( deathmatch->value && (G_DMFlags () & DF_NO_HEALTH) )
 	{
 		G_FreeEdict (self);
 		return;
@@ -3549,7 +3590,7 @@ void SP_item_health (edict_t *self)
 */
 void SP_item_health_small (edict_t *self)
 {
-	if ( deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH) )
+	if ( deathmatch->value && (G_DMFlags () & DF_NO_HEALTH) )
 	{
 		G_FreeEdict (self);
 		return;
@@ -3566,7 +3607,7 @@ void SP_item_health_small (edict_t *self)
 */
 void SP_item_health_large (edict_t *self)
 {
-	if ( deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH) )
+	if ( deathmatch->value && (G_DMFlags () & DF_NO_HEALTH) )
 	{
 		G_FreeEdict (self);
 		return;
@@ -3582,7 +3623,7 @@ void SP_item_health_large (edict_t *self)
 */
 void SP_item_health_mega (edict_t *self)
 {
-	if ( deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH) )
+	if ( deathmatch->value && (G_DMFlags () & DF_NO_HEALTH) )
 	{
 		G_FreeEdict (self);
 		return;
