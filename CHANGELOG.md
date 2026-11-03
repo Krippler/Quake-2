@@ -54,6 +54,16 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   up in deathmatch, you spawn as far as possible from other players, the
   quad and DualFire drop when their holder dies, and teammates (co-op
   players too) do not hurt each other.
+- **See-through foliage and grates.** Surfaces the re-release's maps mark as
+  cut out (Call of the Machine's jungle canopies) show what is behind
+  their holes rather than drawing them as solid colour.
+
+### Fixed
+
+- **Big maps' first frame.** On maps with many entities in view, such as
+  Call of the Machine's mgu5m1, the server's first frame to a client was
+  too big for one packet, so it was dropped each time and the client never
+  got into the game. What doesn't fit now follows in the next frames.
 
 ## [1.3.27] — 2026-10-28
 

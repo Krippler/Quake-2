@@ -403,8 +403,11 @@ qboolean SV_SendClientDatagram (client_t *client)
 	msg.allowoverflow = true;
 
 	// send over all the relevant entity_state_t
-	// and the player_state_t
+	// and the player_state_t, leaving room for the multicasts after
+	if (!client->datagram.overflowed && client->datagram.cursize < sizeof(msg_buf) / 2)
+		msg.maxsize -= client->datagram.cursize;
 	SV_WriteFrameToClient (client, &msg);
+	msg.maxsize = sizeof(msg_buf);
 
 	// copy the accumulated multicast datagram
 	// for this client out to the message

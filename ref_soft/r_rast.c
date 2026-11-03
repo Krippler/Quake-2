@@ -568,7 +568,7 @@ void R_RenderFace (msurface_t *fa, int clipflags)
 	clipplane_t	*pclip;
 
 	// translucent surfaces are not drawn by the edge renderer
-	if (fa->texinfo->flags & (SURF_TRANS33|SURF_TRANS66))
+	if (fa->texinfo->flags & (SURF_TRANS33|SURF_TRANS66|SURF_ALPHATEST))	// (and see-through grates)
 	{
 		fa->nextalphasurface = r_alpha_surfaces;
 		r_alpha_surfaces = fa;
@@ -781,7 +781,7 @@ void R_RenderBmodelFace (bedge_t *pedges, msurface_t *psurf)
 	medge_t		tedge;
 	clipplane_t	*pclip;
 
-	if (psurf->texinfo->flags & (SURF_TRANS33|SURF_TRANS66))
+	if (psurf->texinfo->flags & (SURF_TRANS33|SURF_TRANS66|SURF_ALPHATEST))	// (and see-through grates)
 	{
 		psurf->nextalphasurface = r_alpha_surfaces;
 		r_alpha_surfaces = psurf;
