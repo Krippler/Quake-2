@@ -647,6 +647,7 @@ void V_RenderView( float stereo_separation )
 		scr_vrect.y+scr_vrect.height-1);
 
 	SCR_DrawCrosshair ();
+	CL_DrawDamage ();
 }
 
 

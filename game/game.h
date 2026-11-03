@@ -220,6 +220,14 @@ typedef struct
 	// the server's frames a second: 1997's 10, or the re-release's 40
 	// (sv_tickrate), which this level runs at; this game's FRAMETIME
 	int		(*TickRate) (void);
+
+	// this engine's: what a player's client shows of the hurt this tick
+	// (the re-release's svc_damage and STAT_HIT_MARKER), for clients that
+	// show it: hit, the damage they did; count of the arrows round the
+	// crosshair, each encoded as the re-release's (5 bits a third of the
+	// damage, then 0x20 to health, 0x40 to armour, 0x80 to power armour)
+	// with the direction from the player to where it came from
+	void	(*DamageFeedback) (edict_t *ent, int hit, int count, int *encoded, vec3_t *dirs);
 } game_import_t;
 
 //

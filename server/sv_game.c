@@ -280,6 +280,42 @@ void PF_SetFog (edict_t *ent, float *fog, int msec)
 
 
 /*
+===============
+PF_DamageFeedback
+
+A player's hit marker and damage arrows this tick, if their client shows
+them ("q2ext"); unreliable, as the re-release sends them
+===============
+*/
+void PF_DamageFeedback (edict_t *ent, int hit, int count, int *encoded, vec3_t *dirs)
+{
+	int			i, e = NUM_FOR_EDICT (ent);
+	client_t	*cl;
+	sizebuf_t	*msg;
+
+	if (e < 1 || e > maxclients->value || (hit <= 0 && count <= 0))
+		return;
+	cl = svs.clients + e - 1;
+	if (cl->state != cs_spawned || !cl->ext_scale)
+		return;
+	if (count < 0)
+		count = 0;
+	if (count > 8)
+		count = 8;
+
+	msg = &cl->datagram;
+	MSG_WriteByte (msg, svc_damage);
+	MSG_WriteShort (msg, hit < 0 ? 0 : hit > 32767 ? 32767 : hit);
+	MSG_WriteByte (msg, count);
+	for (i = 0 ; i < count ; i++)
+	{
+		MSG_WriteByte (msg, encoded[i]);
+		MSG_WriteDir (msg, dirs[i]);
+	}
+}
+
+
+/*
 =================
 PF_inPVS
 
@@ -441,6 +477,7 @@ void SV_InitGameProgs (void)
 	import.Clip = SV_Clip;
 	import.SetFog = PF_SetFog;
 	import.TickRate = PF_TickRate;
+	import.DamageFeedback = PF_DamageFeedback;
 	import.SetAreaPortalState = CM_SetAreaPortalState;
 	import.AreasConnected = CM_AreasConnected;
 

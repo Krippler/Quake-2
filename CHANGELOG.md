@@ -54,6 +54,11 @@ on the default branch publishes that version, `## [Unreleased]` publishes only
   up in deathmatch, you spawn as far as possible from other players, the
   quad and DualFire drop when their holder dies, and teammates (co-op
   players too) do not hurt each other.
+- **Damage indicators and hit markers.** Hurt, a coloured arc round the
+  crosshair points to where it came from (red health, yellow armour, green
+  power armour), longer the more it was. Hitting something shows the
+  re-release's hit marker and plays its sound. `cl_damage_indicators 0`
+  and `cl_hit_markers 0` (or 1, no sound) turn them off.
 - **See-through foliage and grates.** Surfaces the re-release's maps mark as
   cut out (Call of the Machine's jungle canopies) show what is behind
   their holes rather than drawing them as solid colour.

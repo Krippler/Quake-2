@@ -598,6 +598,11 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 		&& !(client && client->invincible_framenum > level.framenum))
 		take = damage;
 
+	// the re-release's hit marker, for the player who did it
+	if (targ != attacker && attacker->client && targ->health > 0
+		&& !(targ->svflags & SVF_DEADMONSTER) && mod != MOD_TARGET_LASER)
+		attacker->client->hit_marker += take + psave + asave;
+
 	// team damage avoidance
 	if (!(dflags & DAMAGE_NO_PROTECTION) && CheckTeamDamage (targ, attacker))
 		return;
@@ -676,7 +681,49 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 		client->damage_blood += take;
 		client->damage_knockback += knockback;
 		VectorCopy (point, client->damage_from);
+		G_DamageIndicator (client, inflictor, attacker, dflags, take, asave, psave);
 	}
+}
+
+/*
+============
+G_DamageIndicator
+
+The re-release's: where a player was hurt from, for the client's arrows
+round the crosshair; hurts from near the same place add up
+============
+*/
+void G_DamageIndicator (gclient_t *client, edict_t *inflictor, edict_t *attacker, int dflags,
+	int take, int asave, int psave)
+{
+	int		i;
+	vec3_t	v;
+	float	*from;
+
+	if (inflictor == world || attacker == world || !(take || asave || psave))
+		return;
+
+	// a direct hit points to the attacker, splash to what went off
+	from = (dflags & DAMAGE_RADIUS) ? inflictor->s.origin : attacker->s.origin;
+	for (i = 0 ; i < client->num_damage_indicators ; i++)
+	{
+		VectorSubtract (from, client->damage_indicators[i].from, v);
+		if (VectorLength (v) < 32)
+			break;
+	}
+	if (i == client->num_damage_indicators)
+	{
+		if (i == MAX_DAMAGE_INDICATORS)
+			return;
+		VectorCopy (from, client->damage_indicators[i].from);
+		client->damage_indicators[i].health = 0;
+		client->damage_indicators[i].armor = 0;
+		client->damage_indicators[i].power = 0;
+		client->num_damage_indicators++;
+	}
+	client->damage_indicators[i].health += take;
+	client->damage_indicators[i].armor += asave;
+	client->damage_indicators[i].power += psave;
 }
 
 

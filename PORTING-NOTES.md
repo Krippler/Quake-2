@@ -1220,6 +1220,37 @@ passes over the re-release's pak (`pack_t.rerelease`, the pak with
 which is further down the path. `CM_LoadMap` and `R_BeginRegistration`,
 which keep the last map by its name, load it again when it changes.
 
+**`ref_soft/r_surf.c`, `r_rast.c`, `r_bsp.c`, `r_poly.c`**: the
+re-release's `SURF_ALPHATEST` (0x2000000), Call of the Machine's foliage.
+Such a surface goes with the translucent ones to `R_DrawAlphaSurfaces`,
+which draws it opaque, writing the z-buffer, but passing over colour 255;
+`R_DrawSurface` puts 255 back in its lit surface-cache block wherever the
+texture has it, the lighting having changed it.
+
+**`server/sv_ents.c`, `server/sv_send.c`**: a frame too big for a packet.
+A client's first frame on a level has every entity it sees from its
+baseline; on mgu5m1 (189 of them) that was more than `MAX_MSGLEN`, so the
+datagram overflowed, was cleared and sent empty, the client never acked a
+frame and every later frame was a full one too: it never got in.
+`SV_EmitPacketEntities` now stops adding entities new to the client when
+there are 64 bytes left (fewer the multicasts waiting to go after) and
+leaves those out of the frame it keeps (`SV_KeepEntity`), so the next
+frame, deltaed from this one, sends them.
+
+**`client/cl_damage.c`** (new), **`game/g_combat.c`**, **`game/p_view.c`**:
+the re-release's damage indicators and hit markers. `T_Damage` keeps, as
+the re-release's does, up to four places a player was hurt from this tick
+(the attacker, or for splash what went off) with the health, armour and
+power armour it took, and what each player did to anything living;
+`P_SendDamageFeedback` gives them, encoded as the re-release's
+`svc_damage` encodes them, to `gi.DamageFeedback` (appended to
+`game_import_t`), which sends them unreliably as `svc_damage` (after
+`svc_fog`; this engine's, with the hit marker's damage in it in place of
+the re-release's `STAT_HIT_MARKER`, no stat being free) to clients that
+say `q2ext`. The client draws an arc for each round the crosshair, toward
+where it came from, for a second, and `pics/marker.png` for a quarter of
+a second, playing `weapons/marker.wav`, when you hit something.
+
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,
 rather than the top and bottom cropped.

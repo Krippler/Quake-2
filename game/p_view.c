@@ -68,6 +68,43 @@ P_DamageFeedback
 Handles color blends and view kicks
 ===============
 */
+/*
+===============
+P_SendDamageFeedback
+
+The re-release's: this tick's arrows to where the player was hurt from,
+and the hit marker for what they hurt, to their client
+===============
+*/
+void P_SendDamageFeedback (edict_t *player)
+{
+	gclient_t	*client = player->client;
+	int			i, n, total, encoded[MAX_DAMAGE_INDICATORS];
+	vec3_t		dirs[MAX_DAMAGE_INDICATORS];
+
+	n = client->num_damage_indicators;
+	if ((n || client->hit_marker > 0) && gi.DamageFeedback)
+	{
+		for (i = 0 ; i < n ; i++)
+		{
+			total = (client->damage_indicators[i].health + client->damage_indicators[i].armor
+				+ client->damage_indicators[i].power) / 3;
+			encoded[i] = total < 1 ? 1 : total > 0x1f ? 0x1f : total;
+			if (client->damage_indicators[i].health)
+				encoded[i] |= 0x20;
+			if (client->damage_indicators[i].armor)
+				encoded[i] |= 0x40;
+			if (client->damage_indicators[i].power)
+				encoded[i] |= 0x80;
+			VectorSubtract (player->s.origin, client->damage_indicators[i].from, dirs[i]);
+			VectorNormalize (dirs[i]);
+		}
+		gi.DamageFeedback (player, client->hit_marker, n, encoded, dirs);
+	}
+	client->num_damage_indicators = 0;
+	client->hit_marker = 0;
+}
+
 void P_DamageFeedback (edict_t *player)
 {
 	gclient_t	*client;
@@ -1189,6 +1226,7 @@ void ClientEndServerFrame (edict_t *ent)
 
 	// apply all the damage taken this frame
 	P_DamageFeedback (ent);
+	P_SendDamageFeedback (ent);
 
 	// a kick this frame, on the re-release's maps, to go down to none
 	if (RR_Map () && (!VectorCompare (ent->client->kick_angles, vec3_origin)

@@ -184,6 +184,8 @@ typedef struct
 	// fog_to in fog_msec from fog_start (cl.time), CL_CurrentFog
 	float		fog_from[FOG_VALUES], fog_to[FOG_VALUES];
 	int			fog_start, fog_msec;
+
+	qboolean	sfx_hit_marker;		// the data has the re-release's hit marker sound
 } client_state_t;
 
 extern	client_state_t	cl;
@@ -336,6 +338,12 @@ extern	sizebuf_t	net_message;
 
 void DrawString (int x, int y, char *s);
 void DrawAltString (int x, int y, char *s);	// toggle high bit
+
+// cl_damage.c, the re-release's damage indicators and hit markers
+void CL_InitDamage (void);
+void CL_ParseDamage (void);
+void CL_RegisterDamageSounds (void);
+void CL_DrawDamage (void);
 
 // cl_wheel.c, the re-release's weapon and powerup wheels
 void CL_InitWheel (void);

@@ -46,6 +46,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // view pitching times
 #define DAMAGE_TIME		0.5
+#define MAX_DAMAGE_INDICATORS	4
 #define	FALL_TIME		0.3
 
 
@@ -1091,6 +1092,7 @@ void vectoangles (vec3_t vec, vec3_t angles);
 qboolean OnSameTeam (edict_t *ent1, edict_t *ent2);
 qboolean CanDamage (edict_t *targ, edict_t *inflictor);
 void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir, vec3_t point, vec3_t normal, int damage, int knockback, int dflags, int mod);
+void G_DamageIndicator (gclient_t *client, edict_t *inflictor, edict_t *attacker, int dflags, int take, int asave, int psave);
 void T_RadiusDamage (edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod);
 
 // damage flags
@@ -1390,6 +1392,16 @@ struct gclient_s
 	int			damage_blood;		// damage taken out of health
 	int			damage_knockback;	// impact damage
 	vec3_t		damage_from;		// origin for vector calculation
+
+	// the re-release's damage indicators (from where, and how much of
+	// each, this tick) and hit marker (damage this player did, this tick)
+	int			num_damage_indicators;
+	struct
+	{
+		vec3_t	from;
+		int		health, armor, power;
+	} damage_indicators[MAX_DAMAGE_INDICATORS];
+	int			hit_marker;
 
 	float		killer_yaw;			// when dead, look at killer
 
