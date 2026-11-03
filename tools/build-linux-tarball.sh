@@ -23,7 +23,7 @@ trap 'rm -rf "$stage"' EXIT
 
 b=build-desktop
 make -C "$here/linux" B=$b SOUND=alsa clean >/dev/null
-make -C "$here/linux" B=$b SOUND=alsa -j"$(nproc)"
+make -C "$here/linux" B=$b SOUND=alsa THEORA=yes -j"$(nproc)"
 make -C "$here/linux" B=$b SOUND=alsa strip >/dev/null
 
 root="$stage/$name"

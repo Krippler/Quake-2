@@ -66,7 +66,7 @@ else
 CFLAGS ?= $(OPT_CFLAGS)
 endif
 
-ALL_CFLAGS = $(BASE_CFLAGS) $(QUIET_WARNINGS) $(CFLAGS) $(MUSIC_CFLAGS) \
+ALL_CFLAGS = $(BASE_CFLAGS) $(QUIET_WARNINGS) $(CFLAGS) $(MUSIC_CFLAGS) $(THEORA_CFLAGS) \
              $(SND_CFLAGS) $(EXTRA_CFLAGS)
 
 # Which sound backend to link. "stream" writes the mixed PCM to a pipe for
@@ -106,6 +106,15 @@ MUSIC_LDFLAGS = $(shell pkg-config --libs sndfile)
 endif
 endif
 
+# The 2023 re-release's cinematics, Ogg Theora with Vorbis sound
+# (client/cl_ogv.c): built in where pkg-config finds libtheora, libvorbis and
+# libogg; THEORA=no leaves them out, and those cinematics are skipped.
+THEORA ?= $(shell pkg-config --exists theoradec vorbis ogg && echo yes || echo no)
+ifeq ($(THEORA),yes)
+THEORA_CFLAGS = -DUSE_THEORA $(shell pkg-config --cflags theoradec vorbis ogg)
+THEORA_LDFLAGS = $(shell pkg-config --libs theoradec vorbis ogg)
+endif
+
 # -rdynamic puts the engine's own symbols in the dynamic symbol table, which is
 # where backtrace_symbols_fd looks: a crash backtrace with function names in
 # it rather than a column of addresses. -ldl for the renderer and game
@@ -116,7 +125,7 @@ endif
 # q_shared.c and friends -- the renderer even has its own Hunk_Begin. So each
 # library is linked -Bsymbolic, binding it to its own definitions, as it was
 # when the engine exported nothing.
-ENGINE_LDFLAGS = -rdynamic -lm -ldl $(MUSIC_LDFLAGS) $(SND_LDFLAGS) $(EXTRA_LDFLAGS)
+ENGINE_LDFLAGS = -rdynamic -lm -ldl $(MUSIC_LDFLAGS) $(THEORA_LDFLAGS) $(SND_LDFLAGS) $(EXTRA_LDFLAGS)
 
 #############################################################################
 # The engine: client, server and common code.
@@ -125,7 +134,7 @@ CLIENT_SRCS = \
 	client/cl_cin.c client/cl_ents.c client/cl_fx.c client/cl_input.c \
 	client/cl_inv.c client/cl_main.c client/cl_parse.c client/cl_pred.c \
 	client/cl_tent.c client/cl_scrn.c client/cl_view.c client/cl_newfx.c \
-	client/cl_loc.c client/cl_wheel.c client/cl_damage.c \
+	client/cl_loc.c client/cl_wheel.c client/cl_damage.c client/cl_ogv.c \
 	client/console.c client/keys.c client/menu.c client/snd_dma.c \
 	client/snd_mem.c client/snd_mix.c client/qmenu.c \
 	game/m_flash.c \

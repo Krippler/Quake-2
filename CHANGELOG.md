@@ -5,6 +5,19 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.33] — 2026-11-03
+
+### Added
+
+- **The re-release's cinematics.** Its videos are Ogg Theora, with Vorbis
+  sound, as `video/<name>.ogv`; the game still asks for them by their 1997
+  names (`ntro.cin`, `idlog.cin`, ...), and where there is no `.cin` the
+  `.ogv` plays: the intro, the attract loop's, the mission packs' and the
+  ending's. Kept to their 16:9 with black above and below, at up to 640
+  pixels across in a 252-colour palette with an ordered dither. Building
+  needs libtheora, libvorbis and libogg (`THEORA=no` leaves it out); the
+  container and the desktop build have it.
+
 ## [1.3.32] — 2026-11-03
 
 ### Fixed

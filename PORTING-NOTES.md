@@ -1265,6 +1265,22 @@ No stats being free, they are 19 to 22, which are CTF's in deathmatch.
 The layout's `if`s nest, as the re-release's do; an older client, which
 stops skipping at the first `endif`, still draws it right.
 
+**`client/cl_ogv.c`** (new), **`client/cl_cin.c`**: the re-release's
+cinematics, Ogg Theora with Vorbis sound. `SCR_PlayCinematic` tries
+`video/<name>.cin` and then `video/<name>.ogv`, as the re-release's own
+scripts still ask for the 1997 names. The streams are read with libogg and
+decoded with libtheora and libvorbis, as their example player does: a frame
+is taken when its granule time is due by the cinematic's own clock (which
+stops while a menu is up), shown at most 640 wide by whole steps of the
+picture, and turned from YCbCr to a 6x7x6 cube's 252 colours with a 4x4
+ordered dither, the cube being the cinematic's palette. Its sound goes out
+by `S_RawSamples`, which resamples it, no more than a quarter of a second
+ahead of what has been mixed (`s_rawend - paintedtime`), since the raw
+buffer holds about a third of a second. It is drawn letterboxed at its own
+shape. The Makefile builds it in where pkg-config finds the libraries
+(`THEORA=yes` makes it required, as the container and the desktop builds
+do). The smoke test makes one with ffmpeg and plays it for its `.cin` name.
+
 **`client/cl_view.c`**: Hor+. The fov is the horizontal angle of a 4:3
 picture; wider than that, the vertical angle is kept and the sides are added,
 rather than the top and bottom cropped.

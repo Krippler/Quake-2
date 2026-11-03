@@ -43,6 +43,10 @@ typedef struct
 
 	int		h_used[512];
 	int		h_count[512];
+
+	// the re-release's .ogv (cl_ogv.c): its picture is cl_ogv.c's
+	qboolean	ogv;
+	int		ogv_msec, ogv_last;	// how far into it, and cls.realtime then
 } cinematics_t;
 
 cinematics_t	cin;
@@ -153,6 +157,12 @@ SCR_StopCinematic
 void SCR_StopCinematic (void)
 {
 	cl.cinematictime = 0;	// done
+	if (cin.ogv)
+	{
+		cin.pic = NULL;		// cl_ogv.c's
+		cin.ogv = false;
+		OGV_Close ();
+	}
 	if (cin.pic)
 	{
 		Z_Free (cin.pic);
@@ -500,6 +510,29 @@ void SCR_RunCinematic (void)
 	if (cl.cinematicframe == -1)
 		return;		// static image
 
+	if (cin.ogv)
+	{	// the re-release's: by its own clock, stopped while a menu is up
+		byte	*pic;
+
+		if (cls.key_dest == key_game)
+			cin.ogv_msec += cls.realtime - cin.ogv_last;
+		cin.ogv_last = cls.realtime;
+		if (cls.key_dest != key_game)
+			return;
+		if (!OGV_Run (cin.ogv_msec, &pic))
+		{
+			SCR_StopCinematic ();
+			SCR_FinishCinematic ();
+			cl.cinematictime = 1;	// hack to get the black screen behind loading
+			SCR_BeginLoadingPlaque ();
+			cl.cinematictime = 0;
+			return;
+		}
+		if (pic)
+			cin.pic = pic;
+		return;
+	}
+
 	if (cls.key_dest != key_game)
 	{	// pause if menu or console is up
 		cl.cinematictime = cls.realtime - cl.cinematicframe*1000/14;
@@ -561,6 +594,30 @@ qboolean SCR_DrawCinematic (void)
 	if (!cin.pic)
 		return true;
 
+	if (cin.ogv)
+	{	// the re-release's are 16:9: as they are, black above and below
+		int		w = viddef.width, h = viddef.width * cin.height / cin.width;
+
+		if (h > viddef.height)
+		{
+			h = viddef.height;
+			w = viddef.height * cin.width / cin.height;
+		}
+		if (h < viddef.height)
+		{
+			re.DrawFill (0, 0, viddef.width, (viddef.height - h) / 2, 255);
+			re.DrawFill (0, (viddef.height + h) / 2, viddef.width, viddef.height - (viddef.height + h) / 2, 255);
+		}
+		if (w < viddef.width)
+		{
+			re.DrawFill (0, 0, (viddef.width - w) / 2, viddef.height, 255);
+			re.DrawFill ((viddef.width + w) / 2, 0, viddef.width - (viddef.width + w) / 2, viddef.height, 255);
+		}
+		re.DrawStretchRaw ((viddef.width - w) / 2, (viddef.height - h) / 2, w, h,
+			cin.width, cin.height, cin.pic);
+		return true;
+	}
+
 	re.DrawStretchRaw (0, 0, viddef.width, viddef.height,
 		cin.width, cin.height, cin.pic);
 
@@ -607,7 +664,33 @@ void SCR_PlayCinematic (char *arg)
 	}
 
 	Com_sprintf (name, sizeof(name), "video/%s", arg);
-	FS_FOpenFile (name, &cl.cinematic_file);
+	if (dot && !strcmp (dot, ".ogv"))
+		cl.cinematic_file = NULL;	// the re-release's, asked for by name
+	else
+		FS_FOpenFile (name, &cl.cinematic_file);
+	if (!cl.cinematic_file)
+	{	// the re-release's: video/<name>.ogv for <name>.cin
+		char	ogvname[MAX_OSPATH];
+
+		Com_sprintf (ogvname, sizeof(ogvname), "video/%s", arg);
+		if ((dot = strrchr (ogvname, '.')) && dot > strrchr (ogvname, '/'))
+			*dot = 0;
+		if (strlen (ogvname) + 5 <= sizeof(ogvname))
+			strcat (ogvname, ".ogv");
+		if (OGV_Open (ogvname, &cin.width, &cin.height, cl.cinematicpalette))
+		{
+			SCR_EndLoadingPlaque ();
+			cls.state = ca_active;
+			cin.ogv = true;
+			cin.ogv_msec = 0;
+			cin.ogv_last = cls.realtime;
+			cin.pic = NULL;
+			cl.cinematicpalette_active = false;
+			cl.cinematicframe = 0;
+			cl.cinematictime = Sys_Milliseconds ();
+			return;
+		}
+	}
 	if (!cl.cinematic_file)
 	{
 //		Com_Error (ERR_DROP, "Cinematic %s not found.\n", name);
