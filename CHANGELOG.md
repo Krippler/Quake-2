@@ -5,6 +5,15 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.36] — 2026-11-04
+
+### Changed
+
+- **The original games play at 10 Hz.** Choosing Quake II, The Reckoning
+  or Ground Zero in the game menu runs the server at 1997's ten frames a
+  second whatever `sv_tickrate` says; the re-release's 40 Hz is for the
+  Remastered games (and the re-release's own maps).
+
 ## [1.3.35] — 2026-11-04
 
 ### Fixed

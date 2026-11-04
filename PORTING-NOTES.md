@@ -1207,7 +1207,8 @@ what moves continuously:
   monsters every tick too, runs their AI then as well; here only their
   movement is spread, which leaves their decisions as 1997's.
 
-`sv_tickrate 10` runs everything as before.
+`sv_tickrate 10` runs everything as before. The original games, chosen in the menu
+(`sv_originalmaps`), always run at 10 (`SV_SpawnServer`).
 
 **`client/menu.c`, `qcommon/files.c`**: the choice of game. The game menu
 lists, in place of 1997's easy, medium and hard, the games whose first map
