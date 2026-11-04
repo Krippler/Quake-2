@@ -626,6 +626,38 @@ qboolean SCR_DrawCinematic (void)
 
 /*
 ==================
+SCR_PlayOgv
+
+The re-release's cinematic: video/<name>.ogv for <name>.cin (cl_ogv.c)
+==================
+*/
+static qboolean SCR_PlayOgv (char *arg)
+{
+	char	ogvname[MAX_OSPATH], *dot;
+
+	Com_sprintf (ogvname, sizeof(ogvname), "video/%s", arg);
+	if ((dot = strrchr (ogvname, '.')) && dot > strrchr (ogvname, '/'))
+		*dot = 0;
+	if (strlen (ogvname) + 5 > sizeof(ogvname))
+		return false;
+	strcat (ogvname, ".ogv");
+	if (!OGV_Open (ogvname, &cin.width, &cin.height, cl.cinematicpalette))
+		return false;
+
+	SCR_EndLoadingPlaque ();
+	cls.state = ca_active;
+	cin.ogv = true;
+	cin.ogv_msec = 0;
+	cin.ogv_last = cls.realtime;
+	cin.pic = NULL;
+	cl.cinematicpalette_active = false;
+	cl.cinematicframe = 0;
+	cl.cinematictime = Sys_Milliseconds ();
+	return true;
+}
+
+/*
+==================
 SCR_PlayCinematic
 
 ==================
@@ -636,6 +668,7 @@ void SCR_PlayCinematic (char *arg)
 	byte	*palette;
 	char	name[MAX_OSPATH], *dot;
 	int		old_khz;
+	qboolean	original, ogvfirst, asked_ogv;
 
 	// make sure CD isn't playing music
 	CDAudio_Stop();
@@ -663,34 +696,24 @@ void SCR_PlayCinematic (char *arg)
 		return;
 	}
 
-	Com_sprintf (name, sizeof(name), "video/%s", arg);
-	if (dot && !strcmp (dot, ".ogv"))
-		cl.cinematic_file = NULL;	// the re-release's, asked for by name
-	else
-		FS_FOpenFile (name, &cl.cinematic_file);
-	if (!cl.cinematic_file)
-	{	// the re-release's: video/<name>.ogv for <name>.cin
-		char	ogvname[MAX_OSPATH];
+	// Which of the two: the original game (the menu's "Quake II", The
+	// Reckoning, Ground Zero: sv_originalmaps) plays only the original's
+	// .cin; with the re-release's pak, its own game plays its .ogv first;
+	// otherwise the .cin first, then an .ogv of the same name
+	original = Cvar_VariableValue ("sv_originalmaps") != 0;
+	ogvfirst = !original && FS_RereleaseLoaded ();
+	asked_ogv = dot && !strcmp (dot, ".ogv");	// asked for by its own name
+	if (asked_ogv)
+		ogvfirst = true;
 
-		Com_sprintf (ogvname, sizeof(ogvname), "video/%s", arg);
-		if ((dot = strrchr (ogvname, '.')) && dot > strrchr (ogvname, '/'))
-			*dot = 0;
-		if (strlen (ogvname) + 5 <= sizeof(ogvname))
-			strcat (ogvname, ".ogv");
-		if (OGV_Open (ogvname, &cin.width, &cin.height, cl.cinematicpalette))
-		{
-			SCR_EndLoadingPlaque ();
-			cls.state = ca_active;
-			cin.ogv = true;
-			cin.ogv_msec = 0;
-			cin.ogv_last = cls.realtime;
-			cin.pic = NULL;
-			cl.cinematicpalette_active = false;
-			cl.cinematicframe = 0;
-			cl.cinematictime = Sys_Milliseconds ();
-			return;
-		}
-	}
+	Com_sprintf (name, sizeof(name), "video/%s", arg);
+	cl.cinematic_file = NULL;
+	if (!ogvfirst)
+		FS_FOpenFile (name, &cl.cinematic_file);
+	if (!cl.cinematic_file && (!original || asked_ogv) && SCR_PlayOgv (arg))
+		return;
+	if (!cl.cinematic_file && ogvfirst && !asked_ogv)
+		FS_FOpenFile (name, &cl.cinematic_file);	// no .ogv: the .cin
 	if (!cl.cinematic_file)
 	{
 //		Com_Error (ERR_DROP, "Cinematic %s not found.\n", name);

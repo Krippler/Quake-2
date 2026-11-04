@@ -1266,9 +1266,12 @@ The layout's `if`s nest, as the re-release's do; an older client, which
 stops skipping at the first `endif`, still draws it right.
 
 **`client/cl_ogv.c`** (new), **`client/cl_cin.c`**: the re-release's
-cinematics, Ogg Theora with Vorbis sound. `SCR_PlayCinematic` tries
-`video/<name>.cin` and then `video/<name>.ogv`, as the re-release's own
-scripts still ask for the 1997 names. The streams are read with libogg and
+cinematics, Ogg Theora with Vorbis sound. `SCR_PlayCinematic` plays,
+for a `<name>.cin` (the re-release's own scripts still ask for the 1997
+names), the original game's only in the original games (`sv_originalmaps`,
+the menu's choice); with the re-release's pak in the search path
+(`FS_RereleaseLoaded`), `video/<name>.ogv` and then the `.cin`; and with
+neither, the `.cin` and then the `.ogv`. The streams are read with libogg and
 decoded with libtheora and libvorbis, as their example player does: a frame
 is taken when its granule time is due by the cinematic's own clock (which
 stops while a menu is up), shown at most 640 wide by whole steps of the
