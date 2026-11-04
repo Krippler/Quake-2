@@ -1955,6 +1955,10 @@ static void StartGame( void )
 	// the game's directory and its maps, both latched until the new server
 	Cvar_Set( "game", strcmp( g->gamedir, BASEDIRNAME ) ? g->gamedir : "" );
 	Cvar_Set( "sv_originalmaps", g->where == FS_ORIGINAL ? "1" : "0" );
+	// and the tick: the Remastered games at the re-release's 40 Hz, whatever
+	// was set before (the original games are at 10 whatever it says)
+	if ( g->where == FS_RERELEASE )
+		Cvar_Set( "sv_tickrate", "40" );
 
 	Cbuf_AddText (va("loading ; killserver ; wait ; maxclients 1 ; deathmatch 0 ; map %s\n", g->start));
 	cls.key_dest = key_game;

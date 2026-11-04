@@ -5,6 +5,16 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Changed
+
+- **The Remastered games start at 40 Hz.** Choosing Quake II Remastered,
+  The Reckoning or Ground Zero Remastered, Call of the Machine or Quake 64
+  in the game menu sets `sv_tickrate 40`, whatever it was left at; the
+  original games stay at 10. `sv_tickrate` in the console still changes it
+  from the next level.
+
 ## [1.3.36] — 2026-11-04
 
 ### Changed
