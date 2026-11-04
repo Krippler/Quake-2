@@ -250,9 +250,12 @@ void SV_SpawnServer (char *server, char *spawnpoint, server_state_t serverstate,
 	sv.time = 1000;
 
 	// the re-release's faster tick, for a game that can take it (its
-	// apiversion says) and a level, not a demo or a cinematic
+	// apiversion says) and a level, not a demo or a cinematic; and not the
+	// original games, chosen in the menu (sv_originalmaps), which play at
+	// 1997's 10 as they did
 	sv.tickrate = 10;
-	if (serverstate == ss_game && ge && ge->apiversion == GAME_API_VERSION_EXT)
+	if (serverstate == ss_game && ge && ge->apiversion == GAME_API_VERSION_EXT
+		&& !Cvar_VariableValue ("sv_originalmaps"))
 	{
 		sv.tickrate = (int)sv_tickrate->value;
 		if (sv.tickrate != 20 && sv.tickrate != 40)
