@@ -5,6 +5,17 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.38] — 2026-11-04
+
+### Fixed
+
+- **The gun jerking about at 40 Hz.** The gun sways as the view turns, by
+  how far it turned in 1997's tenth of a second; at 40 Hz that was a
+  tick's turn made four times over, and as a mouse's movement comes in
+  bursts (through a browser more than ever) the gun was flung four times
+  too far for a fortieth of a second and snapped back, over and over. It
+  now sways by the turn of the last tenth of a second, as at 10 Hz.
+
 ## [1.3.37] — 2026-11-04
 
 ### Changed

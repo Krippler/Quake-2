@@ -1423,6 +1423,10 @@ struct gclient_s
 	vec3_t		v_angle;			// aiming direction
 	float		bobtime;			// so off-ground doesn't change it
 	vec3_t		oldviewangles;
+	// the view's angles the last few ticks, for the gun's sway as the view
+	// turns: over 100 ms whatever the tick (SV_CalcGunOffset)
+	vec3_t		gun_turn_angles[4];
+	int			gun_turn_tick, gun_turn_ticks;
 	vec3_t		oldvelocity;
 
 	float		next_drown_time;
