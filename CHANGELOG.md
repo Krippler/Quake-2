@@ -5,6 +5,19 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.39] — 2026-11-04
+
+### Fixed
+
+- **Explosions stuttering at 40 Hz.** An explosion's frames come ten a
+  second, but each was eased in by how far into the 25 ms tick it was, so
+  every frame swelled and shrank back four times. They now ease in over
+  their own 100 ms, and start at their first frame rather than most of
+  the way through it.
+- **The gun snapping back after a turn at 40 Hz.** 1.3.38 made the gun
+  sway as far as at 10 Hz but held it there and then dropped it in a
+  tick; it now eases out and back as at 10 Hz.
+
 ## [1.3.38] — 2026-11-04
 
 ### Fixed

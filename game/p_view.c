@@ -413,8 +413,9 @@ SV_CalcGunOffset
 */
 void SV_CalcGunOffset (edict_t *ent)
 {
-	int		i, n, slot;
-	float	delta;
+	int		i, k, n, slot;
+	float	delta, total;
+	vec3_t	sway;
 
 	// gun angles from bobbing
 	ent->client->ps.gunangles[ROLL] = xyspeed * bobfracsin * 0.005;
@@ -431,12 +432,18 @@ void SV_CalcGunOffset (edict_t *ent)
 	// frame, whatever the tick. At 40 Hz one tick's turn made four times
 	// over was the same on average, but a mouse's movement comes in bursts
 	// (through a browser more than ever), a tick catching all of one and the
-	// next three none, and the gun was thrown about four times as far
+	// next three none, and the gun was thrown about four times as far.
+	// And that sway is averaged over the last 100 ms as well: at 10 Hz the
+	// client eases the gun out to it and back over two frames, and held
+	// for 100 ms and then dropped in a tick it snapped back
 	n = tickratio < 1 ? 1 : tickratio > 4 ? 4 : tickratio;
 	if (ent->client->gun_turn_tick != level.tick - 1 || ent->client->gun_turn_ticks != n)
 	{	// a new level, a respawn or another tick: from where it is now
 		for (i=0 ; i<4 ; i++)
+		{
 			VectorCopy (ent->client->ps.viewangles, ent->client->gun_turn_angles[i]);
+			VectorClear (ent->client->gun_sway[i]);
+		}
 		ent->client->gun_turn_ticks = n;
 	}
 	ent->client->gun_turn_tick = level.tick;
@@ -452,11 +459,17 @@ void SV_CalcGunOffset (edict_t *ent)
 			delta = 45;
 		if (delta < -45)
 			delta = -45;
-		if (i == YAW)
-			ent->client->ps.gunangles[ROLL] += 0.1*delta;
-		ent->client->ps.gunangles[i] += 0.2 * delta;
+		sway[i] = 0.2 * delta;
 	}
+	sway[ROLL] += 0.1 * (sway[YAW] / 0.2);
 	VectorCopy (ent->client->ps.viewangles, ent->client->gun_turn_angles[slot]);
+	VectorCopy (sway, ent->client->gun_sway[slot]);
+	for (i=0 ; i<3 ; i++)
+	{
+		for (k=0, total=0 ; k<n ; k++)
+			total += ent->client->gun_sway[k][i];
+		ent->client->ps.gunangles[i] += total / n;
+	}
 
 	// gun height
 	VectorClear (ent->client->ps.gunoffset);

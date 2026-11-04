@@ -269,7 +269,7 @@ void CL_SmokeAndFlash(vec3_t origin)
 	ex->type = ex_misc;
 	ex->frames = 4;
 	ex->ent.flags = RF_TRANSLUCENT;
-	ex->start = cl.frame.servertime - 100;
+	ex->start = cl.frame.servertime - CL_FrameTime ();
 	ex->ent.model = cl_mod_smoke;
 
 	ex = CL_AllocExplosion ();
@@ -277,7 +277,7 @@ void CL_SmokeAndFlash(vec3_t origin)
 	ex->type = ex_flash;
 	ex->ent.flags = RF_FULLBRIGHT;
 	ex->frames = 2;
-	ex->start = cl.frame.servertime - 100;
+	ex->start = cl.frame.servertime - CL_FrameTime ();
 	ex->ent.model = cl_mod_flash;
 }
 
@@ -854,7 +854,7 @@ void CL_ParseTEnt (void)
 
 		ex->type = ex_misc;
 		ex->ent.flags = RF_FULLBRIGHT|RF_TRANSLUCENT;
-		ex->start = cl.frame.servertime - 100;
+		ex->start = cl.frame.servertime - CL_FrameTime ();
 		ex->light = 150;
 		ex->lightcolor[0] = 1;
 		ex->lightcolor[1] = 1;
@@ -879,7 +879,7 @@ void CL_ParseTEnt (void)
 		VectorCopy (pos, ex->ent.origin);
 		ex->type = ex_poly;
 		ex->ent.flags = RF_FULLBRIGHT;
-		ex->start = cl.frame.servertime - 100;
+		ex->start = cl.frame.servertime - CL_FrameTime ();
 		ex->light = 350;
 		ex->lightcolor[0] = 1.0;
 		ex->lightcolor[1] = 0.5;
@@ -902,7 +902,7 @@ void CL_ParseTEnt (void)
 		VectorCopy (pos, ex->ent.origin);
 		ex->type = ex_poly;
 		ex->ent.flags = RF_FULLBRIGHT;
-		ex->start = cl.frame.servertime - 100;
+		ex->start = cl.frame.servertime - CL_FrameTime ();
 		ex->light = 350;
 		ex->lightcolor[0] = 1.0; 
 		ex->lightcolor[1] = 0.5;
@@ -927,7 +927,7 @@ void CL_ParseTEnt (void)
 		VectorCopy (pos, ex->ent.origin);
 		ex->type = ex_poly;
 		ex->ent.flags = RF_FULLBRIGHT;
-		ex->start = cl.frame.servertime - 100;
+		ex->start = cl.frame.servertime - CL_FrameTime ();
 		ex->light = 350;
 		ex->lightcolor[0] = 1.0;
 		ex->lightcolor[1] = 0.5;
@@ -954,7 +954,7 @@ void CL_ParseTEnt (void)
 		VectorCopy (pos, ex->ent.origin);
 		ex->type = ex_poly;
 		ex->ent.flags = RF_FULLBRIGHT;
-		ex->start = cl.frame.servertime - 100;
+		ex->start = cl.frame.servertime - CL_FrameTime ();
 		ex->light = 350;
 		ex->lightcolor[0] = 0.0;
 		ex->lightcolor[1] = 1.0;
@@ -1075,7 +1075,7 @@ void CL_ParseTEnt (void)
 		else // flechette
 			ex->ent.skinnum = 2;
 
-		ex->start = cl.frame.servertime - 100;
+		ex->start = cl.frame.servertime - CL_FrameTime ();
 		ex->light = 150;
 		// PMM
 		if (type == TE_BLASTER2)
@@ -1110,7 +1110,7 @@ void CL_ParseTEnt (void)
 		VectorCopy (pos, ex->ent.origin);
 		ex->type = ex_poly;
 		ex->ent.flags = RF_FULLBRIGHT;
-		ex->start = cl.frame.servertime - 100;
+		ex->start = cl.frame.servertime - CL_FrameTime ();
 		ex->light = 350;
 		ex->lightcolor[0] = 1.0;
 		ex->lightcolor[1] = 0.5;
@@ -1730,7 +1730,12 @@ void CL_AddExplosions (void)
 			f = 0;
 		ent->frame = ex->baseframe + f + 1;
 		ent->oldframe = ex->baseframe + f;
-		ent->backlerp = 1.0 - cl.lerpfrac;
+		// how far into its 100 ms frame: at 1997's 10 Hz the server frame's
+		// own lerp, but at a faster tick (the re-release's 40) cl.lerpfrac
+		// is how far into the tick, and an explosion stepped through each
+		// frame four times over
+		frac -= f;
+		ent->backlerp = 1.0 - (frac < 0 ? 0 : frac > 1 ? 1 : frac);
 
 		V_AddEntity (ent);
 	}
