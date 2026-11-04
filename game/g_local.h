@@ -1426,6 +1426,7 @@ struct gclient_s
 	// the view's angles the last few ticks, for the gun's sway as the view
 	// turns: over 100 ms whatever the tick (SV_CalcGunOffset)
 	vec3_t		gun_turn_angles[4];
+	vec3_t		gun_sway[4];		// the sway each of those ticks, averaged
 	int			gun_turn_tick, gun_turn_ticks;
 	vec3_t		oldvelocity;
 
