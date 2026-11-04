@@ -5,6 +5,16 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.35] — 2026-11-04
+
+### Fixed
+
+- **The re-release's videos in the original game.** Choosing Quake II, The
+  Reckoning or Ground Zero (the 1997 games) played the re-release's videos
+  where the original's were not there. The original games now play only
+  the original's `.cin` (none, if you have none); the Remastered games play
+  the re-release's `.ogv`, and the original's only where there is no `.ogv`.
+
 ## [1.3.34] — 2026-11-04
 
 ### Fixed

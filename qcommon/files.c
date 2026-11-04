@@ -215,6 +215,23 @@ int	Developer_searchpath (int who)
 
 /*
 ===========
+FS_RereleaseLoaded
+
+Whether the 2023 re-release's pak is in the search path
+===========
+*/
+qboolean FS_RereleaseLoaded (void)
+{
+	searchpath_t	*search;
+
+	for (search = fs_searchpaths ; search ; search = search->next)
+		if (search->pack && search->pack->rerelease)
+			return true;
+	return false;
+}
+
+/*
+===========
 FS_FOpenCaseless
 
 A file in a directory, its name in any case: a copy from the CD, or from

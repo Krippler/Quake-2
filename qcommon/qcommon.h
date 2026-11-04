@@ -719,6 +719,7 @@ int		FS_LoadFile (char *path, void **buffer);
 #define	FS_ORIGINAL		1
 #define	FS_RERELEASE	2
 int		FS_GameHasFile (char *gamedir, char *filename);	// FS_ORIGINAL, FS_RERELEASE
+qboolean	FS_RereleaseLoaded (void);	// the 2023 re-release's pak is in the search path
 int		FS_LoadFileSkip (char *path, void **buffer, int skip);
 int		FS_FOpenFileSkip (char *filename, FILE **file, int skip);
 int		FS_LoadUsableFile (char *path, void **buffer,
