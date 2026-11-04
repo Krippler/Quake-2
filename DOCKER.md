@@ -84,6 +84,15 @@ The container's log lists what it found every time it starts the engine, and
 it looks again before each restart, so a mod copied in while it is running is
 there after the next quit.
 
+### Videos
+
+The intro and the other cinematics are the original game's `video/*.cin`
+(from the CD; the Steam and GOG copies of the 1997 game have none) or the
+re-release's `rerelease/baseq2/video/*.ogv`. Whichever are in the mount, in
+any folder of it, are found and played, the original's first where both have
+one. The log says at start how many of each there are, or that there are
+none and the cinematics are skipped.
+
 ### Music
 
 The soundtrack was audio tracks 2 to 11 on the CD. A rip as `track02.ogg`,
