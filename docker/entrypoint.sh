@@ -229,6 +229,15 @@ link_game_dir() {
             pak[0-9].pak) n=$((n + 1)) ;;
             gamex86_64.so) n=$((n + 1)) ;;
             maps) n=$((n + 1)) ;;
+            video)
+                # A directory of its own, of links to each file, rather than
+                # a link to the mount's: the re-release's videos go into it
+                # too (link_videos), and links made in a linked directory
+                # would be made in the read-only mount.
+                if [ -d "$f" ]; then
+                    link_video_files "$f" "$dest/video"
+                    continue
+                fi ;;
         esac
         # Quake II opens pak0.pak to pak9.pak, lowercase, and looks for
         # everything else by lowercase name too; a CD or a Windows copy may
@@ -238,6 +247,68 @@ link_game_dir() {
 
     [ "$n" -gt 0 ] && return 0
     return 1
+}
+
+#
+# Each file of a directory of videos linked into the game's video directory,
+# by its lowercase name: the engine asks for video/ntro.cin, and a copy from
+# the CD has VIDEO/NTRO.CIN.
+#
+link_video_files() {
+    vsrc="$1"
+    vdest="$2"
+    [ -L "$vdest" ] && rm -f "$vdest"
+    mkdir -p "$vdest"
+    for vf in "$vsrc"/*; do
+        [ -f "$vf" ] || continue
+        ln -sfn "$vf" "$vdest/$(basename "$vf" | tr 'A-Z' 'a-z')"
+    done
+    return 0
+}
+
+#
+# The 2023 re-release's cinematics are Ogg Theora, video/<name>.ogv in its own
+# folder (rerelease/baseq2/video on Steam and GOG), which the scan above does
+# not look in; the engine plays one where the original's .cin of the same
+# name is not there (client/cl_ogv.c). Every .ogv in the mount goes into
+# baseq2/video, whichever of the re-release's folders it is in. Then what
+# there is to play is said, as the intro is otherwise just not there.
+#
+link_videos() {
+    case " $FOUND_GAMES " in
+        *" baseq2 "*) ;;
+        *) return 0 ;;
+    esac
+    vdir="$BASEDIR/baseq2/video"
+    if [ -d "$vdir" ]; then
+        # links to files that have gone from the mount
+        for vf in "$vdir"/*; do
+            if [ -L "$vf" ] && [ ! -e "$vf" ]; then
+                rm -f "$vf"
+            fi
+        done
+    fi
+    find "$DATADIR" -maxdepth 6 -type f -iname '*.ogv' 2>/dev/null | sort | while IFS= read -r vf; do
+        [ -L "$vdir" ] && rm -f "$vdir"
+        mkdir -p "$vdir"
+        ln -sfn "$vf" "$vdir/$(basename "$vf" | tr 'A-Z' 'a-z')"
+    done
+
+    # (grep -c says 0 and fails when there are none: not an error here)
+    ncin=$(ls "$vdir" 2>/dev/null | grep -c '\.cin$' || true)
+    nogv=$(ls "$vdir" 2>/dev/null | grep -c '\.ogv$' || true)
+    said="$ncin/$nogv"
+    if [ "$said" != "${VIDEOS_SAID:-}" ]; then
+        VIDEOS_SAID="$said"
+        if [ "$ncin" -eq 0 ] && [ "$nogv" -eq 0 ]; then
+            log "videos: none in the mount, so the intro and the other"
+            log "  cinematics are skipped (the original game's are video/*.cin,"
+            log "  the re-release's rerelease/baseq2/video/*.ogv)"
+        else
+            log "videos: $ncin of the original game's (.cin), $nogv of the re-release's (.ogv)"
+        fi
+    fi
+    return 0
 }
 
 FOUND_GAMES=""
@@ -299,6 +370,7 @@ discover_games() {
     FOUND_GAMES=$(printf '%s' "$FOUND_GAMES" | sed 's/^ *//')
 
     link_rerelease
+    link_videos
     extract_messages
 }
 

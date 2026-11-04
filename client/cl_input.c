@@ -422,10 +422,15 @@ void IN_CenterView (void)
 CL_InitInput
 ============
 */
+static void IN_PushToTalk (void) {}
+
 void CL_InitInput (void)
 {
 	Cmd_AddCommand ("centerview",IN_CenterView);
 	CL_InitWheel ();
+	// the re-release's voice chat, which its default.cfg binds: nothing here
+	Cmd_AddCommand ("+pushtotalk", IN_PushToTalk);
+	Cmd_AddCommand ("-pushtotalk", IN_PushToTalk);
 	CL_InitDamage ();
 
 	Cmd_AddCommand ("+moveup",IN_UpDown);

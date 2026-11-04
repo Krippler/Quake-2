@@ -5,6 +5,18 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [Unreleased]
+
+### Fixed
+
+- **The re-release's videos in the container.** 1.3.33 plays them, but the
+  container never put the re-release's `video` folder where the game looks,
+  so the intro was still skipped. Every `.ogv` in the mount is now found,
+  and the log says how many videos there are of each kind, or that there
+  are none.
+- **`Unknown command "-pushtotalk"`**: the re-release's controls bind its
+  voice chat, which there is none of here; the key now does nothing.
+
 ## [1.3.33] — 2026-11-03
 
 ### Added
