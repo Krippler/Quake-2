@@ -5,6 +5,18 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.40] — 2026-11-05
+
+### Changed
+
+- **Mouse smoothing on in the container, and saved.** The mouse reaches
+  the game through the browser and VNC in bursts, so fast turns judder:
+  a frame drawn between two bursts barely turns. `m_filter 1`, id's own
+  setting, averages the mouse over two frames (about a frame's delay).
+  It is now saved in `config.cfg`, and the container turns it on in any
+  config that has no `m_filter` in it yet; `m_filter 0` at the console
+  turns it off and stays off.
+
 ## [1.3.39] — 2026-11-04
 
 ### Fixed
