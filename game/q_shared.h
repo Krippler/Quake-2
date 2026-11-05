@@ -1058,7 +1058,9 @@ typedef enum
 	TE_EXPLOSION1_BIG,
 	TE_EXPLOSION1_NP,
 	TE_FLECHETTE,
-	TE_BERSERK_SLAM			// the re-release's: a slam's shockwave
+	TE_BERSERK_SLAM,		// the re-release's: a slam's shockwave
+	TE_BFG_ZAP,				// the re-release's: the BFG's blast, to what it hurts
+	TE_POWER_SPLASH			// the re-release's: a monster's power armour gives out
 //ROGUE
 } temp_event_t;
 

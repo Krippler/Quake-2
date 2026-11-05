@@ -818,7 +818,8 @@ static const char *rr_tents[] =
 	"P", "P", "P", "PP", "SPPP", "BPDB", "PD", "PP", "P", "BPDB",	// 20
 	"PD", NULL, NULL, "SSPP", "PP", "P", "PS", "PPB", "SPP", "SPP",	// 30
 	NULL, "PP", "PD", "PD", "PD", "P", "PD", "P", "P", "P",		// 40
-	"SP", "P", "P", "P", "P", "PD", "PD", NULL, "PD"			// 50
+	"SP", "P", "P", "P", "P", "PD", "PD", "PP", "PD", NULL,	// 50
+	"SB"														// 60
 };
 
 static qboolean RR_ReadTempEntity (sizebuf_t *m)
@@ -849,6 +850,12 @@ static qboolean RR_ReadTempEntity (sizebuf_t *m)
 
 	if (type == 56)
 		out = TE_BLASTER;		// its blue blaster's, as the hyperblaster's
+	else if (type == 57)
+		out = TE_BFG_ZAP;
+	else if (type == 58)
+		out = TE_BERSERK_SLAM;
+	else if (type == 60)
+		out = TE_POWER_SPLASH;
 	else if (type > TE_FLECHETTE)
 		return true;			// something of its own: left out
 	// a beam from an entity 1997 has no number for is left out

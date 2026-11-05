@@ -1110,7 +1110,7 @@ typedef struct
 	float			vecs[2][4];		// world to lightmap texels
 } dlmface_t;
 
-static void Mod_LoadDecoupledLightmaps (dheader_t *header, int filelen)
+static qboolean Mod_LoadDecoupledLightmaps (dheader_t *header, int filelen)
 {
 	int			i, j, k, n, ofs, end, numlumps, lofs = 0, llen = 0;
 	int			smax, tmax, styles, total, w, h, style;
@@ -1128,7 +1128,7 @@ static void Mod_LoadDecoupledLightmaps (dheader_t *header, int filelen)
 			end = header->lumps[i].fileofs + header->lumps[i].filelen;
 	ofs = (end + 3) & ~3;
 	if (ofs + 8 > filelen || memcmp (mod_base + ofs, "BSPX", 4))
-		return;
+		return false;
 	numlumps = LittleLong (*(int *)(mod_base + ofs + 4));
 	for (i=0 ; i<numlumps && ofs + 8 + (i+1)*32 <= filelen ; i++)
 	{
@@ -1140,12 +1140,12 @@ static void Mod_LoadDecoupledLightmaps (dheader_t *header, int filelen)
 		}
 	}
 	if (!llen)
-		return;
+		return false;
 	if (lofs < 0 || llen < 0 || lofs > filelen || llen > filelen - lofs
 		|| llen != loadmodel->numsurfaces * (int)sizeof(dlmface_t))
 	{
 		ri.Con_Printf (PRINT_ALL, "%s: DECOUPLED_LM is not one entry a face; unlit\n", loadmodel->name);
-		return;
+		return false;
 	}
 	lm = (dlmface_t *)(mod_base + lofs);
 	light = mod_base + ll->fileofs;
@@ -1161,7 +1161,7 @@ static void Mod_LoadDecoupledLightmaps (dheader_t *header, int filelen)
 		total += ((surf->extents[0]>>4)+1) * ((surf->extents[1]>>4)+1) * styles;
 	}
 	if (!total)
-		return;
+		return false;
 	out = Hunk_Alloc (total);
 	outrgb = Hunk_Alloc (total*3);
 
@@ -1240,6 +1240,147 @@ static void Mod_LoadDecoupledLightmaps (dheader_t *header, int filelen)
 		}
 	}
 	ri.Con_Printf (PRINT_DEVELOPER, "%s: lighting resampled from DECOUPLED_LM\n", loadmodel->name);
+	return true;
+}
+
+/*
+=================
+Mod_FollowLampStyles
+
+A lamp that flickers, or that a switch turns off, is a light entity with a
+style, just in front of a light fixture's face. The 1997 compiler lit the
+fixture with it, in that style's part of its lightmap, beside a steady part
+dim enough for it to show: the fixture flickered, or dimmed, with its lamp.
+The re-release's compiler lights the fixture itself, steadily, near full,
+in style 0, and gives the lamp's style little or nothing over it: the walls
+flicker round a lamp that does not.
+
+So on the re-release's maps (relit, from DECOUPLED_LM), a fixture
+(SURF_LIGHT, not sky) with such a light within 32 units in front of it,
+whose lightmap has that style, takes its steady light in that style
+instead, and so flickers, dims or goes out with its lamp. The 1997 maps are
+left as they were.
+=================
+*/
+#define MAX_LAMPS	1024
+
+static void Mod_FollowLampStyles (lump_t *l)
+{
+	vec3_t		lamps[MAX_LAMPS], origin, mins, maxs;
+	int			styles[MAX_LAMPS], numlamps, style, n, i, j, k, e, best, count;
+	char		key[64], value[256], *s, *end, *d;
+	qboolean	islight;
+	msurface_t	*surf;
+	float		*v, dist, bestdist;
+
+	if (!loadmodel->lightdata)
+		return;
+
+	// the lights with a style
+	numlamps = 0;
+	s = (char *)mod_base + l->fileofs;
+	end = s + l->filelen;
+	while (s < end && numlamps < MAX_LAMPS)
+	{
+		while (s < end && *s != '{')
+			s++;
+		if (s >= end)
+			break;
+		s++;
+		islight = false;
+		style = 0;
+		origin[0] = origin[1] = origin[2] = 1e9;
+		while (s < end && *s != '}')
+		{
+			// "key" "value"
+			for (i=0 ; i<2 ; i++)
+			{
+				while (s < end && *s != '"' && *s != '}')
+					s++;
+				if (s >= end || *s == '}')
+					break;
+				s++;
+				d = i ? value : key;
+				n = i ? sizeof(value) : sizeof(key);
+				for (j=0 ; s < end && *s != '"' ; s++)
+					if (j < n-1)
+						d[j++] = *s;
+				d[j] = 0;
+				if (s < end)
+					s++;
+			}
+			if (i < 2)
+				break;
+			if (!strcmp (key, "classname"))
+				islight = !strcmp (value, "light");
+			else if (!strcmp (key, "style"))
+				style = atoi (value);
+			else if (!strcmp (key, "origin"))
+				sscanf (value, "%f %f %f", &origin[0], &origin[1], &origin[2]);
+		}
+		if (islight && style > 0 && style < MAX_LIGHTSTYLES && origin[0] < 1e8)
+		{
+			VectorCopy (origin, lamps[numlamps]);
+			styles[numlamps] = style;
+			numlamps++;
+		}
+	}
+	if (!numlamps)
+		return;
+
+	count = 0;
+	for (i=0, surf = loadmodel->surfaces ; i<loadmodel->numsurfaces ; i++, surf++)
+	{
+		if (!surf->samples || !(surf->texinfo->flags & SURF_LIGHT)
+			|| (surf->flags & (SURF_DRAWSKY|SURF_DRAWTURB)) || surf->styles[0] != 0)
+			continue;
+
+		mins[0] = mins[1] = mins[2] = 1e9;
+		maxs[0] = maxs[1] = maxs[2] = -1e9;
+		for (j=0 ; j<surf->numedges ; j++)
+		{
+			e = loadmodel->surfedges[surf->firstedge + j];
+			v = loadmodel->vertexes[loadmodel->edges[e >= 0 ? e : -e].v[e >= 0 ? 0 : 1]].position;
+			for (k=0 ; k<3 ; k++)
+			{
+				if (v[k] < mins[k]) mins[k] = v[k];
+				if (v[k] > maxs[k]) maxs[k] = v[k];
+			}
+		}
+
+		// the nearest lamp in front of it
+		best = -1;
+		bestdist = 33;
+		for (j=0 ; j<numlamps ; j++)
+		{
+			for (k=0 ; k<3 ; k++)
+				if (lamps[j][k] < mins[k] - 16 || lamps[j][k] > maxs[k] + 16)
+					break;
+			if (k < 3)
+				continue;
+			dist = DotProduct (lamps[j], surf->plane->normal) - surf->plane->dist;
+			if (surf->flags & SURF_PLANEBACK)
+				dist = -dist;
+			if (dist >= 0 && dist < bestdist)
+			{
+				bestdist = dist;
+				best = j;
+			}
+		}
+		if (best < 0)
+			continue;
+
+		// and lit by it, the compiler says
+		for (n=1 ; n<MAXLIGHTMAPS && surf->styles[n] != 255 ; n++)
+			if (surf->styles[n] == styles[best])
+				break;
+		if (n >= MAXLIGHTMAPS || surf->styles[n] != styles[best])
+			continue;
+
+		surf->styles[0] = styles[best];
+		count++;
+	}
+	ri.Con_Printf (PRINT_DEVELOPER, "%s: %i light fixtures follow their lamps' styles\n", loadmodel->name, count);
 }
 
 /*
@@ -1529,6 +1670,7 @@ Mod_LoadBrushModel
 void Mod_LoadBrushModel (model_t *mod, void *buffer)
 {
 	int			i;
+	qboolean	relit;
 	dheader_t	*header;
 	dmodel_t 	*bm;
 	
@@ -1559,9 +1701,11 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer)
 	Mod_LoadPlanes (&header->lumps[LUMP_PLANES]);
 	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]);
 	Mod_LoadFaces (&header->lumps[LUMP_FACES]);
-	Mod_LoadDecoupledLightmaps (header, modfilelen);
+	relit = Mod_LoadDecoupledLightmaps (header, modfilelen);
 	Mod_SplitSurfaces ();
 	Mod_MarkColoredSurfaces ();
+	if (relit)
+		Mod_FollowLampStyles (&header->lumps[LUMP_ENTITIES]);
 	Mod_LoadMarksurfaces (&header->lumps[LUMP_LEAFFACES]);
 	Mod_LoadVisibility (&header->lumps[LUMP_VISIBILITY]);
 	Mod_LoadLeafs (&header->lumps[LUMP_LEAFS]);

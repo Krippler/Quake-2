@@ -5,6 +5,31 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.42] — 2026-11-05
+
+### Added
+
+- **The re-release's BFG zaps.** On its maps the BFG's blast now draws a
+  bolt of green lightning to each thing it hurts, as the re-release does,
+  in place of the 1997 flash on each (`TE_BFG_ZAP`).
+- **A monster's power armour bursting when it gives out.** On the
+  re-release's maps, a green shell bursts off the monster with the
+  re-release's sound (`TE_POWER_SPLASH`).
+- **The re-release's `style_on` and `style_off`** on a switched light (its
+  tutorial's), and its lights flagged to stay in deathmatch (q2dm3's lava
+  glow).
+- **Re-release demos keep the slam, the zaps and the splash**, which they
+  used to leave out.
+
+### Fixed
+
+- **Light fixtures that stayed lit while their lamps flickered** on the
+  re-release's maps. Its compiler lights a fixture steadily, near full, so
+  only the walls round a flickering or switched-off lamp changed. A
+  fixture with a styled light just in front of it now flickers, dims or
+  goes out with that light, as the 1997 maps' fixtures did. The 1997 maps
+  are unchanged.
+
 ## [1.3.41] — 2026-11-05
 
 ### Fixed

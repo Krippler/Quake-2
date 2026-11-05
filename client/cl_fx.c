@@ -1109,6 +1109,125 @@ void CL_SlamParticles (vec3_t org, vec3_t dir)
 }
 
 
+/*
+===============
+CL_BFGZap
+
+The re-release's BFG: from its blast, a bolt of green lightning to each
+thing it hurts, jagged, a few points out of line, gone in a moment
+===============
+*/
+void CL_BFGZap (vec3_t start, vec3_t end)
+{
+	vec3_t		dir, a, b, side, up, move;
+	float		len, d, step;
+	int			i, n, seg, j;
+	cparticle_t	*p;
+
+	VectorSubtract (end, start, dir);
+	len = VectorNormalize (dir);
+	if (len < 1)
+		return;
+	MakeNormalVectors (dir, side, up);
+
+	n = len / 24;
+	if (n < 2)
+		n = 2;
+	if (n > 32)
+		n = 32;
+	VectorCopy (start, a);
+	for (seg=1 ; seg<=n ; seg++)
+	{
+		// the next point, out of line but for the ends
+		VectorMA (start, len * seg / n, dir, b);
+		if (seg < n)
+		{
+			VectorMA (b, crand()*10, side, b);
+			VectorMA (b, crand()*10, up, b);
+		}
+
+		VectorSubtract (b, a, move);
+		d = VectorNormalize (move);
+		step = 3;
+		for (j=0 ; j*step < d ; j++)
+		{
+			if (!free_particles)
+				return;
+			p = free_particles;
+			free_particles = p->next;
+			p->next = active_particles;
+			active_particles = p;
+
+			p->time = cl.time;
+			p->color = 0xd0 + (rand()&7);	// greens
+			for (i=0 ; i<3 ; i++)
+			{
+				p->org[i] = a[i] + move[i]*j*step + crand()*0.5;
+				p->vel[i] = crand()*2;
+				p->accel[i] = 0;
+			}
+			p->alpha = 1.0;
+			p->alphavel = -1.0 / (0.25 + frand()*0.1);
+		}
+		VectorCopy (b, a);
+	}
+}
+
+/*
+===============
+CL_PowerSplash
+
+The re-release's: a monster's power armour giving out, its green shell
+bursting off it; a screen's, in front, a shield's, all round
+===============
+*/
+void CL_PowerSplash (int ent, qboolean screen)
+{
+	centity_t	*cent;
+	vec3_t		org, fwd, dir;
+	float		yaw;
+	int			i, j;
+	cparticle_t	*p;
+
+	if (ent < 1 || ent >= MAX_EDICTS)
+		return;
+	cent = &cl_entities[ent];
+	VectorCopy (cent->lerp_origin, org);
+	org[2] += 8;
+	yaw = cent->current.angles[YAW] * (M_PI*2 / 360);
+	fwd[0] = cos(yaw);
+	fwd[1] = sin(yaw);
+	fwd[2] = 0;
+
+	for (i=0 ; i<128 ; i++)
+	{
+		if (!free_particles)
+			return;
+		p = free_particles;
+		free_particles = p->next;
+		p->next = active_particles;
+		active_particles = p;
+
+		p->time = cl.time;
+		p->color = 0xd0 + (rand()&7);
+		for (j=0 ; j<3 ; j++)
+			dir[j] = crand();
+		if (screen && DotProduct (dir, fwd) < 0)
+			VectorMA (dir, -2 * DotProduct (dir, fwd), fwd, dir);
+		VectorNormalize (dir);
+		for (j=0 ; j<3 ; j++)
+		{
+			p->org[j] = org[j] + dir[j] * (screen ? 20 : 24);
+			p->vel[j] = dir[j] * (60 + frand()*40);
+			p->accel[j] = 0;
+		}
+		p->accel[2] = -PARTICLE_GRAVITY * 0.5;
+		p->alpha = 1.0;
+		p->alphavel = -1.0 / (0.5 + frand()*0.3);
+	}
+}
+
+
 // RAFAEL
 /*
 ===============

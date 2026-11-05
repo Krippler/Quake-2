@@ -207,6 +207,8 @@ field_t fields[] = {
 	// an achievement is the re-release's platform's
 	{"achievement", 0, F_IGNORE, FFL_SPAWNTEMP},
 	{"shadowlight", FOFS(shadowlight), F_LSTRING, FFL_NOSPAWN},
+	{"style_on", FOFS(style_on), F_LSTRING},
+	{"style_off", FOFS(style_off), F_LSTRING},
 	{"item", STOFS(item), F_LSTRING, FFL_SPAWNTEMP},
 	{"radius", STOFS(radius), F_FLOAT, FFL_SPAWNTEMP},
 	{"health_multiplier", STOFS(health_multiplier), F_FLOAT, FFL_SPAWNTEMP},

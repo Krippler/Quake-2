@@ -280,7 +280,20 @@ static int CheckPowerArmor (edict_t *ent, vec3_t point, vec3_t normal, int damag
 	if (client)
 		client->pers.inventory[index] -= power_used;
 	else
+	{
 		ent->monsterinfo.power_armor_power -= power_used;
+		if (ent->monsterinfo.power_armor_power <= 0 && RR_Map ())
+		{
+			// the re-release's: run out, it bursts off
+			ent->monsterinfo.power_armor_power = 0;
+			gi.sound (ent, CHAN_AUTO, gi.soundindex ("misc/mon_power2.wav"), 1, ATTN_NORM, 0);
+			gi.WriteByte (svc_temp_entity);
+			gi.WriteByte (TE_POWER_SPLASH);
+			gi.WriteShort (ent - g_edicts);
+			gi.WriteByte (power_armor_type == POWER_ARMOR_SCREEN);
+			gi.multicast (ent->s.origin, MULTICAST_PHS);
+		}
+	}
 	return save;
 }
 
