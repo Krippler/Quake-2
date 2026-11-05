@@ -878,6 +878,27 @@ CFGEOF
 
 seed_config
 
+#
+# Mouse smoothing, on: the mouse comes through the browser and VNC in bursts,
+# so a frame drawn between two of them barely turns, and fast turns judder.
+# m_filter averages the mouse over two frames, for about a frame's delay.
+# Added to any config without it, the new one above or one from before this
+# was saved (it was not until 1.3.40); the engine saves it from then on, so
+# m_filter 0 at the console is kept.
+#
+seed_mouse_filter() {
+    cfg="$BASEDIR/baseq2/config.cfg"
+    [ -e "$cfg" ] || return 0
+    grep -q 'm_filter' "$cfg" 2>/dev/null && return 0
+    {
+        printf '\n%s\n' "// Mouse smoothing: the browser sends the mouse in bursts."
+        printf 'set m_filter "1"\n'
+    } >> "$cfg"
+    log "turned on mouse smoothing (m_filter 1) in config.cfg; m_filter 0 turns it off"
+}
+
+seed_mouse_filter
+
 log "starting noVNC on port $WEB_PORT"
 #
 # websockify's own chatter goes to its log; the lines it prints about the

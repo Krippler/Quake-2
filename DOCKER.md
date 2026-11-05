@@ -160,6 +160,10 @@ and the mouse looks only while `\` is held. Either way the game rewrites
 Controls** is what stays. Delete `/quake2/state/game/baseq2/config.cfg` to
 start over.
 
+**Mouse smoothing** (`m_filter 1`) is on: the mouse comes through the browser
+and VNC in bursts, and fast turns judder without it. It costs about a
+frame's delay; `m_filter 0` at the console turns it off, and that is kept.
+
 ### Game controllers
 
 Any pad the browser sees as a standard gamepad: an Xbox or PlayStation pad, a

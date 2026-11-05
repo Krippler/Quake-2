@@ -172,7 +172,9 @@ void RW_IN_Init(in_state_t *in_state_p)
 
 	// mouse variables
 	_windowed_mouse = ri.Cvar_Get ("_windowed_mouse", "0", CVAR_ARCHIVE);
-	m_filter = ri.Cvar_Get ("m_filter", "0", 0);
+	// saved, as the container turns it on: a mouse through a browser and VNC
+	// comes in bursts, and averaging two frames of it evens the turning out
+	m_filter = ri.Cvar_Get ("m_filter", "0", CVAR_ARCHIVE);
 	in_mouse = ri.Cvar_Get ("in_mouse", "1", CVAR_ARCHIVE);
 	freelook = ri.Cvar_Get( "freelook", "0", 0 );
 	lookstrafe = ri.Cvar_Get ("lookstrafe", "0", 0);
