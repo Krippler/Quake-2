@@ -563,18 +563,27 @@ If targeted, will toggle between on and off.
 Default _cone value is 10 (used to set size of light for spotlights)
 */
 
-#define START_OFF	1
+#define START_OFF		1
+#define ALLOW_IN_DM		2	// the re-release's
+
+// a light style's pattern, as worldspawn sets it
+static char *LightStylePattern (int style)
+{
+	if (style >= 0 && style < G_NUMLIGHTSTYLES)
+		return g_lightstyles[style];
+	return style == 63 ? "a" : "m";
+}
 
 static void light_use (edict_t *self, edict_t *other, edict_t *activator)
 {
 	if (self->spawnflags & START_OFF)
 	{
-		gi.configstring (CS_LIGHTS+self->style, "m");
+		gi.configstring (CS_LIGHTS+self->style, self->style_on);
 		self->spawnflags &= ~START_OFF;
 	}
 	else
 	{
-		gi.configstring (CS_LIGHTS+self->style, "a");
+		gi.configstring (CS_LIGHTS+self->style, self->style_off);
 		self->spawnflags |= START_OFF;
 	}
 }
@@ -718,7 +727,7 @@ void SP_light (edict_t *self)
 	G_AddShadowLight (self, false);
 
 	// no targeted lights in deathmatch, because they cause global messages
-	if (!self->targetname || deathmatch->value)
+	if (!self->targetname || (deathmatch->value && !(self->spawnflags & ALLOW_IN_DM)))
 	{
 		G_FreeEdict (self);
 		return;
@@ -726,11 +735,21 @@ void SP_light (edict_t *self)
 
 	if (self->style >= 32)
 	{
+		// the re-release's "style_on" and "style_off": a pattern, or the
+		// number of a light style to take the pattern of
 		self->use = light_use;
+		if (!self->style_on || !*self->style_on)
+			self->style_on = "m";
+		else if (*self->style_on >= '0' && *self->style_on <= '9')
+			self->style_on = LightStylePattern (atoi (self->style_on));
+		if (!self->style_off || !*self->style_off)
+			self->style_off = "a";
+		else if (*self->style_off >= '0' && *self->style_off <= '9')
+			self->style_off = LightStylePattern (atoi (self->style_off));
 		if (self->spawnflags & START_OFF)
-			gi.configstring (CS_LIGHTS+self->style, "a");
+			gi.configstring (CS_LIGHTS+self->style, self->style_off);
 		else
-			gi.configstring (CS_LIGHTS+self->style, "m");
+			gi.configstring (CS_LIGHTS+self->style, self->style_on);
 	}
 }
 

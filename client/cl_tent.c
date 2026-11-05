@@ -1041,6 +1041,18 @@ void CL_ParseTEnt (void)
 		CL_SlamParticles (pos, dir);
 		break;
 
+	case TE_BFG_ZAP:			// the re-release's BFG, to what its blast hurts
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadPos (&net_message, pos2);
+		CL_BFGZap (pos, pos2);
+		break;
+
+	case TE_POWER_SPLASH:		// the re-release's: power armour giving out
+		ent = MSG_ReadShort (&net_message);
+		cnt = MSG_ReadByte (&net_message);
+		CL_PowerSplash (ent, cnt);
+		break;
+
 		// PMM -following code integrated for flechette (different color)
 	case TE_BLASTER2:			// green blaster hitting wall
 	case TE_FLECHETTE:			// flechette

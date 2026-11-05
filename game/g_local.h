@@ -1655,6 +1655,7 @@ struct edict_s
 	int			plat2flags;		// func_plat2's state (g_func.c)
 	char		*shadowlight;	// a dynamic_light's configstring, for when it is
 	int			shadowlight_cs;	// switched back on, and which it is
+	char		*style_on, *style_off;	// a switched light's, "m" and "a" if not given
 
 	gitem_t		*item;			// for bonus items
 

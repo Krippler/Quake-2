@@ -826,10 +826,24 @@ void bfg_explode (edict_t *self)
 			if (ent == self->owner)
 				points = points * 0.5;
 
-			gi.WriteByte (svc_temp_entity);
-			gi.WriteByte (TE_BFG_EXPLOSION);
-			gi.WritePosition (ent->s.origin);
-			gi.multicast (ent->s.origin, MULTICAST_PHS);
+			if (RR_Map ())
+			{
+				// the re-release's: a bolt from the blast to its middle
+				VectorAdd (ent->mins, ent->maxs, v);
+				VectorMA (ent->s.origin, 0.5, v, v);
+				gi.WriteByte (svc_temp_entity);
+				gi.WriteByte (TE_BFG_ZAP);
+				gi.WritePosition (self->s.origin);
+				gi.WritePosition (v);
+				gi.multicast (self->s.origin, MULTICAST_PHS);
+			}
+			else
+			{
+				gi.WriteByte (svc_temp_entity);
+				gi.WriteByte (TE_BFG_EXPLOSION);
+				gi.WritePosition (ent->s.origin);
+				gi.multicast (ent->s.origin, MULTICAST_PHS);
+			}
 			T_Damage (ent, self, self->owner, self->velocity, ent->s.origin, vec3_origin, (int)points, 0, DAMAGE_ENERGY, MOD_BFG_EFFECT);
 		}
 	}
