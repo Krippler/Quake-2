@@ -245,6 +245,7 @@ Can go from either a baseline or a previous packet_entity
 ==================
 */
 static float	cl_delta_scale;		// the scale CL_ParseDelta goes from, and reads
+static qboolean	cl_delta_fine;		// its angles are shorts (cl.fine), not for a baseline
 
 void CL_ParseDelta (entity_state_t *from, entity_state_t *to, int number, int bits)
 {
@@ -314,11 +315,11 @@ void CL_ParseDelta (entity_state_t *from, entity_state_t *to, int number, int bi
 		to->origin[2] = MSG_ReadCoord (&net_message);
 		
 	if (bits & U_ANGLE1)
-		to->angles[0] = MSG_ReadAngle(&net_message);
+		to->angles[0] = cl_delta_fine ? MSG_ReadAngle16(&net_message) : MSG_ReadAngle(&net_message);
 	if (bits & U_ANGLE2)
-		to->angles[1] = MSG_ReadAngle(&net_message);
+		to->angles[1] = cl_delta_fine ? MSG_ReadAngle16(&net_message) : MSG_ReadAngle(&net_message);
 	if (bits & U_ANGLE3)
-		to->angles[2] = MSG_ReadAngle(&net_message);
+		to->angles[2] = cl_delta_fine ? MSG_ReadAngle16(&net_message) : MSG_ReadAngle(&net_message);
 
 	if (bits & U_OLDORIGIN)
 		MSG_ReadPos (&net_message, to->old_origin);
@@ -363,7 +364,9 @@ void CL_DeltaEntity (frame_t *frame, int newnum, entity_state_t *old, int bits)
 	cl.parse_entities++;
 	frame->num_entities++;
 
+	cl_delta_fine = cl.fine;
 	CL_ParseDelta (old, state, newnum, bits);
+	cl_delta_fine = false;
 	cl_parse_scales[state - cl_parse_entities] = cl_delta_scale;
 
 	// some data changes will force no lerping
@@ -654,9 +657,9 @@ void CL_ParsePlayerstate (frame_t *oldframe, frame_t *newframe)
 	//
 	if (flags & PS_VIEWOFFSET)
 	{
-		state->viewoffset[0] = MSG_ReadChar (&net_message) * 0.25;
-		state->viewoffset[1] = MSG_ReadChar (&net_message) * 0.25;
-		state->viewoffset[2] = MSG_ReadChar (&net_message) * 0.25;
+		state->viewoffset[0] = MSG_ReadSmall (&net_message, cl.fine);
+		state->viewoffset[1] = MSG_ReadSmall (&net_message, cl.fine);
+		state->viewoffset[2] = MSG_ReadSmall (&net_message, cl.fine);
 	}
 
 	if (flags & PS_VIEWANGLES)
@@ -668,9 +671,9 @@ void CL_ParsePlayerstate (frame_t *oldframe, frame_t *newframe)
 
 	if (flags & PS_KICKANGLES)
 	{
-		state->kick_angles[0] = MSG_ReadChar (&net_message) * 0.25;
-		state->kick_angles[1] = MSG_ReadChar (&net_message) * 0.25;
-		state->kick_angles[2] = MSG_ReadChar (&net_message) * 0.25;
+		state->kick_angles[0] = MSG_ReadSmall (&net_message, cl.fine);
+		state->kick_angles[1] = MSG_ReadSmall (&net_message, cl.fine);
+		state->kick_angles[2] = MSG_ReadSmall (&net_message, cl.fine);
 	}
 
 	if (flags & PS_WEAPONINDEX)
@@ -688,12 +691,12 @@ void CL_ParsePlayerstate (frame_t *oldframe, frame_t *newframe)
 	if (flags & PS_WEAPONFRAME)
 	{
 		state->gunframe = MSG_ReadByte (&net_message);
-		state->gunoffset[0] = MSG_ReadChar (&net_message)*0.25;
-		state->gunoffset[1] = MSG_ReadChar (&net_message)*0.25;
-		state->gunoffset[2] = MSG_ReadChar (&net_message)*0.25;
-		state->gunangles[0] = MSG_ReadChar (&net_message)*0.25;
-		state->gunangles[1] = MSG_ReadChar (&net_message)*0.25;
-		state->gunangles[2] = MSG_ReadChar (&net_message)*0.25;
+		state->gunoffset[0] = MSG_ReadSmall (&net_message, cl.fine);
+		state->gunoffset[1] = MSG_ReadSmall (&net_message, cl.fine);
+		state->gunoffset[2] = MSG_ReadSmall (&net_message, cl.fine);
+		state->gunangles[0] = MSG_ReadSmall (&net_message, cl.fine);
+		state->gunangles[1] = MSG_ReadSmall (&net_message, cl.fine);
+		state->gunangles[2] = MSG_ReadSmall (&net_message, cl.fine);
 	}
 
 	if (flags & PS_BLEND)

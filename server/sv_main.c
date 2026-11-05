@@ -929,6 +929,7 @@ void SV_UserinfoChanged (client_t *cl)
 	// this engine's client, which reads the extensions it is sent
 	cl->ext_scale = atoi (Info_ValueForKey (cl->userinfo, "q2ext")) >= 1;
 	cl->ext_tick = atoi (Info_ValueForKey (cl->userinfo, "q2ext")) >= 2;
+	cl->ext_fine = atoi (Info_ValueForKey (cl->userinfo, "q2ext")) >= 3;
 
 	// msg command
 	val = Info_ValueForKey (cl->userinfo, "msg");

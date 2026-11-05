@@ -141,7 +141,7 @@ SV_EmitPacketEntities
 Writes a delta update of an entity_state_t list to the message.
 =============
 */
-void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t *msg, qboolean ext_scale)
+void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t *msg, qboolean ext_scale, qboolean fine)
 {
 	float	oldscale = 0, newscale = 0;
 	entity_state_t	*oldent, *newent;
@@ -199,7 +199,7 @@ void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t 
 			// in any bytes being emited if the entity has not changed at all
 			// note that players are always 'newentities', this updates their oldorigin always
 			// and prevents warping
-			MSG_WriteDeltaEntityScale (oldent, newent, oldscale, newscale, msg, false, newent->number <= maxclients->value);
+			MSG_WriteDeltaEntityFine (oldent, newent, oldscale, newscale, msg, false, newent->number <= maxclients->value, fine);
 			SV_KeepEntity (to, kept++, newindex);
 			oldindex++;
 			newindex++;
@@ -210,7 +210,7 @@ void SV_EmitPacketEntities (client_frame_t *from, client_frame_t *to, sizebuf_t 
 		{	// this is a new entity, send it from the baseline
 			if (msg->cursize < room)
 			{
-				MSG_WriteDeltaEntityScale (&sv.baselines[newnum], newent, 0, newscale, msg, true, true);
+				MSG_WriteDeltaEntityFine (&sv.baselines[newnum], newent, 0, newscale, msg, true, true, fine);
 				SV_KeepEntity (to, kept++, newindex);
 			}
 			newindex++;
@@ -254,7 +254,7 @@ SV_WritePlayerstateToClient
 
 =============
 */
-void SV_WritePlayerstateToClient (client_frame_t *from, client_frame_t *to, sizebuf_t *msg)
+void SV_WritePlayerstateToClient (client_frame_t *from, client_frame_t *to, sizebuf_t *msg, qboolean fine)
 {
 	int				i;
 	int				pflags;
@@ -331,7 +331,13 @@ void SV_WritePlayerstateToClient (client_frame_t *from, client_frame_t *to, size
 	if (ps->rdflags != ops->rdflags)
 		pflags |= PS_RDFLAGS;
 
-	if (ps->gunframe != ops->gunframe)
+	// and its offset and angles, the walking bob and the sway, which go
+	// with it: 1997's only when its frame changed, the gun's animation
+	// changing near enough every frame at 10 Hz, but at the re-release's
+	// 40 only every fourth tick, and the gun bobbed in steps
+	if (ps->gunframe != ops->gunframe
+		|| !VectorCompare (ps->gunoffset, ops->gunoffset)
+		|| !VectorCompare (ps->gunangles, ops->gunangles))
 		pflags |= PS_WEAPONFRAME;
 
 	pflags |= PS_WEAPONINDEX;
@@ -385,9 +391,9 @@ void SV_WritePlayerstateToClient (client_frame_t *from, client_frame_t *to, size
 	//
 	if (pflags & PS_VIEWOFFSET)
 	{
-		MSG_WriteChar (msg, ps->viewoffset[0]*4);
-		MSG_WriteChar (msg, ps->viewoffset[1]*4);
-		MSG_WriteChar (msg, ps->viewoffset[2]*4);
+		MSG_WriteSmall (msg, ps->viewoffset[0], fine);
+		MSG_WriteSmall (msg, ps->viewoffset[1], fine);
+		MSG_WriteSmall (msg, ps->viewoffset[2], fine);
 	}
 
 	if (pflags & PS_VIEWANGLES)
@@ -399,9 +405,9 @@ void SV_WritePlayerstateToClient (client_frame_t *from, client_frame_t *to, size
 
 	if (pflags & PS_KICKANGLES)
 	{
-		MSG_WriteChar (msg, ps->kick_angles[0]*4);
-		MSG_WriteChar (msg, ps->kick_angles[1]*4);
-		MSG_WriteChar (msg, ps->kick_angles[2]*4);
+		MSG_WriteSmall (msg, ps->kick_angles[0], fine);
+		MSG_WriteSmall (msg, ps->kick_angles[1], fine);
+		MSG_WriteSmall (msg, ps->kick_angles[2], fine);
 	}
 
 	if (pflags & PS_WEAPONINDEX)
@@ -415,12 +421,12 @@ void SV_WritePlayerstateToClient (client_frame_t *from, client_frame_t *to, size
 	if (pflags & PS_WEAPONFRAME)
 	{
 		MSG_WriteByte (msg, ps->gunframe);
-		MSG_WriteChar (msg, ps->gunoffset[0]*4);
-		MSG_WriteChar (msg, ps->gunoffset[1]*4);
-		MSG_WriteChar (msg, ps->gunoffset[2]*4);
-		MSG_WriteChar (msg, ps->gunangles[0]*4);
-		MSG_WriteChar (msg, ps->gunangles[1]*4);
-		MSG_WriteChar (msg, ps->gunangles[2]*4);
+		MSG_WriteSmall (msg, ps->gunoffset[0], fine);
+		MSG_WriteSmall (msg, ps->gunoffset[1], fine);
+		MSG_WriteSmall (msg, ps->gunoffset[2], fine);
+		MSG_WriteSmall (msg, ps->gunangles[0], fine);
+		MSG_WriteSmall (msg, ps->gunangles[1], fine);
+		MSG_WriteSmall (msg, ps->gunangles[2], fine);
 	}
 
 	if (pflags & PS_BLEND)
@@ -499,10 +505,10 @@ void SV_WriteFrameToClient (client_t *client, sizebuf_t *msg)
 	SZ_Write (msg, frame->areabits, frame->areabytes);
 
 	// delta encode the playerstate
-	SV_WritePlayerstateToClient (oldframe, frame, msg);
+	SV_WritePlayerstateToClient (oldframe, frame, msg, sv.fine && client->ext_fine);
 
 	// delta encode the entities
-	SV_EmitPacketEntities (oldframe, frame, msg, client->ext_scale);
+	SV_EmitPacketEntities (oldframe, frame, msg, client->ext_scale, sv.fine && client->ext_fine);
 }
 
 
@@ -766,7 +772,7 @@ void SV_RecordDemoMessage (void)
 			ent->s.number && 
 			(ent->s.modelindex || ent->s.effects || ent->s.sound || ent->s.event) && 
 			!(ent->svflags & SVF_NOCLIENT))
-			MSG_WriteDeltaEntityScale (&nostate, &ent->s, 0, sv.entscale[e], &buf, false, true);
+			MSG_WriteDeltaEntityFine (&nostate, &ent->s, 0, sv.entscale[e], &buf, false, true, sv.fine);
 
 		e++;
 		ent = EDICT_NUM(e);

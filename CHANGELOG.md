@@ -5,6 +5,22 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.41] — 2026-11-05
+
+### Fixed
+
+- **The gun bobbing in steps as you walk at 40 Hz.** The gun's offset and
+  angles went to the client only when its animation frame changed, which
+  at 10 Hz is nearly every frame but at 40 Hz only every fourth tick: four
+  ticks of bob at once, then none. They now go whenever they change.
+- **Small movements rounded away at 40 Hz.** The view's height and bob,
+  the kick, the gun's offset and angles went in quarters, and things'
+  angles in 1.4 degree steps; at 40 Hz they change by less than that a
+  tick, and went in uneven steps. This engine's server now sends its own
+  client (`q2ext 3`) them in 256ths, and angles as shorts, when it says so
+  (`fine` in the tick rate's configstring). Other clients, and demos, get
+  them as before.
+
 ## [1.3.40] — 2026-11-05
 
 ### Changed
