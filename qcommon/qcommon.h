@@ -106,6 +106,8 @@ void MSG_WriteAngle16 (sizebuf_t *sb, float f);
 void MSG_WriteDeltaUsercmd (sizebuf_t *sb, struct usercmd_s *from, struct usercmd_s *cmd);
 void MSG_WriteDeltaEntity (struct entity_state_s *from, struct entity_state_s *to, sizebuf_t *msg, qboolean force, qboolean newentity);
 void MSG_WriteDeltaEntityScale (struct entity_state_s *from, struct entity_state_s *to, float fromscale, float toscale, sizebuf_t *msg, qboolean force, qboolean newentity);
+void MSG_WriteDeltaEntityFine (struct entity_state_s *from, struct entity_state_s *to, float fromscale, float toscale, sizebuf_t *msg, qboolean force, qboolean newentity, qboolean fine);
+void MSG_WriteSmall (sizebuf_t *sb, float f, qboolean fine);	// char quarters, or fine short 256ths
 void MSG_WriteDir (sizebuf_t *sb, vec3_t vector);
 
 
@@ -123,6 +125,7 @@ float	MSG_ReadCoord (sizebuf_t *sb);
 void	MSG_ReadPos (sizebuf_t *sb, vec3_t pos);
 float	MSG_ReadAngle (sizebuf_t *sb);
 float	MSG_ReadAngle16 (sizebuf_t *sb);
+float	MSG_ReadSmall (sizebuf_t *sb, qboolean fine);
 void	MSG_ReadDeltaUsercmd (sizebuf_t *sb, struct usercmd_s *from, struct usercmd_s *cmd);
 
 void	MSG_ReadDir (sizebuf_t *sb, vec3_t vector);

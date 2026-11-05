@@ -263,9 +263,13 @@ void SV_SpawnServer (char *server, char *spawnpoint, server_state_t serverstate,
 	}
 	sv.frametime = 1000 / sv.tickrate;
 	sv.tickratio = sv.tickrate / 10;
-	if (sv.tickrate != 10)
+	// a level says its tick, and that it sends the clients that ask for it
+	// (q2ext 3) the player state's small values and the entities' angles
+	// finely: at 40 Hz they change by less a tick than a byte can tell
+	sv.fine = (serverstate == ss_game);
+	if (sv.tickrate != 10 || sv.fine)
 		Com_sprintf (sv.configstrings[CS_TICK_RATE], sizeof(sv.configstrings[CS_TICK_RATE]),
-			"%i", sv.tickrate);
+			sv.fine ? "%i fine" : "%i", sv.tickrate);
 	
 	strcpy (sv.name, server);
 	strcpy (sv.configstrings[CS_NAME], server);

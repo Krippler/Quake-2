@@ -381,7 +381,7 @@ static void RR_WriteFrame (rrframe_t *f)
 	memset (&to, 0, sizeof(to));
 	from.ps = rr.outps;
 	to.ps = f->ps;
-	SV_WritePlayerstateToClient (rr.outframe ? &from : NULL, &to, &msg);
+	SV_WritePlayerstateToClient (rr.outframe ? &from : NULL, &to, &msg, false);
 
 	if (!rr.outframe)
 		memset (rr.outhave, 0, MAX_EDICTS);

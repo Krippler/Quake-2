@@ -374,6 +374,25 @@ void MSG_WriteAngle16 (sizebuf_t *sb, float f)
 	MSG_WriteShort (sb, ANGLE2SHORT(f));
 }
 
+/*
+A small value of the player state (view offset, kick, gun offset and
+angles): 1997's char of quarters, or, fine, a short of 256ths. At the
+re-release's 40 Hz the gun's bob and the view's move a quarter as far a
+tick as at 10, under a quarter of a unit or degree, and went in steps.
+*/
+void MSG_WriteSmall (sizebuf_t *sb, float f, qboolean fine)
+{
+	int		v;
+
+	if (!fine)
+	{
+		MSG_WriteChar (sb, f*4);
+		return;
+	}
+	v = (int)(f*256 + (f < 0 ? -0.5f : 0.5f));
+	MSG_WriteShort (sb, v > 32767 ? 32767 : v < -32768 ? -32768 : v);
+}
+
 
 void MSG_WriteDeltaUsercmd (sizebuf_t *buf, usercmd_t *from, usercmd_t *cmd)
 {
@@ -486,6 +505,21 @@ changed goes as U_SCALE, a short of 256ths.
 ==================
 */
 void MSG_WriteDeltaEntityScale (entity_state_t *from, entity_state_t *to, float fromscale, float toscale, sizebuf_t *msg, qboolean force, qboolean newentity)
+{
+	MSG_WriteDeltaEntityFine (from, to, fromscale, toscale, msg, force, newentity, false);
+}
+
+/*
+==================
+MSG_WriteDeltaEntityFine
+
+As MSG_WriteDeltaEntityScale, with the angles as shorts if fine: this
+engine's clients of a server that says so ("fine" in CS_TICK_RATE). At
+the re-release's 40 Hz a monster turns a quarter as far a tick as at 10,
+less than a byte's 1.4 degrees, and turned in jerks.
+==================
+*/
+void MSG_WriteDeltaEntityFine (entity_state_t *from, entity_state_t *to, float fromscale, float toscale, sizebuf_t *msg, qboolean force, qboolean newentity, qboolean fine)
 {
 	int		bits;
 
@@ -679,11 +713,11 @@ void MSG_WriteDeltaEntityScale (entity_state_t *from, entity_state_t *to, float 
 		MSG_WriteCoord (msg, to->origin[2]);
 
 	if (bits & U_ANGLE1)
-		MSG_WriteAngle(msg, to->angles[0]);
+		fine ? MSG_WriteAngle16(msg, to->angles[0]) : MSG_WriteAngle(msg, to->angles[0]);
 	if (bits & U_ANGLE2)
-		MSG_WriteAngle(msg, to->angles[1]);
+		fine ? MSG_WriteAngle16(msg, to->angles[1]) : MSG_WriteAngle(msg, to->angles[1]);
 	if (bits & U_ANGLE3)
-		MSG_WriteAngle(msg, to->angles[2]);
+		fine ? MSG_WriteAngle16(msg, to->angles[2]) : MSG_WriteAngle(msg, to->angles[2]);
 
 	if (bits & U_OLDORIGIN)
 	{
@@ -858,6 +892,11 @@ float MSG_ReadAngle (sizebuf_t *msg_read)
 float MSG_ReadAngle16 (sizebuf_t *msg_read)
 {
 	return SHORT2ANGLE(MSG_ReadShort(msg_read));
+}
+
+float MSG_ReadSmall (sizebuf_t *msg_read, qboolean fine)
+{
+	return fine ? MSG_ReadShort(msg_read) * (1.0f/256) : MSG_ReadChar(msg_read) * 0.25f;
 }
 
 void MSG_ReadDeltaUsercmd (sizebuf_t *msg_read, usercmd_t *from, usercmd_t *move)

@@ -69,6 +69,7 @@ typedef struct
 	// (sv_tickrate: 10, 20 or 40, for a game that can and a level, not a
 	// demo), the milliseconds of each, and how many to one of 1997's
 	int			tickrate, frametime, tickratio;
+	qboolean	fine;		// sends q2ext 3 clients finer values (CS_TICK_RATE "fine")
 } server_t;
 
 #define EDICT_NUM(n) ((edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))
@@ -121,6 +122,8 @@ typedef struct client_s
 	int				messagelevel;		// for filtering printed messages
 	qboolean		ext_scale;			// its userinfo's "q2ext": it reads U_SCALE and svc_fog
 	qboolean		ext_tick;			// "q2ext" 2: it takes a frame each tick, not each 100 ms
+	qboolean		ext_fine;			// "q2ext" 3: it reads the player state's small values
+										// and entities' angles finely (MSG_WriteSmall)
 
 	// The datagram is written to by sound calls, prints, temp ents, etc.
 	// It can be harmlessly overflowed.
@@ -279,7 +282,7 @@ void SV_BroadcastCommand (char *fmt, ...);
 // sv_user.c
 //
 void SV_Nextserver (void);
-void SV_WritePlayerstateToClient (client_frame_t *from, client_frame_t *to, sizebuf_t *msg);
+void SV_WritePlayerstateToClient (client_frame_t *from, client_frame_t *to, sizebuf_t *msg, qboolean fine);
 void SV_ExecuteClientMessage (client_t *cl);
 
 //

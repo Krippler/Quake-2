@@ -179,6 +179,7 @@ typedef struct
 	// re-release's 25; CL_FrameTime. The gun's 10 Hz animation's like a
 	// model's (centity_t)
 	int			frametime;
+	qboolean	fine;		// the server sends the small values finely (CS_TICK_RATE "fine")
 	int			gun_frame, gun_oldframe, gun_anim_start;
 	int			gun_anim_changed, gun_anim_len;
 

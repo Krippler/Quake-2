@@ -542,6 +542,9 @@ void CL_ParseConfigString (void)
 		int		rate = atoi (cl.configstrings[CS_TICK_RATE]);
 
 		cl.frametime = rate > 10 && rate <= 1000 ? 1000 / rate : 100;
+		// and that the server sends this client (q2ext 3) the player
+		// state's small values and the entities' angles finely
+		cl.fine = strstr (cl.configstrings[CS_TICK_RATE], "fine") != NULL;
 	}
 	else if (i == CS_CDTRACK)
 	{
