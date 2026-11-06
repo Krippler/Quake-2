@@ -164,6 +164,10 @@ start over.
 and VNC in bursts, and fast turns judder without it. It costs about a
 frame's delay; `m_filter 0` at the console turns it off, and that is kept.
 
+**Stairs** are eased over 70 ms a step, up or down: `cl_stepsmooth` at the
+console sets that in milliseconds (higher is smoother, 0 none), and it is
+kept.
+
 ### Game controllers
 
 Any pad the browser sees as a standard gamepad: an Xbox or PlayStation pad, a

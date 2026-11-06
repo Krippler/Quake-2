@@ -5,6 +5,16 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.46] — 2026-11-06
+
+### Changed
+
+- **Stairs smoothed a little less, and alike up and down.** A step is now
+  eased over 70 ms (it was 100), and on the re-release's maps a step up
+  is taken by the same rule as a step down (4 to 20 units, steeper than a
+  slope), so both feel the same. `cl_stepsmooth` sets the time in
+  milliseconds, 0 for none, and is kept.
+
 ## [1.3.45] — 2026-11-06
 
 ### Fixed
