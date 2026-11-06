@@ -5,6 +5,21 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.47] — 2026-11-06
+
+### Fixed
+
+- **Sticking to slanted walls**, the Reckoning's rock faces most of all
+  (xswamp's ledges). The player's position is rounded to the network's
+  eighths of a unit, and could land against a slanted face to within a
+  ten-thousandth; the test of whether a spot is clear and the trace of a
+  move from it then rounded that differently, one outside the wall and
+  the other inside, and every move from there was blocked. A spot must now
+  be clear of every face by a sixty-fourth, or, in a tight wedge where no
+  eighth is, touching as before. Runs along walls that stopped dead, in
+  a test of thousands: xswamp 12 to 1, base1 9 to 3, q2dm1 4 to 2 (the
+  re-release's movement); 20 to 1 and 10 to 3 with 1997's.
+
 ## [1.3.46] — 2026-11-06
 
 ### Changed
