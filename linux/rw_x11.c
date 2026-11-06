@@ -99,6 +99,9 @@ static int				x_error_seen;
 static qboolean			x_resize_warned;
 
 static unsigned int		x_8to32[256];		// the palette, as the server's pixels
+static unsigned int		x_8to32dim[256];	// and dimmed, for sw_scanlines
+static unsigned short	x_8to16dim[256];
+#define	SCANLINE_DIM		0.65f
 static unsigned short	x_8to16[256];
 
 struct
@@ -503,22 +506,41 @@ the same row of the frame as the one above it is a copy of it.
 */
 static void X_Present (void)
 {
-	int		x, y, sy, lastsy, bytes;
+	int		x, y, sy, lastsy, bytes, period;
 	byte	*src, *row, *prev;
 	XImage	*out = x_image;
 	qboolean	same = (x_outw == vid.width && x_outh == vid.height);
+	qboolean	dim, lastdim;
+	unsigned int	*t32;
+	unsigned short	*t16;
 
 	bytes = out->bits_per_pixel / 8;
 	lastsy = -1;
+	lastdim = false;
 	prev = NULL;
+
+	// sw_scanlines: the screen as a television of the day drew it, as the
+	// re-release's scanlines option does: every line of a 240-line
+	// picture with a darker gap under it. In the window's own rows,
+	// height / 240 of them a line, the lower half of each dimmed; never
+	// finer than one row lit and one dim. Not on an 8-bit display, whose
+	// palette has no darker copy
+	period = 0;
+	if (sw_scanlines->value && bytes > 1)
+	{
+		period = (x_outh + 120) / 240;
+		if (period < 2)
+			period = 2;
+	}
 
 	for (y = 0 ; y < x_outh ; y++)
 	{
 		sy = same ? y : y * vid.height / x_outh;
 		row = (byte *)out->data + (x_outy + y) * out->bytes_per_line
 			+ x_outx * bytes;
+		dim = period && (y % period) * 2 >= period;
 
-		if (sy == lastsy)
+		if (sy == lastsy && dim == lastdim)
 		{
 			memcpy (row, prev, x_outw * bytes);
 			prev = row;
@@ -529,16 +551,18 @@ static void X_Present (void)
 		switch (bytes)
 		{
 		case 4:
+			t32 = dim ? x_8to32dim : x_8to32;
 			if (same)
 				for (x = 0 ; x < x_outw ; x++)
-					((unsigned int *)row)[x] = x_8to32[src[x]];
+					((unsigned int *)row)[x] = t32[src[x]];
 			else
 				for (x = 0 ; x < x_outw ; x++)
-					((unsigned int *)row)[x] = x_8to32[src[x_outcols[x]]];
+					((unsigned int *)row)[x] = t32[src[x_outcols[x]]];
 			break;
 		case 2:
+			t16 = dim ? x_8to16dim : x_8to16;
 			for (x = 0 ; x < x_outw ; x++)
-				((unsigned short *)row)[x] = x_8to16[src[same ? x : x_outcols[x]]];
+				((unsigned short *)row)[x] = t16[src[same ? x : x_outcols[x]]];
 			break;
 		default:
 			for (x = 0 ; x < x_outw ; x++)
@@ -547,6 +571,7 @@ static void X_Present (void)
 		}
 		prev = row;
 		lastsy = sy;
+		lastdim = dim;
 	}
 }
 
@@ -1522,6 +1547,10 @@ void SWimp_SetPalette( const unsigned char *palette )
 
 		x_8to32[i] = p;
 		x_8to16[i] = (unsigned short)p;
+		p = X_PixelFor ((int)(palette[i*4] * SCANLINE_DIM + 0.5f),
+			(int)(palette[i*4+1] * SCANLINE_DIM + 0.5f), (int)(palette[i*4+2] * SCANLINE_DIM + 0.5f));
+		x_8to32dim[i] = p;
+		x_8to16dim[i] = (unsigned short)p;
 	}
 
 	if (x_visinfo->class == PseudoColor && x_visinfo->depth == 8)

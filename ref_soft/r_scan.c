@@ -134,8 +134,7 @@ void D_DrawTurbulent8Span (void)
 		y = (r_turb_pdest - (unsigned char *)d_viewbuffer) / r_screenwidth;
 		do
 		{
-			ks = d_texkernel[y & 1][x & 1][0];
-			kt = d_texkernel[y & 1][x & 1][1];
+			R_FilterOffset (r_turb_s, r_turb_t, x, y, &ks, &kt);
 			sturb = ((r_turb_s + ks + r_turb_turb[(r_turb_t>>16)&(CYCLE-1)])>>16)&r_turb_smask;
 			tturb = ((r_turb_t + kt + r_turb_turb[(r_turb_s>>16)&(CYCLE-1)])>>16)&r_turb_tmask;
 			*r_turb_pdest++ = *(r_turb_pbase + tturb*r_turb_width + sturb);
@@ -450,6 +449,19 @@ const int d_texkernel[2][2][2] = {
 	{ {       0,  0x4000 }, { -0x8000, -0x4000 } }
 };
 
+// sw_texfilter 2's thresholds, a 4x4 Bayer matrix of sixteenths of a texel,
+// each in the middle of its sixteenth
+#define B(n)	((n) * 0x1000 + 0x800)
+const int d_texdither[4][4] = {
+	{ B(0),  B(8),  B(2),  B(10) },
+	{ B(12), B(4),  B(14), B(6) },
+	{ B(3),  B(11), B(1),  B(9) },
+	{ B(15), B(7),  B(13), B(5) }
+};
+#undef B
+
+int		r_texfilter;
+
 static void D_DrawSpans16Filtered (espan_t *pspan)
 {
 	int				count, spancount, ss, tt;
@@ -457,7 +469,6 @@ static void D_DrawSpans16Filtered (espan_t *pspan)
 	fixed16_t		s, t, snext, tnext, sstep, tstep;
 	float			sdivz, tdivz, zi, z, du, dv, spancountminus1;
 	float			sdivz8stepu, tdivz8stepu, zi8stepu;
-	const int		(*k)[2];
 	qboolean		magnified;
 
 	sstep = 0;
@@ -473,7 +484,6 @@ static void D_DrawSpans16Filtered (espan_t *pspan)
 	{
 		prow = (unsigned char *)d_viewbuffer + r_screenwidth * pspan->v;
 		pdest = prow + pspan->u;
-		k = d_texkernel[pspan->v & 1];
 
 		count = pspan->count;
 
@@ -569,8 +579,9 @@ static void D_DrawSpans16Filtered (espan_t *pspan)
 			{
 				do
 				{
-					ss = s + k[(pdest - prow) & 1][0];
-					tt = t + k[(pdest - prow) & 1][1];
+					R_FilterOffset (s, t, pdest - prow, pspan->v, &ss, &tt);
+					ss += s;
+					tt += t;
 					if (ss < 0)
 						ss = 0;
 					else if (ss > bbextents)

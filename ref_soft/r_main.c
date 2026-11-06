@@ -120,6 +120,7 @@ cvar_t	*sw_maxsurfs;
 cvar_t  *sw_mode;
 cvar_t  *scr_scale;
 cvar_t	*sw_texfilter;
+cvar_t	*sw_scanlines;
 cvar_t	*sw_reportedgeout;
 cvar_t	*sw_reportsurfout;
 cvar_t  *sw_stipplealpha;
@@ -256,6 +257,7 @@ void R_Register (void)
 	sw_fog = ri.Cvar_Get ("sw_fog", "1", CVAR_ARCHIVE);
 	sw_md5 = ri.Cvar_Get ("sw_md5", "1", CVAR_ARCHIVE);	// from the next vid_restart
 	sw_texfilter = ri.Cvar_Get ("sw_texfilter", "0", CVAR_ARCHIVE);
+	sw_scanlines = ri.Cvar_Get ("sw_scanlines", "0", CVAR_ARCHIVE);
 	sw_drawflat = ri.Cvar_Get ("sw_drawflat", "0", 0);
 	sw_draworder = ri.Cvar_Get ("sw_draworder", "0", 0);
 	// How many edges and surfaces a frame may hold. Run out and faces are
@@ -1020,6 +1022,9 @@ void R_RenderFrame (refdef_t *fd)
 {
 	r_newrefdef = *fd;
 
+	// sw_texfilter: 0 off, 1 the 2x2 kernel, 2 the N64's three-point
+	r_texfilter = sw_texfilter->value >= 2 ? 2 : sw_texfilter->value ? 1 : 0;
+
 	// the client's rectangle is in its units (r_draw.c), and a frame laid
 	// out before the scale changed may run off the screen
 	R_ScaleRect (&r_newrefdef.x, &r_newrefdef.y, &r_newrefdef.width, &r_newrefdef.height);
@@ -1256,6 +1261,7 @@ void R_CinematicSetPalette( const unsigned char *palette )
 		R_GammaCorrectAndSetPalette( ( const unsigned char * ) d_8to24table );
 	}
 }
+
 
 /*
 ================

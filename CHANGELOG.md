@@ -5,6 +5,24 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.49] — 2026-11-06
+
+### Added
+
+- **An N64 texture filter**, as the re-release's. "texture filter" in the
+  video menu is now off, smooth (as before) or n64 (`sw_texfilter 2`): the
+  Nintendo 64's three-point filter, which blends the three texels nearest
+  a point rather than four, softer and with its slight diamond grain. As
+  this renderer draws in 256 colours, the blend is a 4x4 ordered dither of
+  the screen, each of the three texels taken as often as its weight.
+  Walls, water, sky, models, the gun and sprites, close up.
+
+- **Scanlines**, as the re-release's: "scanlines" in the video menu
+  (`sw_scanlines 1`) draws the screen as a television of the day did,
+  every line of a 240-line picture with a darker gap under it, sized to
+  the window, so they stay lines at any resolution. Over everything:
+  the game, the HUD, menus and cinematics.
+
 ## [1.3.48] — 2026-11-06
 
 ### Changed

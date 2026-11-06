@@ -827,7 +827,7 @@ screen's 2x2 kernel moves this pixel's to, kept inside the skin
 */
 static qboolean	alias_filter;
 static byte		*alias_prow;		// the span's row of the screen
-static const int	(*alias_k)[2];	// and its row of the kernel
+static int		alias_row;			// and which row it is
 
 static qboolean R_PolysetFilterOn (void)
 {
@@ -840,15 +840,17 @@ static void R_PolysetFilterRow (byte *lpdest)
 	int		row = (lpdest - (byte *)d_viewbuffer) / r_screenwidth;
 
 	alias_prow = (byte *)d_viewbuffer + row * r_screenwidth;
-	alias_k = d_texkernel[row & 1];
+	alias_row = row;
 }
 
 static byte *R_PolysetFilterTexel (byte *lptex, int lsfrac, int ltfrac, byte *lpdest)
 {
 	byte	*p = lptex;
-	int		x = (lpdest - alias_prow) & 1;
-	int		s = lsfrac + alias_k[x][0];
-	int		t = ltfrac + alias_k[x][1];
+	int		s, t;
+
+	R_FilterOffset (lsfrac, ltfrac, lpdest - alias_prow, alias_row, &s, &t);
+	s += lsfrac;
+	t += ltfrac;
 
 	if (s >= 0x10000)
 		p++;

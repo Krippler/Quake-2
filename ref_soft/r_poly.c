@@ -59,9 +59,17 @@ static void R_DrawPoly( qboolean iswater );
 */
 static qboolean		spanlet_filter;
 static byte			*spanlet_prow;		// the span's row of the screen
-static const int	(*spanlet_k)[2];	// and its row of the kernel
+static int			spanlet_v;			// and which row it is
 
-#define SPANLET_K(pd, i)	(spanlet_filter ? spanlet_k[((pd) - spanlet_prow) & 1][i] : 0)
+static int R_SpanletK (byte *pd, int i)
+{
+	int		ds, dt;
+
+	R_FilterOffset (s_spanletvars.s, s_spanletvars.t, pd - spanlet_prow, spanlet_v, &ds, &dt);
+	return i ? dt : ds;
+}
+
+#define SPANLET_K(pd, i)	(spanlet_filter ? R_SpanletK (pd, i) : 0)
 
 static unsigned R_SpanletTexel (byte *pd)
 {
@@ -69,8 +77,11 @@ static unsigned R_SpanletTexel (byte *pd)
 
 	if (spanlet_filter)
 	{
-		s += spanlet_k[(pd - spanlet_prow) & 1][0];
-		t += spanlet_k[(pd - spanlet_prow) & 1][1];
+		int		ds, dt;
+
+		R_FilterOffset (s, t, pd - spanlet_prow, spanlet_v, &ds, &dt);
+		s += ds;
+		t += dt;
 		if (s < 0)
 			s = 0;
 		else if (s > bbextents)
@@ -620,7 +631,7 @@ void R_PolygonDrawSpans(espan_t *pspan, qboolean iswater )
 		s_spanletvars.u       = pspan->u;
 		s_spanletvars.v       = pspan->v;
 		spanlet_prow = (byte *)d_viewbuffer + d_scantable[pspan->v];
-		spanlet_k = d_texkernel[pspan->v & 1];
+		spanlet_v = pspan->v;
 
 		count = pspan->count;
 

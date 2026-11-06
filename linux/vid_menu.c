@@ -29,6 +29,7 @@ static cvar_t *sw_stipplealpha;
 static cvar_t *sw_colorlight;
 static cvar_t *cl_shadowlights;
 static cvar_t *sw_texfilter;
+static cvar_t *sw_scanlines;
 static cvar_t *_windowed_mouse;
 static cvar_t *vid_resizescreen;
 
@@ -54,6 +55,7 @@ static menulist_s  		s_stipple_box;
 static menulist_s		s_colorlight_box;
 static menulist_s		s_shadowlights_box;
 static menulist_s		s_texfilter_box;
+static menulist_s		s_scanlines_box;
 static menulist_s  		s_windowed_mouse;
 static menuaction_s		s_apply_action;
 static menuaction_s		s_defaults_action;
@@ -78,6 +80,11 @@ static void ColorLightCallback( void *s )
 static void ShadowLightsCallback( void *s )
 {
 	Cvar_SetValue( "cl_shadowlights", ( ( menulist_s * ) s )->curvalue );
+}
+
+static void ScanlinesCallback( void *s )
+{
+	Cvar_SetValue( "sw_scanlines", ( ( menulist_s * ) s )->curvalue );
 }
 
 static void TexFilterCallback( void *s )
@@ -120,6 +127,7 @@ static void ApplyChanges( void *unused )
 	Cvar_SetValue( "sw_colorlight", s_colorlight_values[s_colorlight_box.curvalue] );
 	Cvar_SetValue( "cl_shadowlights", s_shadowlights_box.curvalue );
 	Cvar_SetValue( "sw_texfilter", s_texfilter_box.curvalue );
+	Cvar_SetValue( "sw_scanlines", s_scanlines_box.curvalue );
 
 	mode = s_mode_for_item[s_mode_list.curvalue];
 	if ( mode != (int)sw_mode->value )
@@ -200,6 +208,15 @@ void VID_MenuInit( void )
 		"yes",
 		0
 	};
+	// off; smoothed much as bilinear; the Nintendo 64's three-point, as the
+	// re-release's N64 filter
+	static const char *texfilter_names[] =
+	{
+		"off",
+		"smooth",
+		"n64",
+		0
+	};
 	static const char *colorlight_names[] =
 	{
 		"off",
@@ -215,6 +232,8 @@ void VID_MenuInit( void )
 		cl_shadowlights = Cvar_Get( "cl_shadowlights", "1", CVAR_ARCHIVE );
 	if ( !sw_texfilter )
 		sw_texfilter = Cvar_Get( "sw_texfilter", "0", CVAR_ARCHIVE );
+	if ( !sw_scanlines )
+		sw_scanlines = Cvar_Get( "sw_scanlines", "0", CVAR_ARCHIVE );
 	if ( !sw_mode )
 		sw_mode = Cvar_Get( "sw_mode", "0", 0 );
 	if ( !sw_stipplealpha )
@@ -300,8 +319,18 @@ void VID_MenuInit( void )
 	s_texfilter_box.generic.y	= y;
 	s_texfilter_box.generic.name	= "texture filter";
 	s_texfilter_box.generic.callback = TexFilterCallback;
-	s_texfilter_box.itemnames = yesno_names;
-	s_texfilter_box.curvalue = sw_texfilter->value != 0;
+	s_texfilter_box.itemnames = texfilter_names;
+	s_texfilter_box.curvalue = sw_texfilter->value >= 2 ? 2 : sw_texfilter->value != 0;
+	y += 10;
+
+	// a television's lines over the screen, as the re-release's scanlines
+	s_scanlines_box.generic.type = MTYPE_SPINCONTROL;
+	s_scanlines_box.generic.x	= 0;
+	s_scanlines_box.generic.y	= y;
+	s_scanlines_box.generic.name	= "scanlines";
+	s_scanlines_box.generic.callback = ScanlinesCallback;
+	s_scanlines_box.itemnames = yesno_names;
+	s_scanlines_box.curvalue = sw_scanlines->value != 0;
 	y += 10;
 
 	s_fs_box.generic.type = MTYPE_SPINCONTROL;
@@ -340,6 +369,7 @@ void VID_MenuInit( void )
 	Menu_AddItem( &s_software_menu, ( void * ) &s_colorlight_box );
 	Menu_AddItem( &s_software_menu, ( void * ) &s_shadowlights_box );
 	Menu_AddItem( &s_software_menu, ( void * ) &s_texfilter_box );
+	Menu_AddItem( &s_software_menu, ( void * ) &s_scanlines_box );
 	if ( !vid_resizescreen->value )
 	{
 		Menu_AddItem( &s_software_menu, ( void * ) &s_fs_box );
