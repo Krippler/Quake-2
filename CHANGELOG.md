@@ -5,6 +5,18 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.43] — 2026-11-06
+
+### Fixed
+
+- **More light fixtures follow the flicker round them** on the re-release's
+  maps. 1.3.42 made a fixture follow a light entity just in front of it,
+  which few of its lamps are. Now a lamp counts within 32 units of the
+  fixture's edge, not only over its face; and a fixture with no lamp by it
+  takes the share of its light that the faces touching it get from a
+  flickering or switched style (an eighth or more), so it dims as much as
+  they do. base1 has 11 such fixtures, base3 27, jail1 26, city1 45.
+
 ## [1.3.42] — 2026-11-05
 
 ### Added
