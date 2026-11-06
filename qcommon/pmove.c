@@ -1054,18 +1054,33 @@ void PM_DeadMove (void)
 }
 
 
+#define	GOOD_MARGIN	(1.0f/64)
+static float	pm_margin = GOOD_MARGIN;	// 0 for the snaps' second try
+
 qboolean	PM_GoodPosition (void)
 {
 	trace_t	trace;
-	vec3_t	origin, end;
+	vec3_t	origin, end, mins, maxs;
 	int		i;
 
 	if (pm->s.pm_type == PM_SPECTATOR)
 		return true;
 
+	// a box a hair bigger: a position must be clear of every face by
+	// more than the rounding of a trace. Snapped to the eighths, a box
+	// can sit against a slanted face to within a ten-thousandth, which
+	// this test once took to be outside it and a trace moving off took to
+	// be inside: allsolid every way, and the player stuck to the wall for
+	// good (the re-release's rock faces, xswamp's ledges). Where no eighth
+	// is that clear, a tight wedge, the snaps try again touching
+	// allowed, as before, rather than give up the move
 	for (i=0 ; i<3 ; i++)
+	{
 		origin[i] = end[i] = pm->s.origin[i]*0.125;
-	trace = pm->trace (origin, pm->mins, pm->maxs, end);
+		mins[i] = pm->mins[i] - pm_margin;
+		maxs[i] = pm->maxs[i] + pm_margin;
+	}
+	trace = pm->trace (origin, mins, maxs, end);
 
 	return !trace.allsolid;
 }
@@ -1102,18 +1117,27 @@ void PM_SnapPosition (void)
 	}
 	VectorCopy (pm->s.origin, base);
 
-	// try all combinations
-	for (j=0 ; j<8 ; j++)
+	// try all combinations, clear of the faces, then touching them
+	for (pm_margin = GOOD_MARGIN ; ; pm_margin = 0)
 	{
-		bits = jitterbits[j];
-		VectorCopy (base, pm->s.origin);
-		for (i=0 ; i<3 ; i++)
-			if (bits & (1<<i) )
-				pm->s.origin[i] += sign[i];
+		for (j=0 ; j<8 ; j++)
+		{
+			bits = jitterbits[j];
+			VectorCopy (base, pm->s.origin);
+			for (i=0 ; i<3 ; i++)
+				if (bits & (1<<i) )
+					pm->s.origin[i] += sign[i];
 
-		if (PM_GoodPosition ())
-			return;
+			if (PM_GoodPosition ())
+			{
+				pm_margin = GOOD_MARGIN;
+				return;
+			}
+		}
+		if (!pm_margin)
+			break;
 	}
+	pm_margin = GOOD_MARGIN;
 
 	// go back to the last position
 	VectorCopy (pml.previous_origin, pm->s.origin);
@@ -2234,16 +2258,26 @@ static void PM_SnapPosition_RR (void)
 	}
 	VectorCopy (pm->s.origin, base);
 
-	for (j=0 ; j<8 ; j++)
+	// clear of the faces, then touching them
+	for (pm_margin = GOOD_MARGIN ; ; pm_margin = 0)
 	{
-		bits = jitterbits[j];
-		VectorCopy (base, pm->s.origin);
-		for (i=0 ; i<3 ; i++)
-			if (bits & (1<<i))
-				pm->s.origin[i] += sign[i];
-		if (PM_GoodPosition ())
-			return;
+		for (j=0 ; j<8 ; j++)
+		{
+			bits = jitterbits[j];
+			VectorCopy (base, pm->s.origin);
+			for (i=0 ; i<3 ; i++)
+				if (bits & (1<<i))
+					pm->s.origin[i] += sign[i];
+			if (PM_GoodPosition ())
+			{
+				pm_margin = GOOD_MARGIN;
+				return;
+			}
+		}
+		if (!pm_margin)
+			break;
 	}
+	pm_margin = GOOD_MARGIN;
 
 	VectorCopy (pml.origin, fixed);
 	if (PM_FixStuckObject (fixed))
