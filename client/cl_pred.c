@@ -263,13 +263,37 @@ void CL_PredictMovement (void)
 		VectorCopy (pm.s.origin, cl.predicted_origins[frame]);
 	}
 
+	// smooth out stairs: a step up of 8 to 20 units on the ground, as in
+	// 1997, and with the re-release's movement, which takes the player
+	// down them on the ground, a step down of 4 to 20 too, if steeper than
+	// a slope, so walking down a ramp is not one.
+	// A step before the last is done adds to what is left of it, so
+	// running up or down a flight is smooth, not a jolt each step
 	oldframe = (ack-2) & (CMD_BACKUP-1);
 	oldz = cl.predicted_origins[oldframe][2];
 	step = pm.s.origin[2] - oldz;
-	if (step > 63 && step < 160 && (pm.s.pm_flags & PMF_ON_GROUND) )
+	if (((step > 63 && step < 160) || (pm_rerelease && step < -31 && step > -160))
+		&& (pm.s.pm_flags & PMF_ON_GROUND))
 	{
-		cl.predicted_step = step * 0.125;
-		cl.predicted_step_time = cls.realtime - cls.frametime * 500;
+		float	dx, dy, prev = 0;
+		unsigned	delta;
+
+		dx = pm.s.origin[0] - cl.predicted_origins[oldframe][0];
+		dy = pm.s.origin[1] - cl.predicted_origins[oldframe][1];
+		// down only steeper than the steepest slope that can be walked
+		// (a 0.7 normal: 1.02 up a unit across)
+		if (step > 0 || step*step > 1.21f * (dx*dx + dy*dy))
+		{
+			delta = cls.realtime - cl.predicted_step_time;
+			if (delta < 100)
+				prev = cl.predicted_step * (100 - delta) * 0.01;
+			cl.predicted_step = prev + step * 0.125;
+			if (cl.predicted_step > 32)
+				cl.predicted_step = 32;
+			else if (cl.predicted_step < -32)
+				cl.predicted_step = -32;
+			cl.predicted_step_time = cls.realtime - cls.frametime * 500;
+		}
 	}
 
 
