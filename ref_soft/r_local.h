@@ -827,9 +827,63 @@ void	R_CinematicSetPalette( const unsigned char *palette );
 extern unsigned d_8to24table[256]; // base
 extern cvar_t	*sw_colorlight;
 extern cvar_t	*sw_fog;		// the re-release's fog (r_fog.c)
+extern cvar_t	*sw_scanlines;	// scanlines over the screen (rw_x11.c, X_Present)
 extern cvar_t	*sw_md5;		// the re-release's md5 models (r_md5.c)
 extern cvar_t	*sw_texfilter;	// textures smoothed close up (r_scan.c)
 extern const int	d_texkernel[2][2][2];
+extern const int	d_texdither[4][4];
+extern int			r_texfilter;	// sw_texfilter this frame: 0, 1, 2
+
+/*
+R_FilterOffset
+
+What sw_texfilter adds to a pixel's texture coordinates (16.16), where the
+texture is magnified, at screen pixel x, y:
+
+1  the 2x2 kernel (D_DrawSpans16Filtered), much as bilinear filtering
+2  the Nintendo 64's three-point filter, as the re-release's N64 option:
+   of the four texels round the point, the three nearest, each taken as
+   often as its weight, by a 4x4 ordered dither of the screen
+*/
+static inline void R_FilterOffset (int s, int t, int x, int y, int *ds, int *dt)
+{
+	int		bs, bt, fs, ft, r, ts, tt;
+
+	if (r_texfilter != 2)
+	{
+		*ds = d_texkernel[y & 1][x & 1][0];
+		*dt = d_texkernel[y & 1][x & 1][1];
+		return;
+	}
+
+	// the texel centre at or before the point, and how far past it
+	bs = (s - 0x8000) & ~0xffff;
+	bt = (t - 0x8000) & ~0xffff;
+	fs = s - 0x8000 - bs;
+	ft = t - 0x8000 - bt;
+	r = d_texdither[y & 3][x & 3];
+
+	if (fs + ft < 0x10000)
+	{	// the lower triangle: (1,0) fs, (0,1) ft, (0,0) the rest
+		if (r < fs)
+			ts = 1, tt = 0;
+		else if (r < fs + ft)
+			ts = 0, tt = 1;
+		else
+			ts = tt = 0;
+	}
+	else
+	{	// the upper: (0,1) 1-fs, (1,0) 1-ft, (1,1) the rest
+		if (r < 0x10000 - fs)
+			ts = 0, tt = 1;
+		else if (r < 0x20000 - fs - ft)
+			ts = 1, tt = 0;
+		else
+			ts = tt = 1;
+	}
+	*ds = bs + (ts << 16) + 0x8000 - s;
+	*dt = bt + (tt << 16) + 0x8000 - t;
+}
 void R_ApplyFog (void);
 void R_DrawFlares (void);
 void	R_InitColorLight (void);
