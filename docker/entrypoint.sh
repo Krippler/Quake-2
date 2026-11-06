@@ -511,6 +511,19 @@ else
     log "  New Game in the menu wants the full game's base1."
 fi
 
+# The 1997 mission packs are their own paks, in their own directories; the
+# re-release's remakes of them come from its pak, and are in the menu either
+# way. Said, because otherwise the originals are simply not in the menu.
+for pack in "xatrix:The Reckoning" "rogue:Ground Zero"; do
+    dir=${pack%%:*}
+    name=${pack#*:}
+    case " $FOUND_GAMES " in
+        *" $dir "*) log "  $dir: $name (1997)" ;;
+        *) log "  $dir: none -- $name (1997) is in the game menu with its own"
+           log "    $dir/pak0.pak in the mount, beside baseq2 (or beside the paks)" ;;
+    esac
+done
+
 #
 # Which games can actually run. The game code is a library, and this image
 # carries four: the single-player game, Threewave CTF, and the two mission

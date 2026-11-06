@@ -5,6 +5,16 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.48] — 2026-11-06
+
+### Changed
+
+- **The container says when the 1997 mission packs are missing.** The
+  game menu lists The Reckoning and Ground Zero as they were in 1997 only
+  with their own paks, `xatrix/pak0.pak` and `rogue/pak0.pak`; their
+  Remastered versions come from the re-release's pak. The log at start now
+  says which are there and, for one that is not, where its pak goes.
+
 ## [1.3.47] — 2026-11-06
 
 ### Fixed
