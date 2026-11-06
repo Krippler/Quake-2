@@ -5,6 +5,19 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.45] — 2026-11-06
+
+### Fixed
+
+- **The view bumping down stairs.** The re-release's movement, on its
+  maps, keeps the player on the ground down a flight, so each step dropped
+  the view its whole height in one frame; the client smoothed only steps
+  up, as in 1997. A step down is now smoothed over a tenth of a second as a
+  step up is, if it is steeper than a slope (walking down a ramp is not
+  smoothed). A step taken before the last one is done adds to what is
+  left of it rather than replacing it, so a quick run up or down a flight is
+  one smooth glide.
+
 ## [1.3.44] — 2026-11-06
 
 ### Fixed
