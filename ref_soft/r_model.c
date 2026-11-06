@@ -1248,32 +1248,75 @@ static qboolean Mod_LoadDecoupledLightmaps (dheader_t *header, int filelen)
 Mod_FollowLampStyles
 
 A lamp that flickers, or that a switch turns off, is a light entity with a
-style, just in front of a light fixture's face. The 1997 compiler lit the
-fixture with it, in that style's part of its lightmap, beside a steady part
-dim enough for it to show: the fixture flickered, or dimmed, with its lamp.
-The re-release's compiler lights the fixture itself, steadily, near full,
-in style 0, and gives the lamp's style little or nothing over it: the walls
+style, by a light fixture. The 1997 compiler lit the fixture with it, in
+that style's part of its lightmap, beside a steady part dim enough for it
+to show: the fixture flickered, or dimmed, with what was round it. The
+re-release's compiler lights the fixture itself, steadily, near full, in
+style 0, and gives the lamp's style little or nothing over it: the walls
 flicker round a lamp that does not.
 
 So on the re-release's maps (relit, from DECOUPLED_LM), a fixture
-(SURF_LIGHT, not sky) with such a light within 32 units in front of it,
-whose lightmap has that style, takes its steady light in that style
-instead, and so flickers, dims or goes out with its lamp. The 1997 maps are
-left as they were.
+(SURF_LIGHT, not sky or liquid) whose lightmap has a style other than 0
+takes a share of its steady light in that style:
+
+- all of it, when a light of that style is within 32 units in front of it:
+  it is the lamp, and flickers, dims or goes out with it;
+- else what share of the light on the faces touching it is that style's,
+  when that is an eighth or more: it dims as much as they do.
+
+The 1997 maps are left as they were.
 =================
 */
-#define MAX_LAMPS	1024
+#define MAX_LAMPS		1024
+#define LAMP_DIST		32
+#define MIN_SHARE		0.125
+
+typedef struct
+{
+	vec3_t	mins, maxs;
+} lampbox_t;
+
+static void Mod_SurfaceBounds (msurface_t *surf, vec3_t mins, vec3_t maxs)
+{
+	int		j, k, e;
+	float	*v;
+
+	mins[0] = mins[1] = mins[2] = 1e9;
+	maxs[0] = maxs[1] = maxs[2] = -1e9;
+	for (j=0 ; j<surf->numedges ; j++)
+	{
+		e = loadmodel->surfedges[surf->firstedge + j];
+		v = loadmodel->vertexes[loadmodel->edges[e >= 0 ? e : -e].v[e >= 0 ? 0 : 1]].position;
+		for (k=0 ; k<3 ; k++)
+		{
+			if (v[k] < mins[k]) mins[k] = v[k];
+			if (v[k] > maxs[k]) maxs[k] = v[k];
+		}
+	}
+}
+
+static int Mod_SurfaceStyle (msurface_t *surf, int style)
+{
+	int		n;
+
+	for (n=0 ; n<MAXLIGHTMAPS && surf->styles[n] != 255 ; n++)
+		if (surf->styles[n] == style)
+			return n;
+	return -1;
+}
 
 static void Mod_FollowLampStyles (lump_t *l)
 {
-	vec3_t		lamps[MAX_LAMPS], origin, mins, maxs;
-	int			styles[MAX_LAMPS], numlamps, style, n, i, j, k, e, best, count;
+	vec3_t		lamps[MAX_LAMPS], origin;
+	int			styles[MAX_LAMPS], numlamps, style, n, i, j, k, size, best, count, lamped;
 	char		key[64], value[256], *s, *end, *d;
 	qboolean	islight;
-	msurface_t	*surf;
-	float		*v, dist, bestdist;
+	msurface_t	*surf, *other;
+	lampbox_t	*boxes;
+	float		dist, bestdist, out, share, sum[MAX_LIGHTSTYLES], total, moved;
+	byte		*from, *to;
 
-	if (!loadmodel->lightdata)
+	if (!loadmodel->lightdata || !loadmodel->numsurfaces)
 		return;
 
 	// the lights with a style
@@ -1325,62 +1368,114 @@ static void Mod_FollowLampStyles (lump_t *l)
 			numlamps++;
 		}
 	}
-	if (!numlamps)
-		return;
 
-	count = 0;
+	boxes = malloc (loadmodel->numsurfaces * sizeof(*boxes));
+	if (!boxes)
+		return;
+	for (i=0, surf = loadmodel->surfaces ; i<loadmodel->numsurfaces ; i++, surf++)
+		Mod_SurfaceBounds (surf, boxes[i].mins, boxes[i].maxs);
+
+	count = lamped = 0;
 	for (i=0, surf = loadmodel->surfaces ; i<loadmodel->numsurfaces ; i++, surf++)
 	{
 		if (!surf->samples || !(surf->texinfo->flags & SURF_LIGHT)
-			|| (surf->flags & (SURF_DRAWSKY|SURF_DRAWTURB)) || surf->styles[0] != 0)
+			|| (surf->flags & (SURF_DRAWSKY|SURF_DRAWTURB))
+			|| surf->styles[0] != 0 || surf->styles[1] == 255)
 			continue;
 
-		mins[0] = mins[1] = mins[2] = 1e9;
-		maxs[0] = maxs[1] = maxs[2] = -1e9;
-		for (j=0 ; j<surf->numedges ; j++)
-		{
-			e = loadmodel->surfedges[surf->firstedge + j];
-			v = loadmodel->vertexes[loadmodel->edges[e >= 0 ? e : -e].v[e >= 0 ? 0 : 1]].position;
-			for (k=0 ; k<3 ; k++)
-			{
-				if (v[k] < mins[k]) mins[k] = v[k];
-				if (v[k] > maxs[k]) maxs[k] = v[k];
-			}
-		}
-
-		// the nearest lamp in front of it
+		// the nearest lamp of one of its styles, in front of it
 		best = -1;
-		bestdist = 33;
+		share = 0;
+		bestdist = LAMP_DIST + 1;
 		for (j=0 ; j<numlamps ; j++)
 		{
-			for (k=0 ; k<3 ; k++)
-				if (lamps[j][k] < mins[k] - 16 || lamps[j][k] > maxs[k] + 16)
-					break;
-			if (k < 3)
-				continue;
-			dist = DotProduct (lamps[j], surf->plane->normal) - surf->plane->dist;
-			if (surf->flags & SURF_PLANEBACK)
-				dist = -dist;
-			if (dist >= 0 && dist < bestdist)
+			for (k=0, dist=0 ; k<3 ; k++)
 			{
-				bestdist = dist;
-				best = j;
+				out = boxes[i].mins[k] - lamps[j][k];
+				if (lamps[j][k] - boxes[i].maxs[k] > out)
+					out = lamps[j][k] - boxes[i].maxs[k];
+				if (out > 0)
+					dist += out*out;
+			}
+			dist = sqrt (dist);
+			if (dist >= bestdist || Mod_SurfaceStyle (surf, styles[j]) < 1)
+				continue;
+			out = DotProduct (lamps[j], surf->plane->normal) - surf->plane->dist;
+			if (surf->flags & SURF_PLANEBACK)
+				out = -out;
+			if (out < 0)
+				continue;
+			bestdist = dist;
+			best = styles[j];
+			share = 1;
+		}
+
+		// else what lights the faces touching it
+		if (best < 0)
+		{
+			memset (sum, 0, sizeof(sum));
+			total = 0;
+			for (j=0, other = loadmodel->surfaces ; j<loadmodel->numsurfaces ; j++, other++)
+			{
+				if (!other->samples || (other->texinfo->flags & SURF_LIGHT)
+					|| (other->flags & (SURF_DRAWSKY|SURF_DRAWTURB)))
+					continue;
+				for (k=0 ; k<3 ; k++)
+					if (boxes[j].mins[k] > boxes[i].maxs[k] + 2 || boxes[j].maxs[k] < boxes[i].mins[k] - 2)
+						break;
+				if (k < 3)
+					continue;
+				size = ((other->extents[0]>>4)+1) * ((other->extents[1]>>4)+1);
+				for (n=0 ; n<MAXLIGHTMAPS && other->styles[n] != 255 ; n++)
+					for (k=0 ; k<size ; k++)
+					{
+						sum[other->styles[n]] += other->samples[n*size + k];
+						total += other->samples[n*size + k];
+					}
+			}
+			if (total <= 0)
+				continue;
+			for (n=1 ; n<MAXLIGHTMAPS && surf->styles[n] != 255 ; n++)
+				if (sum[surf->styles[n]] / total > share)
+				{
+					share = sum[surf->styles[n]] / total;
+					best = surf->styles[n];
+				}
+			if (share < MIN_SHARE)
+				continue;
+		}
+		else
+			lamped++;
+
+		// that share of its steady light, moved to the style
+		n = Mod_SurfaceStyle (surf, best);
+		size = ((surf->extents[0]>>4)+1) * ((surf->extents[1]>>4)+1);
+		from = surf->samples;
+		to = surf->samples + n*size;
+		for (j=0 ; j<size ; j++)
+		{
+			moved = from[j] * share;
+			from[j] -= (int)(moved + 0.5f);
+			k = to[j] + (int)(moved + 0.5f);
+			to[j] = k > 255 ? 255 : k;
+		}
+		if (surf->samplesrgb)
+		{
+			from = surf->samplesrgb;
+			to = surf->samplesrgb + n*size*3;
+			for (j=0 ; j<size*3 ; j++)
+			{
+				moved = from[j] * share;
+				from[j] -= (int)(moved + 0.5f);
+				k = to[j] + (int)(moved + 0.5f);
+				to[j] = k > 255 ? 255 : k;
 			}
 		}
-		if (best < 0)
-			continue;
-
-		// and lit by it, the compiler says
-		for (n=1 ; n<MAXLIGHTMAPS && surf->styles[n] != 255 ; n++)
-			if (surf->styles[n] == styles[best])
-				break;
-		if (n >= MAXLIGHTMAPS || surf->styles[n] != styles[best])
-			continue;
-
-		surf->styles[0] = styles[best];
 		count++;
 	}
-	ri.Con_Printf (PRINT_DEVELOPER, "%s: %i light fixtures follow their lamps' styles\n", loadmodel->name, count);
+	free (boxes);
+	ri.Con_Printf (PRINT_DEVELOPER, "%s: %i light fixtures follow their lamps' styles (%i by a lamp in front)\n",
+		loadmodel->name, count, lamped);
 }
 
 /*
