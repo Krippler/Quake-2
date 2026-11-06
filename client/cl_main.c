@@ -44,6 +44,7 @@ cvar_t	*cl_autoskins;
 cvar_t	*cl_footsteps;
 cvar_t	*cl_timeout;
 cvar_t	*cl_predict;
+cvar_t	*cl_stepsmooth;		// ms a step up or down is smoothed over, 0 none
 //cvar_t	*cl_minfps;
 cvar_t	*cl_maxfps;
 cvar_t	*cl_gun;
@@ -1436,6 +1437,7 @@ void CL_InitLocal (void)
 	cl_noskins = Cvar_Get ("cl_noskins", "0", 0);
 	cl_autoskins = Cvar_Get ("cl_autoskins", "0", 0);
 	cl_predict = Cvar_Get ("cl_predict", "1", 0);
+	cl_stepsmooth = Cvar_Get ("cl_stepsmooth", "70", CVAR_ARCHIVE);
 //	cl_minfps = Cvar_Get ("cl_minfps", "5", 0);
 	cl_maxfps = Cvar_Get ("cl_maxfps", "90", 0);
 
