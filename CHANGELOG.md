@@ -5,6 +5,14 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.44] — 2026-11-06
+
+### Fixed
+
+- **Light fixtures going black when their lamp is out.** A fixture now
+  keeps at least a fifth of its own light, so a lamp that flickers off or is
+  switched off leaves it dull, not vanished.
+
 ## [1.3.43] — 2026-11-06
 
 ### Fixed

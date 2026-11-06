@@ -1259,10 +1259,13 @@ So on the re-release's maps (relit, from DECOUPLED_LM), a fixture
 (SURF_LIGHT, not sky or liquid) whose lightmap has a style other than 0
 takes a share of its steady light in that style:
 
-- all of it, when a light of that style is within 32 units in front of it:
-  it is the lamp, and flickers, dims or goes out with it;
+- most of it, when a light of that style is within 32 units in front of
+  it: it is the lamp, and flickers or dims with it;
 - else what share of the light on the faces touching it is that style's,
   when that is an eighth or more: it dims as much as they do.
+
+Never more than four fifths: a lamp that is out leaves its fixture dull,
+not black, as the 1997 maps' did.
 
 The 1997 maps are left as they were.
 =================
@@ -1270,6 +1273,7 @@ The 1997 maps are left as they were.
 #define MAX_LAMPS		1024
 #define LAMP_DIST		32
 #define MIN_SHARE		0.125
+#define MAX_SHARE		0.8		// what is left keeps it from going black
 
 typedef struct
 {
@@ -1407,7 +1411,7 @@ static void Mod_FollowLampStyles (lump_t *l)
 				continue;
 			bestdist = dist;
 			best = styles[j];
-			share = 1;
+			share = MAX_SHARE;
 		}
 
 		// else what lights the faces touching it
@@ -1443,6 +1447,8 @@ static void Mod_FollowLampStyles (lump_t *l)
 				}
 			if (share < MIN_SHARE)
 				continue;
+			if (share > MAX_SHARE)
+				share = MAX_SHARE;
 		}
 		else
 			lamped++;
