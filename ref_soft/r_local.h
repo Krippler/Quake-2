@@ -845,9 +845,9 @@ texture is magnified, at screen pixel x, y:
    of the four texels round the point, the three nearest, each taken as
    often as its weight, by a 4x4 ordered dither of the screen
 */
-static inline void R_FilterOffset (int s, int t, int x, int y, int *ds, int *dt)
+static inline __attribute__((always_inline)) void R_FilterOffset (int s, int t, int x, int y, int *ds, int *dt)
 {
-	int		bs, bt, fs, ft, r, ts, tt;
+	int		fs, ft, r, ts, tt, lower;
 
 	if (r_texfilter != 2)
 	{
@@ -856,33 +856,22 @@ static inline void R_FilterOffset (int s, int t, int x, int y, int *ds, int *dt)
 		return;
 	}
 
-	// the texel centre at or before the point, and how far past it
-	bs = (s - 0x8000) & ~0xffff;
-	bt = (t - 0x8000) & ~0xffff;
-	fs = s - 0x8000 - bs;
-	ft = t - 0x8000 - bt;
+	// how far past the texel centre at or before the point, each way
+	fs = (s - 0x8000) & 0xffff;
+	ft = (t - 0x8000) & 0xffff;
 	r = d_texdither[y & 3][x & 3];
 
-	if (fs + ft < 0x10000)
-	{	// the lower triangle: (1,0) fs, (0,1) ft, (0,0) the rest
-		if (r < fs)
-			ts = 1, tt = 0;
-		else if (r < fs + ft)
-			ts = 0, tt = 1;
-		else
-			ts = tt = 0;
-	}
-	else
-	{	// the upper: (0,1) 1-fs, (1,0) 1-ft, (1,1) the rest
-		if (r < 0x10000 - fs)
-			ts = 0, tt = 1;
-		else if (r < 0x20000 - fs - ft)
-			ts = 1, tt = 0;
-		else
-			ts = tt = 1;
-	}
-	*ds = bs + (ts << 16) + 0x8000 - s;
-	*dt = bt + (tt << 16) + 0x8000 - t;
+	// the lower triangle, (1,0) for fs, (0,1) for ft, (0,0) the rest; the
+	// upper, (0,1) for 1-fs, (1,0) for 1-ft, (1,1) the rest. Without
+	// branches: this is every magnified pixel
+	lower = fs + ft < 0x10000;
+	ts = lower ? r < fs : r >= 0x10000 - fs;
+	tt = lower ? (unsigned)(r - fs) < (unsigned)ft
+		: !((unsigned)(r - (0x10000 - fs)) < (unsigned)(0x10000 - ft));
+
+	// the chosen texel's centre, less where the point is
+	*ds = (ts << 16) - fs;
+	*dt = (tt << 16) - ft;
 }
 void R_ApplyFog (void);
 void R_DrawFlares (void);
