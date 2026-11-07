@@ -169,7 +169,10 @@ console sets that in milliseconds (higher is smoother, 0 none), and it is
 kept.
 
 **Frame rate**: `cl_showfps 1` at the console shows it in the top right
-corner; `cl_showfps 0` hides it. Kept.
+corner; `cl_showfps 0` hides it. Kept. Its cap is "max fps" in the video
+menu (`cl_maxfps`, 0 for no limit). For a benchmark, `timedemo 1` then
+`demomap demo1.dm2` plays a demo as fast as it will draw and prints the
+frames a second at its end; `timedemo 0` after.
 
 ### Game controllers
 

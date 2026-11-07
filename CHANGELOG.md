@@ -5,6 +5,14 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.51] — 2026-11-07
+
+### Added
+
+- **"max fps" in the video menu**: 30, 60, 90 (as before), 120, 144, 165,
+  240 or no limit. It is `cl_maxfps`, now kept between sessions, and
+  `cl_maxfps 0` is no limit (it stopped the game before).
+
 ## [1.3.50] — 2026-11-07
 
 ### Added

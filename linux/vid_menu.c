@@ -30,6 +30,7 @@ static cvar_t *sw_colorlight;
 static cvar_t *cl_shadowlights;
 static cvar_t *sw_texfilter;
 static cvar_t *sw_scanlines;
+static cvar_t *cl_maxfps;
 static cvar_t *_windowed_mouse;
 static cvar_t *vid_resizescreen;
 
@@ -56,6 +57,11 @@ static menulist_s		s_colorlight_box;
 static menulist_s		s_shadowlights_box;
 static menulist_s		s_texfilter_box;
 static menulist_s		s_scanlines_box;
+static menulist_s		s_maxfps_box;
+
+// the "max fps" choices, cl_maxfps for each, 0 for no limit
+static const int		s_maxfps_values[] = { 30, 60, 90, 120, 144, 165, 240, 0 };
+#define NUM_MAXFPS		(sizeof(s_maxfps_values) / sizeof(s_maxfps_values[0]))
 static menulist_s  		s_windowed_mouse;
 static menuaction_s		s_apply_action;
 static menuaction_s		s_defaults_action;
@@ -80,6 +86,11 @@ static void ColorLightCallback( void *s )
 static void ShadowLightsCallback( void *s )
 {
 	Cvar_SetValue( "cl_shadowlights", ( ( menulist_s * ) s )->curvalue );
+}
+
+static void MaxFPSCallback( void *s )
+{
+	Cvar_SetValue( "cl_maxfps", s_maxfps_values[( ( menulist_s * ) s )->curvalue] );
 }
 
 static void ScanlinesCallback( void *s )
@@ -128,6 +139,7 @@ static void ApplyChanges( void *unused )
 	Cvar_SetValue( "cl_shadowlights", s_shadowlights_box.curvalue );
 	Cvar_SetValue( "sw_texfilter", s_texfilter_box.curvalue );
 	Cvar_SetValue( "sw_scanlines", s_scanlines_box.curvalue );
+	Cvar_SetValue( "cl_maxfps", s_maxfps_values[s_maxfps_box.curvalue] );
 
 	mode = s_mode_for_item[s_mode_list.curvalue];
 	if ( mode != (int)sw_mode->value )
@@ -217,6 +229,18 @@ void VID_MenuInit( void )
 		"n64",
 		0
 	};
+	static const char *maxfps_names[] =
+	{
+		"30",
+		"60",
+		"90",
+		"120",
+		"144",
+		"165",
+		"240",
+		"no limit",
+		0
+	};
 	static const char *colorlight_names[] =
 	{
 		"off",
@@ -234,6 +258,8 @@ void VID_MenuInit( void )
 		sw_texfilter = Cvar_Get( "sw_texfilter", "0", CVAR_ARCHIVE );
 	if ( !sw_scanlines )
 		sw_scanlines = Cvar_Get( "sw_scanlines", "0", CVAR_ARCHIVE );
+	if ( !cl_maxfps )
+		cl_maxfps = Cvar_Get( "cl_maxfps", "90", CVAR_ARCHIVE );
 	if ( !sw_mode )
 		sw_mode = Cvar_Get( "sw_mode", "0", 0 );
 	if ( !sw_stipplealpha )
@@ -333,6 +359,33 @@ void VID_MenuInit( void )
 	s_scanlines_box.curvalue = sw_scanlines->value != 0;
 	y += 10;
 
+	// the frame rate's cap: the nearest choice to cl_maxfps, which the
+	// console can set to anything
+	s_maxfps_box.generic.type = MTYPE_SPINCONTROL;
+	s_maxfps_box.generic.x	= 0;
+	s_maxfps_box.generic.y	= y;
+	s_maxfps_box.generic.name	= "max fps";
+	s_maxfps_box.generic.callback = MaxFPSCallback;
+	s_maxfps_box.itemnames = maxfps_names;
+	s_maxfps_box.curvalue = NUM_MAXFPS - 1;
+	if ( cl_maxfps->value > 0 )
+	{
+		int		i, best = 0;
+		float	d, bestd = 1e9;
+
+		for ( i = 0; i < NUM_MAXFPS - 1; i++ )
+		{
+			d = fabs( s_maxfps_values[i] - cl_maxfps->value );
+			if ( d < bestd )
+			{
+				bestd = d;
+				best = i;
+			}
+		}
+		s_maxfps_box.curvalue = best;
+	}
+	y += 10;
+
 	s_fs_box.generic.type = MTYPE_SPINCONTROL;
 	s_fs_box.generic.x	= 0;
 	s_fs_box.generic.y	= y;
@@ -370,6 +423,7 @@ void VID_MenuInit( void )
 	Menu_AddItem( &s_software_menu, ( void * ) &s_shadowlights_box );
 	Menu_AddItem( &s_software_menu, ( void * ) &s_texfilter_box );
 	Menu_AddItem( &s_software_menu, ( void * ) &s_scanlines_box );
+	Menu_AddItem( &s_software_menu, ( void * ) &s_maxfps_box );
 	if ( !vid_resizescreen->value )
 	{
 		Menu_AddItem( &s_software_menu, ( void * ) &s_fs_box );
