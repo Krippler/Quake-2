@@ -156,19 +156,40 @@ colour, for the pixel at x, y at depth zb, as the re-release works them out
 static float	hf_falloff, hf_start, hf_end, hf_eye_exp;
 static qboolean	hf_global;
 
+// the ray through each pixel, for a depth of 1, vpn + a vup + b vright: its
+// height and squared length, a row's part and a column's, made each frame
+// (the three are at right angles, so its length is that of (1, a, b))
+static float	hf_row_z[MAXHEIGHT], hf_row_a2[MAXHEIGHT];
+static float	hf_col_z[MAXWIDTH], hf_col_b2[MAXWIDTH];
+
+static void R_HeightFogRays (int x0, int y0, int x1, int y1)
+{
+	int		i;
+	float	a, b;
+
+	for (i = y0 ; i < y1 ; i++)
+	{
+		a = (ycenter - i) / yscale;
+		hf_row_z[i] = vpn[2] + a * vup[2];
+		hf_row_a2[i] = 1 + a * a;
+	}
+	for (i = x0 ; i < x1 ; i++)
+	{
+		b = (i - xcenter) / xscale;
+		hf_col_z[i] = b * vright[2];
+		hf_col_b2[i] = b * b;
+	}
+}
+
 static void R_HeightFogAt (int x, int y, int zb, float *ext, float *frac)
 {
-	vec3_t	dir;
-	float	z = 32768.0f / zb, len, dir_z, pos, hd, e, fr;
+	float	z = 32768.0f / zb, dz, dir_z, pos, hd, e, fr;
 
-	// the ray through the pixel, for a depth of 1
-	VectorMA (vpn, (ycenter - y) / yscale, vup, dir);
-	VectorMA (dir, (x - xcenter) / xscale, vright, dir);
-	len = VectorLength (dir);
-	dir_z = len > 0 ? dir[2] / len : 0;
+	dz = hf_row_z[y] + hf_col_z[x];
+	dir_z = dz / sqrtf (hf_row_a2[y] + hf_col_b2[x]);
 	if (dir_z == 0)
 		dir_z = 0.00001f;
-	pos = r_refdef.vieworg[2] + dir[2] * z - hf_start;
+	pos = r_refdef.vieworg[2] + dz * z - hf_start;
 	hd = (hf_eye_exp - R_FogExp (-hf_falloff * pos)) / (hf_falloff * dir_z);
 	e = 1 - R_FogExp (-hd);
 	if (!(e > 0))		// and not a number, far under its start
@@ -184,41 +205,32 @@ static void R_HeightFogAt (int x, int y, int zb, float *ext, float *frac)
 	*frac = fr;
 }
 
-// a pixel fogged, both fogs, and taken back to the palette
-static void R_FogPixel (pixel_t *pix, int x, int y, int zb, float ext, float frac)
+// a pixel fogged, both fogs, and taken back to the palette. hcol is the
+// height fog's colour where the pixel is, 0-255, with its extinction
+static void R_FogPixel (pixel_t *pix, int x, int y, int zb, float ext, const float *hcol)
 {
 	const float	*fog = r_newrefdef.fog;
-	byte	*pal = (byte *)&d_8to24table[*pix];
-	float	rgb[3], f = 0, hd, c;
+	byte	*pal;
+	float	g, hd, d;
 	int		i, out[3];
 
-	rgb[0] = pal[0];
-	rgb[1] = pal[1];
-	rgb[2] = pal[2];
-
-	if (hf_global)
-	{
-		f = fog_global[zb];
-		for (i = 0 ; i < 3 ; i++)
-			rgb[i] += (fog[FOG_COLOR+i] * 255 - rgb[i]) * f;
-	}
-
+	g = hf_global ? fog_global[zb] : 0;
 	hd = fog_height[zb] * ext;
-	for (i = 0 ; i < 3 ; i++)
-	{
-		c = (fog[FOG_HF_START_COLOR+i] + (fog[FOG_HF_END_COLOR+i] - fog[FOG_HF_START_COLOR+i]) * frac) * ext * 255;
-		rgb[i] += (c - rgb[i]) * hd;
-	}
-	f += hd;
 
 	// too little to see: left as it was, as the palette would not give
 	// it back
-	if (f < 1 / 64.0f)
+	if (g + hd < 1 / 64.0f)
 		return;
 
+	pal = (byte *)&d_8to24table[*pix];
+	d = (fog_dither[y & 3][x & 3] - 7.5f) * 0.25f + 0.5f;
 	for (i = 0 ; i < 3 ; i++)
 	{
-		out[i] = (int)(rgb[i] + (fog_dither[y & 3][x & 3] - 7.5f) * 0.25f + 0.5f);
+		float	c = pal[i];
+
+		c += (fog[FOG_COLOR+i] * 255 - c) * g;
+		c += (hcol[i] - c) * hd;
+		out[i] = (int)(c + d);
 		if (out[i] < 0)
 			out[i] = 0;
 		else if (out[i] > 255)
@@ -283,25 +295,28 @@ void R_ApplyFog (void)
 		return;
 	}
 
-	// height fog: its extinction and colour for each 2x2 block of pixels
+	// height fog: its extinction and colour for each 4x4 block of pixels
 	// (worked out again for a pixel of the block much nearer or farther
-	// than the first), its density by each pixel's own depth
+	// than the first), its density by each pixel's own depth. It changes
+	// slowly across the screen; worked out for every 2x2 it was most of the
+	// frame at 1920x1080, more with monsters close up
 	{
-		int		bx, by, zr;
-		float	ext = 0, frac = 0;
+		int		bx, by, zr, k;
+		float	ext = 0, frac = 0, hcol[3] = { 0, 0, 0 };
 
 		hf_falloff = fog[FOG_HF_FALLOFF];
 		hf_start = fog[FOG_HF_START_DIST];
 		hf_end = fog[FOG_HF_END_DIST];
 		hf_eye_exp = R_FogExp (-hf_falloff * (r_refdef.vieworg[2] - hf_start));
 		hf_global = global;
+		R_HeightFogRays (x0, y0, x1, y1);
 
-		for (by = y0 ; by < y1 ; by += 2)
-			for (bx = x0 ; bx < x1 ; bx += 2)
+		for (by = y0 ; by < y1 ; by += 4)
+			for (bx = x0 ; bx < x1 ; bx += 4)
 			{
 				zr = 0;
-				for (y = by ; y < by + 2 && y < y1 ; y++)
-					for (x = bx ; x < bx + 2 && x < x1 ; x++)
+				for (y = by ; y < by + 4 && y < y1 ; y++)
+					for (x = bx ; x < bx + 4 && x < x1 ; x++)
 					{
 						pix = d_viewbuffer + y * r_screenwidth + x;
 						zb = d_pzbuffer[y * d_zwidth + x];
@@ -310,13 +325,23 @@ void R_ApplyFog (void)
 							*pix = fog_sky[*pix];
 							continue;
 						}
+						// the most fog it could have, with all of the height
+						// fog's extinction, too little to see: R_FogPixel
+						// would leave it as it is, so the rest is not worked
+						// out at all. Most of what is near, monsters close up
+						// above all
+						if ((hf_global ? fog_global[zb] : 0) + fog_height[zb] < 1 / 64.0f)
+							continue;
 						if (!zr || abs (zb - zr) * 8 > zr)
 						{
 							R_HeightFogAt (x, y, zb, &ext, &frac);
+							for (k = 0 ; k < 3 ; k++)
+								hcol[k] = (fog[FOG_HF_START_COLOR+k] + (fog[FOG_HF_END_COLOR+k]
+									- fog[FOG_HF_START_COLOR+k]) * frac) * ext * 255;
 							if (!zr)
 								zr = zb;
 						}
-						R_FogPixel (pix, x, y, zb, ext, frac);
+						R_FogPixel (pix, x, y, zb, ext, hcol);
 					}
 			}
 	}

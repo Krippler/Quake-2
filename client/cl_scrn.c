@@ -52,6 +52,7 @@ cvar_t		*scr_showpause;
 cvar_t		*scr_printspeed;
 
 cvar_t		*scr_netgraph;
+cvar_t		*cl_showfps;
 cvar_t		*scr_timegraph;
 cvar_t		*scr_debuggraph;
 cvar_t		*scr_graphheight;
@@ -416,6 +417,7 @@ void SCR_Init (void)
 	scr_centertime = Cvar_Get ("scr_centertime", "2.5", 0);
 	scr_printspeed = Cvar_Get ("scr_printspeed", "8", 0);
 	scr_netgraph = Cvar_Get ("netgraph", "0", 0);
+	cl_showfps = Cvar_Get ("cl_showfps", "0", CVAR_ARCHIVE);
 	scr_timegraph = Cvar_Get ("timegraph", "0", 0);
 	scr_debuggraph = Cvar_Get ("debuggraph", "0", 0);
 	scr_graphheight = Cvar_Get ("graphheight", "32", 0);
@@ -448,6 +450,35 @@ void SCR_DrawNet (void)
 		return;
 
 	re.DrawPic (scr_vrect.x+64, scr_vrect.y, "net");
+}
+
+/*
+==============
+SCR_DrawFPS
+
+cl_showfps 1: the frames drawn a second, counted over half a second, in
+the top right corner
+==============
+*/
+void SCR_DrawFPS (void)
+{
+	static int	frames, start, fps;
+	char		s[16];
+
+	frames++;
+	if (!start || cls.realtime < start)
+		start = cls.realtime;
+	else if (cls.realtime - start >= 500)
+	{
+		fps = (frames * 1000 + (cls.realtime - start) / 2) / (cls.realtime - start);
+		frames = 0;
+		start = cls.realtime;
+	}
+
+	if (!cl_showfps->value)
+		return;
+	Com_sprintf (s, sizeof(s), "%i fps", fps);
+	DrawAltString (viddef.width - (int)strlen (s) * 8 - 8, 8, s);
 }
 
 /*
@@ -1482,6 +1513,7 @@ void SCR_UpdateScreen (void)
 			CL_DrawWheel ();
 
 			SCR_DrawNet ();
+			SCR_DrawFPS ();
 			SCR_CheckDrawCenterString ();
 
 			if (scr_timegraph->value)

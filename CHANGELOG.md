@@ -5,6 +5,25 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.50] — 2026-11-07
+
+### Added
+
+- **A frame rate counter.** `cl_showfps 1` at the console shows the frames
+  drawn a second in the top right corner, counted over half a second, and
+  is kept.
+
+### Fixed
+
+- **Slowdowns in fights on the re-release's maps.** Its height fog was most
+  of the frame at 1920x1080: worked out for every 2x2 block of the view,
+  and again wherever the depth jumped, as it does all round a monster
+  close up, so the more of them in front of you the slower. It is now
+  worked out for each 4x4 block from rays made once a frame, its colour
+  once a block, and nothing at all for a pixel too near to show any.
+  Three soldiers close up at 1920x1080: 49 ms a frame before, 27 now; 71
+  to 41 with the N64 filter, which is quicker too. The fog looks the same.
+
 ## [1.3.49] — 2026-11-06
 
 ### Added

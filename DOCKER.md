@@ -168,6 +168,9 @@ frame's delay; `m_filter 0` at the console turns it off, and that is kept.
 console sets that in milliseconds (higher is smoother, 0 none), and it is
 kept.
 
+**Frame rate**: `cl_showfps 1` at the console shows it in the top right
+corner; `cl_showfps 0` hides it. Kept.
+
 ### Game controllers
 
 Any pad the browser sees as a standard gamepad: an Xbox or PlayStation pad, a
