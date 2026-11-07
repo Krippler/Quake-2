@@ -1439,7 +1439,7 @@ void CL_InitLocal (void)
 	cl_predict = Cvar_Get ("cl_predict", "1", 0);
 	cl_stepsmooth = Cvar_Get ("cl_stepsmooth", "70", CVAR_ARCHIVE);
 //	cl_minfps = Cvar_Get ("cl_minfps", "5", 0);
-	cl_maxfps = Cvar_Get ("cl_maxfps", "90", 0);
+	cl_maxfps = Cvar_Get ("cl_maxfps", "90", CVAR_ARCHIVE);	// 0 for no limit
 
 	cl_upspeed = Cvar_Get ("cl_upspeed", "200", 0);
 	cl_forwardspeed = Cvar_Get ("cl_forwardspeed", "200", 0);
@@ -1698,7 +1698,9 @@ void CL_Frame (int msec)
 			return;			// don't flood packets out while connecting
 		// in game time: a wheel slowing it (cl_wheel.c) leaves the
 		// frames as many in real time
-		if (extratime < 1000/cl_maxfps->value * CL_WheelTimescale ())
+		// 0 (or less) for no limit, as fast as it will draw
+		if (cl_maxfps->value > 0
+			&& extratime < 1000/cl_maxfps->value * CL_WheelTimescale ())
 			return;			// framerate is too high
 	}
 
