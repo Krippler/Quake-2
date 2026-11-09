@@ -5,6 +5,21 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.52] — 2026-11-09
+
+### Fixed
+
+- **More light fixtures follow the flicker round them.** On the
+  re-release's maps a flickering lamp is often one of its real-time
+  lights (a dynamic_light, or a light's shadowlight keys) rather than a
+  light entity, and those were not counted; now they are, within 48 units,
+  unless one starts off to be switched on later. A fixture whose lightmap
+  had no part in the lamp's style was left steady; it is now given one,
+  where it has room. And a flickering style lighting the faces round a
+  fixture within 16 units counts, not only the faces touching it, whose
+  light is mostly the fixture's own; switched styles keep to the faces
+  touching it, as a fixture by a dark room is not that room's.
+
 ## [1.3.51] — 2026-11-07
 
 ### Added
