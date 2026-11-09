@@ -5,6 +5,17 @@ top section's heading is what the release workflow reads: `## [X.Y.Z] — DATE`
 on the default branch publishes that version, `## [Unreleased]` publishes only
 `edge`.
 
+## [1.3.53] — 2026-11-09
+
+### Fixed
+
+- **Light fixtures steady again where they had flickered** (1.3.52). Where
+  a light entity and one of the re-release's real-time lights share a spot
+  with different styles, as at base1's fluorescent tubes (the light
+  flickering on and off, style 10; the real-time light only brightening
+  a little, style 6), the fixture took the real-time light's, and so stayed
+  steady. The light entity is now taken first, as the walls' light is its.
+
 ## [1.3.52] — 2026-11-09
 
 ### Fixed
