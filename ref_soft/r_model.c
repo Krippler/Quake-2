@@ -1264,7 +1264,9 @@ style other than 0:
 
 - most of it, when a lamp of that style is within 32 units in front of it
   (48 for a real-time light, which is set further off to light round it):
-  it is the lamp, and flickers or dims with it;
+  it is the lamp, and flickers or dims with it. A light entity is taken
+  before any real-time light: where both are, the walls' light is the
+  light entity's;
 - else what share of the light on the faces touching it is that style's,
   when that is an eighth or more: it dims as much as they do; for a style
   that flickers (under 32), the faces round it within 16 units, as a
@@ -1488,10 +1490,14 @@ static void Mod_FollowLampStyles (lump_t *l)
 			continue;
 
 		// the nearest lamp in front of it, for its distance (a fraction of
-		// how far it may be)
+		// how far it may be); a light entity before any real-time light,
+		// which may share its spot with a style of its own (base1's
+		// fluorescent tubes: the light flickers, style 10, the real-time
+		// light only brightens a little, style 6), as the walls' baked
+		// light is the light entity's
 		best = -1;
 		share = 0;
-		bestscore = 1;
+		bestscore = 2;
 		for (j=0 ; j<numlamps ; j++)
 		{
 			for (k=0, dist=0 ; k<3 ; k++)
@@ -1503,6 +1509,10 @@ static void Mod_FollowLampStyles (lump_t *l)
 					dist += out*out;
 			}
 			dist = sqrt (dist) / lampdist[j];
+			if (dist > 1)
+				continue;
+			if (lampdist[j] != LAMP_DIST)
+				dist += 1;		// a real-time light: after every light entity
 			if (dist > bestscore)
 				continue;
 			out = DotProduct (lamps[j], surf->plane->normal) - surf->plane->dist;
