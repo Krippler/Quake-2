@@ -1248,30 +1248,42 @@ static qboolean Mod_LoadDecoupledLightmaps (dheader_t *header, int filelen)
 Mod_FollowLampStyles
 
 A lamp that flickers, or that a switch turns off, is a light entity with a
-style, by a light fixture. The 1997 compiler lit the fixture with it, in
-that style's part of its lightmap, beside a steady part dim enough for it
-to show: the fixture flickered, or dimmed, with what was round it. The
-re-release's compiler lights the fixture itself, steadily, near full, in
-style 0, and gives the lamp's style little or nothing over it: the walls
-flicker round a lamp that does not.
+style, by a light fixture; on the re-release's maps it may be one of its
+real-time lights too (a dynamic_light, or a light's "shadowlight" keys)
+with a style of its own or its target's, unless it starts off (a
+dynamic_light a switch turns on later). The 1997 compiler lit the fixture
+with it, in that style's part of its lightmap, beside a steady part dim
+enough for it to show: the fixture flickered, or dimmed, with what was
+round it. The re-release's compiler lights the fixture itself, steadily,
+near full, in style 0, and gives the lamp's style little or nothing over
+it, or no part at all: the walls flicker round a lamp that does not.
 
 So on the re-release's maps (relit, from DECOUPLED_LM), a fixture
-(SURF_LIGHT, not sky or liquid) whose lightmap has a style other than 0
-takes a share of its steady light in that style:
+(SURF_LIGHT, not sky or liquid) takes a share of its steady light in a
+style other than 0:
 
-- most of it, when a light of that style is within 32 units in front of
-  it: it is the lamp, and flickers or dims with it;
+- most of it, when a lamp of that style is within 32 units in front of it
+  (48 for a real-time light, which is set further off to light round it):
+  it is the lamp, and flickers or dims with it;
 - else what share of the light on the faces touching it is that style's,
-  when that is an eighth or more: it dims as much as they do.
+  when that is an eighth or more: it dims as much as they do; for a style
+  that flickers (under 32), the faces round it within 16 units, as a
+  flickering light's own glow on what touches the fixture is often lost
+  under the fixture's own. A switched style (32 on) keeps to the faces
+  touching it, as a fixture near a dark room is not that room's.
 
-Never more than four fifths: a lamp that is out leaves its fixture dull,
-not black, as the 1997 maps' did.
+A fixture whose lightmap has no part in that style is given one, where it
+has room (four styles a face). Never more than four fifths: a lamp that is
+out leaves its fixture dull, not black, as the 1997 maps' did.
 
 The 1997 maps are left as they were.
 =================
 */
 #define MAX_LAMPS		1024
+#define MAX_LAMPENTS	4096
 #define LAMP_DIST		32
+#define SHADOWLAMP_DIST	48
+#define ROUND_DIST		16		// the faces round a fixture
 #define MIN_SHARE		0.125
 #define MAX_SHARE		0.8		// what is left keeps it from going black
 
@@ -1279,6 +1291,15 @@ typedef struct
 {
 	vec3_t	mins, maxs;
 } lampbox_t;
+
+typedef struct
+{
+	qboolean	islight, isdynamic;
+	int			style, slstyle, spawnflags;
+	float		slradius;
+	vec3_t		origin;
+	char		targetname[32], slstyletarget[32];
+} lampent_t;
 
 static void Mod_SurfaceBounds (msurface_t *surf, vec3_t mins, vec3_t maxs)
 {
@@ -1309,34 +1330,68 @@ static int Mod_SurfaceStyle (msurface_t *surf, int style)
 	return -1;
 }
 
+// a part of the lightmap in a style it has none of, empty, where there is
+// room: its samples made again one part longer
+static int Mod_AddSurfaceStyle (msurface_t *surf, int style)
+{
+	int		n, size;
+	byte	*samples, *rgb;
+
+	for (n=0 ; n<MAXLIGHTMAPS && surf->styles[n] != 255 ; n++)
+		;
+	if (n == MAXLIGHTMAPS)
+		return -1;
+	size = ((surf->extents[0]>>4)+1) * ((surf->extents[1]>>4)+1);
+	samples = Hunk_Alloc ((n+1) * size);
+	memcpy (samples, surf->samples, n * size);
+	memset (samples + n*size, 0, size);
+	surf->samples = samples;
+	if (surf->samplesrgb)
+	{
+		rgb = Hunk_Alloc ((n+1) * size * 3);
+		memcpy (rgb, surf->samplesrgb, n * size * 3);
+		memset (rgb + n*size*3, 0, size*3);
+		surf->samplesrgb = rgb;
+	}
+	surf->styles[n] = style;
+	return n;
+}
+
 static void Mod_FollowLampStyles (lump_t *l)
 {
-	vec3_t		lamps[MAX_LAMPS], origin;
-	int			styles[MAX_LAMPS], numlamps, style, n, i, j, k, size, best, count, lamped;
+	vec3_t		lamps[MAX_LAMPS];
+	float		lampdist[MAX_LAMPS];
+	int			styles[MAX_LAMPS], numlamps, numents, n, i, j, k, size, best, count, lamped, added;
 	char		key[64], value[256], *s, *end, *d;
-	qboolean	islight;
+	lampent_t	*ents, *e, *t;
 	msurface_t	*surf, *other;
 	lampbox_t	*boxes;
-	float		dist, bestdist, out, share, sum[MAX_LIGHTSTYLES], total, moved;
+	float		dist, out, share, sum[MAX_LIGHTSTYLES], total, moved, bestscore;
+	float		roundsum[32], roundtotal;
+	qboolean	touching;
 	byte		*from, *to;
 
 	if (!loadmodel->lightdata || !loadmodel->numsurfaces)
 		return;
 
-	// the lights with a style
-	numlamps = 0;
+	// the entities that may be lamps, and the names a real-time light's
+	// style may be taken from
+	ents = malloc (MAX_LAMPENTS * sizeof(*ents));
+	if (!ents)
+		return;
+	numents = 0;
 	s = (char *)mod_base + l->fileofs;
 	end = s + l->filelen;
-	while (s < end && numlamps < MAX_LAMPS)
+	while (s < end && numents < MAX_LAMPENTS)
 	{
 		while (s < end && *s != '{')
 			s++;
 		if (s >= end)
 			break;
 		s++;
-		islight = false;
-		style = 0;
-		origin[0] = origin[1] = origin[2] = 1e9;
+		e = &ents[numents];
+		memset (e, 0, sizeof(*e));
+		e->origin[0] = 1e9;
 		while (s < end && *s != '}')
 		{
 			// "key" "value"
@@ -1359,19 +1414,64 @@ static void Mod_FollowLampStyles (lump_t *l)
 			if (i < 2)
 				break;
 			if (!strcmp (key, "classname"))
-				islight = !strcmp (value, "light");
+			{
+				e->islight = !strcmp (value, "light");
+				e->isdynamic = !strcmp (value, "dynamic_light");
+			}
+			else if (!strcmp (key, "spawnflags"))
+				e->spawnflags = atoi (value);
 			else if (!strcmp (key, "style"))
-				style = atoi (value);
+				e->style = atoi (value);
 			else if (!strcmp (key, "origin"))
-				sscanf (value, "%f %f %f", &origin[0], &origin[1], &origin[2]);
+				sscanf (value, "%f %f %f", &e->origin[0], &e->origin[1], &e->origin[2]);
+			else if (!strcmp (key, "targetname"))
+				Com_sprintf (e->targetname, sizeof(e->targetname), "%s", value);
+			else if (!strcmp (key, "shadowlightradius"))
+				e->slradius = atof (value);
+			else if (!strcmp (key, "shadowlightstyle"))
+				e->slstyle = atoi (value);
+			else if (!strcmp (key, "shadowlightstyletarget"))
+				Com_sprintf (e->slstyletarget, sizeof(e->slstyletarget), "%s", value);
 		}
-		if (islight && style > 0 && style < MAX_LIGHTSTYLES && origin[0] < 1e8)
+		numents++;
+	}
+
+	// the lamps: lights with a style, and real-time lights with one
+	numlamps = 0;
+	for (i=0, e=ents ; i<numents && numlamps < MAX_LAMPS ; i++, e++)
+	{
+		if (e->origin[0] > 1e8)
+			continue;
+		if (e->islight && e->style > 0 && e->style < MAX_LIGHTSTYLES)
 		{
-			VectorCopy (origin, lamps[numlamps]);
-			styles[numlamps] = style;
+			VectorCopy (e->origin, lamps[numlamps]);
+			styles[numlamps] = e->style;
+			lampdist[numlamps] = LAMP_DIST;
 			numlamps++;
 		}
+		// not a dynamic_light that starts off, to be switched on later: its
+		// style runs all along, and the fixture would flicker before it did
+		if (e->slradius > 0 && numlamps < MAX_LAMPS && !(e->isdynamic && (e->spawnflags & 1)))
+		{
+			int		st = e->slstyle;
+
+			if (st <= 0 && e->slstyletarget[0])
+				for (j=0, t=ents ; j<numents ; j++, t++)
+					if (!strcmp (t->targetname, e->slstyletarget))
+					{
+						st = t->style;
+						break;
+					}
+			if (st > 0 && st < MAX_LIGHTSTYLES)
+			{
+				VectorCopy (e->origin, lamps[numlamps]);
+				styles[numlamps] = st;
+				lampdist[numlamps] = SHADOWLAMP_DIST;
+				numlamps++;
+			}
+		}
 	}
+	free (ents);
 
 	boxes = malloc (loadmodel->numsurfaces * sizeof(*boxes));
 	if (!boxes)
@@ -1379,18 +1479,19 @@ static void Mod_FollowLampStyles (lump_t *l)
 	for (i=0, surf = loadmodel->surfaces ; i<loadmodel->numsurfaces ; i++, surf++)
 		Mod_SurfaceBounds (surf, boxes[i].mins, boxes[i].maxs);
 
-	count = lamped = 0;
+	count = lamped = added = 0;
 	for (i=0, surf = loadmodel->surfaces ; i<loadmodel->numsurfaces ; i++, surf++)
 	{
 		if (!surf->samples || !(surf->texinfo->flags & SURF_LIGHT)
 			|| (surf->flags & (SURF_DRAWSKY|SURF_DRAWTURB))
-			|| surf->styles[0] != 0 || surf->styles[1] == 255)
+			|| surf->styles[0] != 0)
 			continue;
 
-		// the nearest lamp of one of its styles, in front of it
+		// the nearest lamp in front of it, for its distance (a fraction of
+		// how far it may be)
 		best = -1;
 		share = 0;
-		bestdist = LAMP_DIST + 1;
+		bestscore = 1;
 		for (j=0 ; j<numlamps ; j++)
 		{
 			for (k=0, dist=0 ; k<3 ; k++)
@@ -1401,50 +1502,69 @@ static void Mod_FollowLampStyles (lump_t *l)
 				if (out > 0)
 					dist += out*out;
 			}
-			dist = sqrt (dist);
-			if (dist >= bestdist || Mod_SurfaceStyle (surf, styles[j]) < 1)
+			dist = sqrt (dist) / lampdist[j];
+			if (dist > bestscore)
 				continue;
 			out = DotProduct (lamps[j], surf->plane->normal) - surf->plane->dist;
 			if (surf->flags & SURF_PLANEBACK)
 				out = -out;
 			if (out < 0)
 				continue;
-			bestdist = dist;
+			bestscore = dist;
 			best = styles[j];
 			share = MAX_SHARE;
 		}
 
-		// else what lights the faces touching it
+		// else what lights the faces round it
 		if (best < 0)
 		{
 			memset (sum, 0, sizeof(sum));
-			total = 0;
+			memset (roundsum, 0, sizeof(roundsum));
+			total = roundtotal = 0;
 			for (j=0, other = loadmodel->surfaces ; j<loadmodel->numsurfaces ; j++, other++)
 			{
 				if (!other->samples || (other->texinfo->flags & SURF_LIGHT)
 					|| (other->flags & (SURF_DRAWSKY|SURF_DRAWTURB)))
 					continue;
 				for (k=0 ; k<3 ; k++)
-					if (boxes[j].mins[k] > boxes[i].maxs[k] + 2 || boxes[j].maxs[k] < boxes[i].mins[k] - 2)
+					if (boxes[j].mins[k] > boxes[i].maxs[k] + ROUND_DIST
+						|| boxes[j].maxs[k] < boxes[i].mins[k] - ROUND_DIST)
 						break;
 				if (k < 3)
 					continue;
+				for (k=0 ; k<3 ; k++)
+					if (boxes[j].mins[k] > boxes[i].maxs[k] + 2 || boxes[j].maxs[k] < boxes[i].mins[k] - 2)
+						break;
+				touching = k == 3;
 				size = ((other->extents[0]>>4)+1) * ((other->extents[1]>>4)+1);
 				for (n=0 ; n<MAXLIGHTMAPS && other->styles[n] != 255 ; n++)
 					for (k=0 ; k<size ; k++)
 					{
-						sum[other->styles[n]] += other->samples[n*size + k];
-						total += other->samples[n*size + k];
+						if (touching)
+						{
+							sum[other->styles[n]] += other->samples[n*size + k];
+							total += other->samples[n*size + k];
+						}
+						if (other->styles[n] < 32)
+							roundsum[other->styles[n]] += other->samples[n*size + k];
+						roundtotal += other->samples[n*size + k];
 					}
 			}
-			if (total <= 0)
-				continue;
-			for (n=1 ; n<MAXLIGHTMAPS && surf->styles[n] != 255 ; n++)
-				if (sum[surf->styles[n]] / total > share)
+			// touching it, any style
+			for (n=1 ; total > 0 && n<MAX_LIGHTSTYLES ; n++)
+				if (sum[n] / total > share)
 				{
-					share = sum[surf->styles[n]] / total;
-					best = surf->styles[n];
+					share = sum[n] / total;
+					best = n;
 				}
+			// round it, a flickering one
+			if (share < MIN_SHARE)
+				for (n=1 ; roundtotal > 0 && n<32 ; n++)
+					if (roundsum[n] / roundtotal > share)
+					{
+						share = roundsum[n] / roundtotal;
+						best = n;
+					}
 			if (share < MIN_SHARE)
 				continue;
 			if (share > MAX_SHARE)
@@ -1453,8 +1573,16 @@ static void Mod_FollowLampStyles (lump_t *l)
 		else
 			lamped++;
 
-		// that share of its steady light, moved to the style
+		// that share of its steady light, moved to the style, given a part
+		// in it if it has none
 		n = Mod_SurfaceStyle (surf, best);
+		if (n < 0)
+		{
+			n = Mod_AddSurfaceStyle (surf, best);
+			if (n < 0)
+				continue;
+			added++;
+		}
 		size = ((surf->extents[0]>>4)+1) * ((surf->extents[1]>>4)+1);
 		from = surf->samples;
 		to = surf->samples + n*size;
@@ -1480,8 +1608,8 @@ static void Mod_FollowLampStyles (lump_t *l)
 		count++;
 	}
 	free (boxes);
-	ri.Con_Printf (PRINT_DEVELOPER, "%s: %i light fixtures follow their lamps' styles (%i by a lamp in front)\n",
-		loadmodel->name, count, lamped);
+	ri.Con_Printf (PRINT_DEVELOPER, "%s: %i light fixtures follow their lamps' styles (%i by a lamp, %i given the style)\n",
+		loadmodel->name, count, lamped, added);
 }
 
 /*
